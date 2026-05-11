@@ -1,0 +1,2600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PLR, AI 전자책 자동생성 MAKE — 구독자 전용</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet"/>
+
+
+
+<style>
+:root{
+  --bg:#060609;--bg2:#0c0c14;--bg3:#11111e;
+  --glass:rgba(255,255,255,.04);--glass2:rgba(255,255,255,.07);--glass3:rgba(255,255,255,.1);
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
+  --text:#eeeef4;--text2:#7e809a;--text3:#44465a;
+  --p:#6366f1;--p2:#818cf8;--p3:rgba(99,102,241,.15);
+  --gold:#e8b84b;--gold2:rgba(232,184,75,.12);
+  --green:#22c98a;--red:#f05070;--blue:#38b0ff;
+  --grad:linear-gradient(135deg,#6366f1 0%,#a78bfa 100%);
+  --grad-g:linear-gradient(135deg,#e8b84b,#f5d68a);
+  --grad-card:linear-gradient(160deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.01) 100%);
+  --shadow:0 2px 20px rgba(0,0,0,.4);
+  --shadow-lg:0 8px 40px rgba(0,0,0,.5);
+  --glow:0 0 30px rgba(99,102,241,.2);
+  --sidebar:240px;
+  --r:14px;--rlg:20px;--rsm:9px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+button,input,textarea,select{font-family:inherit;cursor:pointer}
+textarea{resize:vertical}
+
+/* ─── PAGE SYSTEM ─── */
+.page{display:none}.page.active{display:block}
+#pg-auth.active{display:flex}
+
+/* ════════════════════════════════
+   LANDING
+════════════════════════════════ */
+#pg-landing{position:relative;z-index:60;overflow-x:hidden}
+#pg-auth{position:relative;z-index:60}
+
+/* NAV */
+.lnav{
+  position:fixed;top:0;left:0;right:0;z-index:300;
+  height:66px;padding:0 40px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(6,6,9,.88);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+}
+.lnav-logo{display:flex;align-items:center;gap:10px}
+.lnav-logo-icon{
+  width:34px;height:34px;border-radius:9px;
+  background:var(--grad);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  box-shadow:0 4px 14px rgba(99,102,241,.45);
+  flex-shrink:0;
+}
+.lnav-logo-text{font-size:13px;font-weight:800;color:var(--text);line-height:1.3;letter-spacing:-.2px}
+.lnav-logo-text em{font-style:normal;color:var(--p2)}
+.lnav-links{display:flex;align-items:center;gap:28px}
+.lnav-link{font-size:13px;color:var(--text2);font-weight:500;transition:color .2s}
+.lnav-link:hover{color:var(--text)}
+.lnav-actions{display:flex;gap:8px}
+.btn-nav-ghost{padding:8px 18px;background:transparent;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-weight:600;color:var(--text2);transition:all .2s}
+.btn-nav-ghost:hover{border-color:rgba(255,255,255,.25);color:var(--text);background:var(--glass)}
+.btn-nav-cta{
+  padding:9px 22px;background:var(--grad);border:none;border-radius:8px;
+  font-size:13px;font-weight:700;color:#fff;
+  box-shadow:0 4px 16px rgba(99,102,241,.4);
+  transition:all .25s;
+}
+.btn-nav-cta:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 8px 24px rgba(99,102,241,.55)}
+
+/* HERO */
+.lhero{
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:120px 24px 80px;text-align:center;
+  position:relative;overflow:hidden;
+}
+.lhero-bg{
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 50% at 30% 40%, rgba(99,102,241,.1) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 70% 60%, rgba(167,139,250,.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 35% at 50% 10%, rgba(232,184,75,.06) 0%, transparent 60%);
+}
+.lhero-grid{
+  position:absolute;inset:0;pointer-events:none;opacity:.3;
+  background-image:linear-gradient(rgba(99,102,241,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(99,102,241,.06) 1px,transparent 1px);
+  background-size:60px 60px;
+  -webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+}
+.lhero-inner{position:relative;z-index:1;max-width:900px}
+.lhero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);
+  padding:8px 20px;border-radius:100px;
+  font-size:12px;color:var(--p2);font-weight:600;
+  margin-bottom:36px;letter-spacing:.2px;
+}
+.lhero-dot{width:6px;height:6px;background:var(--p);border-radius:50%;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.lhero-h1{
+  font-family:'Noto Serif KR',serif;
+  font-size:clamp(38px,6vw,72px);font-weight:900;
+  line-height:1.1;margin-bottom:28px;
+  word-break:keep-all;letter-spacing:-1.5px;
+}
+.lhero-h1 .accent{
+  background:linear-gradient(135deg,#818cf8,#c4b5fd,#fbbf24);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.lhero-sub{
+  font-size:clamp(15px,2.2vw,20px);color:var(--text2);
+  line-height:1.85;max-width:580px;margin:0 auto 52px;
+  word-break:keep-all;font-weight:400;
+}
+.lhero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:24px}
+.btn-hero-primary{
+  padding:17px 48px;background:var(--grad);border:none;border-radius:100px;
+  font-size:16px;font-weight:800;color:#fff;letter-spacing:-.2px;
+  box-shadow:0 8px 30px rgba(99,102,241,.5),inset 0 1px 0 rgba(255,255,255,.15);
+  transition:all .3s;
+}
+.btn-hero-primary:hover{transform:translateY(-3px);box-shadow:0 16px 44px rgba(99,102,241,.65)}
+.btn-hero-outline{
+  padding:16px 44px;background:transparent;
+  border:1.5px solid var(--border2);border-radius:100px;
+  font-size:15px;font-weight:600;color:var(--text2);transition:all .3s;
+}
+.btn-hero-outline:hover{border-color:rgba(255,255,255,.3);color:var(--text);background:var(--glass)}
+.lhero-note{font-size:12px;color:var(--text3);letter-spacing:.2px}
+
+/* HERO STATS */
+.lhero-stats{
+  display:flex;gap:0;justify-content:center;flex-wrap:wrap;
+  margin-top:72px;padding-top:48px;
+  border-top:1px solid var(--border);
+  position:relative;z-index:1;width:100%;max-width:640px;
+}
+.lstat{text-align:center;padding:0 40px;border-right:1px solid var(--border)}
+.lstat:last-child{border-right:none}
+.lstat-num{font-size:clamp(28px,4vw,42px);font-weight:900;letter-spacing:-1px;background:var(--grad-g);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.lstat-label{font-size:12px;color:var(--text2);margin-top:6px;font-weight:500}
+
+/* HOW IT WORKS */
+.lsec{padding:110px 24px}
+.lsec-inner{max-width:1080px;margin:0 auto}
+.lsec-eyebrow{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--p);margin-bottom:16px;text-align:center}
+.lsec-title{font-family:'Noto Serif KR',serif;font-size:clamp(28px,4vw,48px);font-weight:900;text-align:center;margin-bottom:16px;word-break:keep-all;letter-spacing:-.6px;line-height:1.2}
+.lsec-sub{font-size:16px;color:var(--text2);text-align:center;margin-bottom:64px;word-break:keep-all;line-height:1.8}
+
+/* STEPS */
+.lsteps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;position:relative}
+.lstep{
+  background:var(--bg2);padding:44px 36px;position:relative;overflow:hidden;
+  transition:all .35s;border:1px solid var(--border);
+}
+.lstep:first-child{border-radius:var(--rlg) 0 0 var(--rlg)}
+.lstep:last-child{border-radius:0 var(--rlg) var(--rlg) 0}
+.lstep:hover{background:var(--bg3);border-color:rgba(99,102,241,.25);z-index:1;transform:translateY(-6px) scale(1.02);box-shadow:var(--shadow-lg)}
+.lstep-num{
+  position:absolute;top:28px;right:28px;
+  font-size:64px;font-weight:900;
+  color:rgba(99,102,241,.06);line-height:1;
+  font-family:'Noto Serif KR',serif;
+}
+.lstep-icon{
+  width:56px;height:56px;border-radius:16px;
+  background:var(--p3);border:1px solid rgba(99,102,241,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;margin-bottom:22px;
+}
+.lstep-title{font-size:18px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px}
+.lstep-desc{font-size:14px;color:var(--text2);line-height:1.8}
+
+/* FEATURES */
+.lfeat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)}
+.lfeat{
+  background:var(--bg2);padding:36px 28px;
+  transition:all .3s;
+}
+.lfeat:hover{background:var(--bg3)}
+.lfeat-icon{
+  width:48px;height:48px;border-radius:14px;
+  background:var(--grad);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:18px;
+  box-shadow:0 4px 14px rgba(99,102,241,.3);
+}
+.lfeat-title{font-size:15px;font-weight:800;margin-bottom:10px;letter-spacing:-.2px}
+.lfeat-desc{font-size:13px;color:var(--text2);line-height:1.8}
+
+/* PRICING */
+.lprice-wrap{
+  max-width:520px;margin:0 auto;
+  background:var(--grad-card);
+  border:1px solid rgba(99,102,241,.2);
+  border-radius:var(--rlg);padding:48px 44px;
+  text-align:left;position:relative;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(99,102,241,.1),0 40px 80px rgba(0,0,0,.3);
+}
+.lprice-wrap::before{
+  content:'';position:absolute;top:-100px;right:-100px;
+  width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(99,102,241,.1),transparent);
+  pointer-events:none;
+}
+.lprice-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--p3);border:1px solid rgba(99,102,241,.25);
+  padding:6px 16px;border-radius:100px;
+  font-size:11px;font-weight:700;color:var(--p2);
+  letter-spacing:.5px;text-transform:uppercase;margin-bottom:20px;
+}
+.lprice-name{font-size:13px;font-weight:700;color:var(--text2);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.lprice-amount{font-size:clamp(40px,6vw,64px);font-weight:900;letter-spacing:-2px;margin-bottom:8px;line-height:1}
+.lprice-period{font-size:14px;color:var(--text3);margin-bottom:32px}
+.lprice-features{list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:36px}
+.lprice-features li{display:flex;align-items:center;gap:11px;font-size:14px;color:var(--text2)}
+.lprice-features li::before{content:'✓';color:var(--green);font-weight:800;font-size:13px;flex-shrink:0}
+.btn-price{
+  display:block;width:100%;padding:16px;
+  background:var(--grad);border:none;border-radius:12px;
+  font-size:15px;font-weight:800;color:#fff;text-align:center;
+  box-shadow:0 8px 26px rgba(99,102,241,.45),inset 0 1px 0 rgba(255,255,255,.12);
+  transition:all .3s;letter-spacing:-.2px;
+}
+.btn-price:hover{filter:brightness(1.1);transform:translateY(-2px);box-shadow:0 14px 36px rgba(99,102,241,.6)}
+
+/* TESTIMONIALS */
+.ltesti-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.ltcard{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r);padding:30px;transition:all .3s;
+}
+.ltcard:hover{border-color:rgba(99,102,241,.2);transform:translateY(-3px)}
+.lt-stars{font-size:12px;letter-spacing:3px;color:var(--gold);margin-bottom:16px}
+.lt-text{font-size:14px;color:var(--text);line-height:1.9;margin-bottom:20px;word-break:keep-all}
+.lt-profile{display:flex;align-items:center;gap:12px;padding-top:18px;border-top:1px solid var(--border)}
+.lt-av{width:40px;height:40px;border-radius:11px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 3px 10px rgba(99,102,241,.3)}
+.lt-name{font-size:13px;font-weight:700}
+.lt-role{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* CTA */
+.lcta{
+  padding:120px 24px;text-align:center;
+  background:linear-gradient(180deg,var(--bg2),var(--bg));
+  border-top:1px solid var(--border);
+  position:relative;overflow:hidden;
+}
+.lcta::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(99,102,241,.08),transparent);
+  pointer-events:none;
+}
+.lcta-inner{position:relative;z-index:1}
+.lcta-title{font-family:'Noto Serif KR',serif;font-size:clamp(30px,5vw,56px);font-weight:900;margin-bottom:20px;word-break:keep-all;letter-spacing:-.6px;line-height:1.15}
+.lcta-sub{font-size:17px;color:var(--text2);margin-bottom:48px;line-height:1.8}
+
+.lfooter{background:var(--bg);padding:28px 40px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text3);border-top:1px solid var(--border)}
+.lfooter a{color:var(--text2);transition:color .2s}.lfooter a:hover{color:var(--text)}
+
+/* ════════════════════════════════
+   AUTH
+════════════════════════════════ */
+#pg-auth{
+  min-height:100vh;align-items:center;justify-content:center;
+  background:var(--bg);padding:24px;
+  position:relative;overflow:hidden;
+}
+#pg-auth::before{
+  content:'';position:absolute;
+  width:800px;height:800px;border-radius:50%;
+  background:radial-gradient(circle,rgba(99,102,241,.09),transparent 70%);
+  top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;
+}
+.auth-box{
+  background:rgba(12,12,20,.95);
+  border:1px solid var(--border2);border-radius:var(--rlg);
+  padding:52px 48px;width:100%;max-width:440px;
+  position:relative;z-index:1;
+  box-shadow:0 40px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter:blur(24px);
+}
+.auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:40px;justify-content:center}
+.auth-logo-icon{width:40px;height:40px;background:var(--grad);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 16px rgba(99,102,241,.45)}
+.auth-logo-text{font-size:14px;font-weight:800;color:var(--text);letter-spacing:-.2px;line-height:1.3}
+.auth-logo-text em{font-style:normal;color:var(--p2)}
+.auth-tabs{display:flex;gap:0;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:32px}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--text2);border-radius:9px;border:none;background:transparent;transition:all .25s;letter-spacing:-.1px}
+.auth-tab.active{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.35)}
+.auth-title{font-size:22px;font-weight:900;margin-bottom:8px;letter-spacing:-.4px}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:28px;line-height:1.7}
+.auth-form{display:flex;flex-direction:column;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:7px}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.2px}
+.form-input{
+  padding:13px 16px;background:rgba(255,255,255,.05);
+  border:1px solid var(--border);border-radius:11px;
+  font-size:14px;color:var(--text);outline:none;transition:all .2s;
+}
+.form-input:focus{border-color:var(--p);background:rgba(99,102,241,.06);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.form-input::placeholder{color:var(--text3)}
+.btn-auth{
+  padding:14px;background:var(--grad);border:none;border-radius:12px;
+  font-size:15px;font-weight:800;color:#fff;
+  box-shadow:0 6px 22px rgba(99,102,241,.4);
+  transition:all .25s;margin-top:4px;letter-spacing:-.2px;
+}
+.btn-auth:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 10px 30px rgba(99,102,241,.55)}
+.auth-err{background:rgba(240,80,112,.08);border:1px solid rgba(240,80,112,.2);border-radius:9px;padding:10px 14px;font-size:12px;color:#ffb3c1;display:none}
+.auth-back{display:block;text-align:center;font-size:12px;color:var(--text3);margin-top:22px}
+.auth-back a{color:var(--p2)}
+.plan-chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.plan-chip{padding:6px 14px;border-radius:100px;font-size:11px;font-weight:700;border:1.5px solid transparent;transition:all .2s}
+.plan-chip.free{background:var(--glass);color:var(--text2);border-color:var(--border)}.plan-chip.free.sel{border-color:var(--text2);color:var(--text)}
+.plan-chip.starter{background:var(--p3);color:var(--p2);border-color:rgba(99,102,241,.3)}.plan-chip.starter.sel{border-color:var(--p)}
+.plan-chip.pro{background:rgba(167,139,250,.1);color:#c4b5fd;border-color:rgba(167,139,250,.3)}.plan-chip.pro.sel{border-color:#c4b5fd}
+
+/* ════════════════════════════════
+   APP
+════════════════════════════════ */
+.app-layout{display:flex;width:100%;min-height:100vh}
+.app-page{display:none}.app-page.active{display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{
+  width:var(--sidebar);
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;height:100vh;
+  z-index:100;transition:transform .3s;
+}
+.sb-logo{
+  padding:22px 20px 18px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--border);
+  text-decoration:none;
+}
+.sb-logo-icon{
+  width:36px;height:36px;background:var(--grad);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  flex-shrink:0;box-shadow:0 3px 12px rgba(99,102,241,.4);
+}
+.sb-logo-text{font-size:11px;font-weight:800;color:var(--text);line-height:1.4;letter-spacing:-.1px}
+.sb-logo-text em{font-style:normal;color:var(--p2)}
+.sb-nav{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:3px;overflow-y:auto}
+.sb-item{
+  display:flex;align-items:center;gap:11px;
+  padding:11px 14px;border-radius:11px;
+  font-size:13px;font-weight:600;color:var(--text2);
+  border:none;background:transparent;width:100%;text-align:left;
+  transition:all .2s;letter-spacing:-.1px;
+}
+.sb-item:hover{background:var(--glass2);color:var(--text)}
+.sb-item.active{background:rgba(99,102,241,.13);color:var(--p2);border:1px solid rgba(99,102,241,.2)}
+.sb-icon{font-size:16px;flex-shrink:0;opacity:.85}
+.sb-divider{height:1px;background:var(--border);margin:8px 2px}
+.sb-bottom{padding:14px 12px}
+.sb-user{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 13px;background:var(--glass);
+  border:1px solid var(--border);border-radius:12px;
+  transition:all .2s;
+}
+.sb-user:hover{border-color:var(--border2);background:var(--glass2)}
+.sb-av{
+  width:34px;height:34px;border-radius:9px;
+  background:var(--grad);display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;box-shadow:0 2px 8px rgba(99,102,241,.3);
+}
+.sb-user-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.1px;flex:1}
+.sb-user-plan{font-size:10px;color:var(--text3);margin-top:2px}
+.plan-badge{display:inline-block;font-size:9px;font-weight:800;padding:2px 8px;border-radius:100px;letter-spacing:.5px;text-transform:uppercase}
+.plan-free{background:var(--glass2);color:var(--text2)}
+.plan-starter{background:var(--p3);color:var(--p2)}
+.plan-pro{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(236,72,153,.2));color:#e9d5ff}
+
+/* MAIN CONTENT */
+.main-content{margin-left:var(--sidebar);flex:1;min-height:100vh;background:var(--bg)}
+
+/* TOPBAR */
+.topbar{
+  height:60px;background:rgba(6,6,9,.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;position:sticky;top:0;z-index:50;
+}
+.topbar-title{font-size:15px;font-weight:800;letter-spacing:-.3px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-btn{
+  padding:8px 18px;background:var(--grad);border:none;border-radius:9px;
+  font-size:12px;font-weight:700;color:#fff;
+  box-shadow:0 3px 12px rgba(99,102,241,.3);
+  transition:all .2s;letter-spacing:-.1px;
+}
+.topbar-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.menu-btn{
+  width:36px;height:36px;background:var(--glass);border:1px solid var(--border);
+  border-radius:9px;display:none;align-items:center;justify-content:center;font-size:16px;color:var(--text2);
+  transition:all .2s;
+}
+.menu-btn:hover{background:var(--glass2);color:var(--text)}
+
+/* CONTENT */
+.content{padding:32px 32px}
+
+/* CARDS */
+.card{background:var(--grad-card);border:1px solid var(--border);border-radius:var(--r);padding:28px}
+.card-sm{background:var(--grad-card);border:1px solid var(--border);border-radius:var(--rsm);padding:18px 20px}
+
+/* STAT CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:32px}
+.stat-card{
+  background:var(--grad-card);border:1px solid var(--border);
+  border-radius:var(--r);padding:24px;
+  transition:all .3s;position:relative;overflow:hidden;
+}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow)}
+.stat-icon{font-size:28px;margin-bottom:14px;display:block}
+.stat-val{font-size:32px;font-weight:900;line-height:1;letter-spacing:-1px}
+.stat-label{font-size:12px;color:var(--text2);margin-top:6px;font-weight:500}
+.stat-change{font-size:11px;margin-top:10px;font-weight:600}
+.stat-change.up{color:var(--green)}.stat-change.neu{color:var(--text3)}
+
+/* EBOOK CARDS */
+.ebook-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.ebook-card{
+  background:var(--grad-card);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;transition:all .3s;cursor:pointer;
+}
+.ebook-card:hover{border-color:rgba(99,102,241,.3);transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.35)}
+.ebook-cover{height:140px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;position:relative;overflow:hidden}
+.ebook-cover-title{font-family:'Noto Serif KR',serif;font-size:13px;font-weight:700;color:#fff;position:relative;z-index:1;line-height:1.4;word-break:keep-all}
+.ebook-cover-cat{font-size:10px;color:rgba(255,255,255,.5);position:relative;z-index:1;margin-top:6px}
+.ebook-body{padding:14px 16px}
+.ebook-meta{font-size:11px;color:var(--text3);margin-bottom:5px}
+.ebook-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;word-break:keep-all;line-height:1.4}
+.ebook-tags{display:flex;gap:5px;flex-wrap:wrap}
+.ebook-tag{background:var(--p3);border:1px solid rgba(99,102,241,.2);color:var(--p2);font-size:10px;font-weight:600;padding:3px 9px;border-radius:100px}
+.ebook-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.ebook-act-btn{flex:1;padding:7px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--text2);font-weight:600;transition:all .2s}
+.ebook-act-btn:hover{background:var(--p3);border-color:rgba(99,102,241,.3);color:var(--p2)}
+
+/* USAGE BAR */
+.usage-bar-wrap{background:rgba(255,255,255,.05);border-radius:100px;height:5px;overflow:hidden;margin:8px 0}
+.usage-bar{height:100%;border-radius:100px;background:var(--grad);transition:width .6s}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:72px 20px}
+.empty-icon{font-size:56px;margin-bottom:20px;display:block;opacity:.8}
+.empty-title{font-size:20px;font-weight:800;margin-bottom:10px;letter-spacing:-.3px}
+.empty-sub{font-size:14px;color:var(--text2);margin-bottom:28px;line-height:1.75}
+
+/* SEC HEADER */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.sec-head-title{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.sec-head-sub{font-size:12px;color:var(--text2);margin-top:3px}
+.link-btn{font-size:12px;color:var(--p2);font-weight:600;background:none;border:none;transition:color .2s}
+.link-btn:hover{color:var(--text)}
+
+/* UPGRADE BANNER */
+.upgrade-banner{
+  background:linear-gradient(135deg,rgba(99,102,241,.09),rgba(167,139,250,.06));
+  border:1px solid rgba(99,102,241,.18);border-radius:var(--r);
+  padding:20px 26px;display:flex;align-items:center;justify-content:space-between;
+  gap:16px;margin-bottom:24px;flex-wrap:wrap;
+}
+.upgrade-text h4{font-size:15px;font-weight:800;margin-bottom:4px;letter-spacing:-.2px}
+.upgrade-text p{font-size:13px;color:var(--text2);line-height:1.6}
+.btn-upgrade{padding:10px 22px;background:var(--grad);border:none;border-radius:10px;font-size:13px;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.3);transition:all .2s}
+.btn-upgrade:hover{filter:brightness(1.1)}
+
+/* SETTINGS */
+.settings-section{margin-bottom:32px}
+.settings-title{font-size:14px;font-weight:800;margin-bottom:16px;padding-bottom:13px;border-bottom:1px solid var(--border);letter-spacing:-.2px;color:var(--text2);text-transform:uppercase;letter-spacing:1px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.03);gap:16px;flex-wrap:wrap}
+.settings-label{font-size:14px;font-weight:600;letter-spacing:-.1px}
+.settings-desc{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.6}
+.settings-input{flex:1;min-width:200px;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);outline:none;transition:all .2s}
+.settings-input:focus{border-color:var(--p);background:rgba(99,102,241,.05);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.btn-save{padding:10px 22px;background:var(--grad);border:none;border-radius:9px;font-size:13px;font-weight:700;color:#fff;box-shadow:0 3px 12px rgba(99,102,241,.25);transition:all .2s}
+.btn-save:hover{filter:brightness(1.1)}
+.btn-danger{padding:10px 22px;background:rgba(240,80,112,.08);border:1px solid rgba(240,80,112,.2);border-radius:9px;font-size:13px;font-weight:700;color:#ffb3c1;transition:all .2s}
+.btn-danger:hover{background:rgba(240,80,112,.15)}
+.toggle{width:44px;height:24px;background:rgba(255,255,255,.1);border-radius:100px;position:relative;border:none;flex-shrink:0;transition:background .25s}
+.toggle.on{background:var(--p)}
+.toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.toggle.on::after{transform:translateX(20px)}
+
+/* CONVERTER */
+.converter-wrap{max-width:800px}
+.cv-apikey-warn{display:none;background:rgba(240,80,112,.08);border:1px solid rgba(240,80,112,.2);border-radius:var(--rsm);padding:14px 18px;margin-bottom:14px;font-size:13px;color:#ffb3c1;line-height:1.7}
+.cv-limit-warn{background:rgba(232,184,75,.07);border:1px solid rgba(232,184,75,.18);border-radius:var(--rsm);padding:12px 16px;font-size:13px;color:var(--gold);margin-bottom:16px;display:none}
+.input-mode-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(34,201,138,.08);border:1px solid rgba(34,201,138,.18);color:var(--green);font-size:11px;font-weight:700;padding:5px 14px;border-radius:100px;margin-bottom:16px}
+.input-tabs{display:flex;gap:0;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:22px}
+.input-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--text2);border-radius:9px;border:none;background:transparent;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.1px}
+.input-tab.active{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.3)}
+.input-panel{display:none}.input-panel.active{display:block}
+.cv-upload-area{
+  border:2px dashed rgba(99,102,241,.28);border-radius:var(--r);
+  background:rgba(99,102,241,.03);padding:56px 28px;text-align:center;
+  transition:all .3s;margin-bottom:20px;position:relative;overflow:hidden;
+}
+.cv-upload-area::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,rgba(99,102,241,.04),transparent);opacity:0;transition:opacity .3s;pointer-events:none}
+.cv-upload-area:hover,.cv-upload-area.drag{border-color:var(--p);background:rgba(99,102,241,.07)}
+.cv-upload-area:hover::before,.cv-upload-area.drag::before{opacity:1}
+.cv-upload-area.has-file{border-color:var(--p2);background:rgba(99,102,241,.07)}
+.cv-upload-icon{font-size:52px;margin-bottom:16px;display:block}
+.cv-upload-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:-.2px}
+.cv-upload-sub{font-size:13px;color:var(--text2);line-height:1.7}
+.cv-file-chip{display:inline-flex;align-items:center;gap:8px;background:var(--p3);border:1px solid rgba(99,102,241,.3);padding:9px 18px;border-radius:10px;font-size:13px;color:var(--p2);margin-top:12px;max-width:100%;word-break:break-all}
+.cv-file-types{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.cv-ftype{background:var(--glass);border:1px solid var(--border);color:var(--text2);font-size:11px;padding:4px 11px;border-radius:100px}
+.cv-topic-wrap{display:flex;flex-direction:column;gap:14px}
+.cv-topic-row{display:flex;flex-direction:column;gap:7px}
+.cv-topic-label{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.2px}
+.cv-topic-input{width:100%;padding:13px 16px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:11px;font-size:14px;color:var(--text);outline:none;transition:all .2s}
+.cv-topic-input:focus{border-color:var(--p);background:rgba(99,102,241,.05);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.cv-topic-input::placeholder{color:var(--text3)}
+.cv-topic-textarea{resize:vertical;min-height:110px;line-height:1.7}
+.cv-url-input{width:100%;padding:13px 16px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:11px;font-size:14px;color:var(--text);outline:none;transition:all .2s}
+.cv-url-input:focus{border-color:var(--p);background:rgba(99,102,241,.05);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.cv-url-input::placeholder{color:var(--text3)}
+.url-fetch-btn{padding:13px 18px;background:var(--p3);border:1px solid rgba(99,102,241,.3);border-radius:11px;font-size:13px;font-weight:700;color:var(--p2);transition:all .2s;white-space:nowrap}
+.url-fetch-btn:hover{background:rgba(99,102,241,.25)}.url-fetch-btn:disabled{opacity:.4;cursor:not-allowed}
+.url-preview{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--text2);line-height:1.7;display:none;margin-top:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap}
+.url-preview.show{display:block}
+.topic-examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.topic-ex{background:var(--p3);border:1px solid rgba(99,102,241,.2);color:var(--p2);font-size:11px;font-weight:600;padding:5px 13px;border-radius:100px;transition:all .2s}
+.topic-ex:hover{background:rgba(99,102,241,.22)}
+.cv-gen-btn{
+  width:auto;max-width:400px;padding:17px 48px;background:var(--grad);border:none;border-radius:100px;
+  font-size:16px;font-weight:800;color:#fff;letter-spacing:-.2px;
+  box-shadow:0 8px 28px rgba(99,102,241,.45),inset 0 1px 0 rgba(255,255,255,.12);
+  transition:all .3s;display:block;margin:0 auto;
+}
+.cv-gen-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 40px rgba(99,102,241,.6)}
+.cv-gen-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* PROCESS */
+.cv-process{text-align:center;padding:68px 20px}
+.cv-psteps{display:flex;flex-direction:column;gap:8px;max-width:380px;margin:24px auto 0}
+.cv-pstep{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--grad-card);border:1px solid var(--border);border-radius:11px;font-size:13px;color:var(--text2);transition:all .4s;letter-spacing:-.1px}
+.cv-pstep.active{color:var(--p2);border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.08)}
+.cv-pstep.done{color:var(--green);border-color:rgba(34,201,138,.2);background:rgba(34,201,138,.05)}
+
+/* RESULT ACTIONS */
+.result-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.r-btn{padding:9px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;transition:all .2s;letter-spacing:-.1px}
+.r-btn-p{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.3)}
+.r-btn-w{background:linear-gradient(135deg,#2563eb,#38b0ff);color:#fff;box-shadow:0 4px 14px rgba(59,130,246,.25)}
+.r-btn-s{background:linear-gradient(135deg,#dc2626,#f05070);color:#fff;box-shadow:0 4px 14px rgba(240,80,112,.25)}
+.r-btn-e{background:var(--gold2);border:1px solid rgba(232,184,75,.2);color:var(--gold)}
+.r-btn-g{background:var(--glass);border:1px solid var(--border);color:var(--text2)}
+.r-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+
+/* EBOOK PREVIEW WRAP */
+.ebook-preview-wrap{background:linear-gradient(160deg,#1a1a2e,#0f0f1a);border-radius:var(--r);overflow:hidden;padding:16px;border:1px solid var(--border)}
+
+/* PROMPT BOX */
+.prompt-box{background:rgba(34,201,138,.05);border-left:3px solid var(--green);border-radius:0 11px 11px 0;padding:16px 20px;margin:18px 0}
+.prompt-box-title{font-size:11px;font-weight:700;color:var(--green);letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px}
+.prompt-item{background:rgba(255,255,255,.03);border:1px solid rgba(34,201,138,.12);border-radius:9px;padding:12px 14px;margin-bottom:10px;position:relative}
+.prompt-label{font-size:11px;font-weight:700;color:var(--green);opacity:.8;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.prompt-text{font-size:12px;color:rgba(240,255,248,.75);line-height:1.85;white-space:pre-wrap;word-break:keep-all;font-family:monospace;background:rgba(0,0,0,.2);padding:10px 12px;border-radius:7px;border:1px solid rgba(34,201,138,.1)}
+.prompt-copy-btn{position:absolute;top:10px;right:10px;background:rgba(34,201,138,.12);color:var(--green);border:1px solid rgba(34,201,138,.2);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;transition:all .2s}
+.prompt-copy-btn:hover{background:rgba(34,201,138,.22)}.prompt-copy-btn.copied{background:var(--p3);color:var(--p2)}
+
+/* EDITOR TOOLBAR */
+#cv-editor-toolbar,#cv-sp-toolbar{display:none;flex-wrap:wrap;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:14px;align-items:center}
+[contenteditable]:focus{outline:2px solid rgba(99,102,241,.5)!important;outline-offset:2px;border-radius:4px}
+
+/* SIDEBAR OVERLAY */
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99;backdrop-filter:blur(4px)}
+.sb-overlay.show{display:block}
+
+/* MISC */
+.cv-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.cv-option{background:var(--grad-card);border:1px solid var(--border);border-radius:var(--rsm);padding:14px;display:flex;align-items:center;gap:12px;transition:all .2s}
+.cv-option:hover{border-color:var(--border2)}
+.cv-option-icon{font-size:24px;flex-shrink:0}
+.cv-option-title{font-size:13px;font-weight:700;letter-spacing:-.1px}
+.cv-option-desc{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* ─── EBOOK PAGE CSS ─── */
+.pg{background:#fff;color:#1a1a2e;border-radius:7px;overflow:hidden;box-shadow:0 4px 22px rgba(0,0,0,.25);position:relative;margin-bottom:4px}
+.cvr{min-height:620px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:linear-gradient(160deg,#1a1a2e 0%,#16213e 40%,#0f3460 100%);padding:48px 36px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ccirc{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.14),transparent)}
+.ccat{background:rgba(99,102,241,.22);border:1px solid rgba(99,102,241,.5);padding:5px 16px;border-radius:100px;font-size:11px;color:#a5b4fc;font-weight:700;letter-spacing:1px;margin-bottom:24px;position:relative}
+.ctit{font-family:'Noto Serif KR',serif;font-size:clamp(22px,4vw,38px);font-weight:700;color:#fff;line-height:1.3;margin-bottom:14px;position:relative}
+.csub{font-size:14px;color:rgba(255,255,255,.55);line-height:1.8;max-width:440px;margin-bottom:28px;position:relative}
+.cdiv{width:48px;height:3px;background:linear-gradient(90deg,#6366f1,#a5b4fc);margin:0 auto 22px;border-radius:2px;position:relative}
+.caut{font-size:13px;color:rgba(255,255,255,.45);position:relative}.caut strong{color:rgba(255,255,255,.82)}
+.cyr{position:absolute;bottom:20px;right:28px;font-size:11px;color:rgba(255,255,255,.18)}
+.cpg{background:#fafaf9;padding:40px;display:flex;flex-direction:column;justify-content:flex-end;min-height:240px}
+.cinn{border-top:1px solid #e2e8f0;padding-top:16px}
+.clbl{font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.ctxt{font-size:11px;color:#94a3b8;line-height:1.9}.ctxt p{margin-bottom:6px}.ctxt strong{color:#64748b}
+.inn{padding:40px}
+.ey{font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.sh{font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:22px;line-height:1.3}
+.ti{display:flex;align-items:baseline;gap:9px;padding:14px 0;border-bottom:1px solid #f1f5f9}
+.tn{font-size:12px;color:#6366f1;font-weight:700;min-width:50px}
+.tt{font-size:15px;color:#1a1a2e;font-weight:500;flex:1;line-height:1.4}
+.cb{display:inline-flex;align-items:center;gap:7px;margin-bottom:14px}
+.cp{background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;font-size:10px;font-weight:800;padding:3px 11px;border-radius:100px;letter-spacing:.8px}
+.cl{font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.8px;text-transform:uppercase}
+.cht{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:#1a1a2e;line-height:1.4;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f1f5f9}
+.chb{font-size:14px;color:#374151;line-height:2.1;white-space:pre-wrap;word-break:keep-all;margin-bottom:20px}
+.kpb{background:linear-gradient(135deg,#f0f4ff,#f5f0ff);border-left:4px solid #6366f1;border-radius:0 10px 10px 0;padding:16px 20px;margin:18px 0}
+.kpb h4{font-size:11px;font-weight:700;color:#6366f1;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px}
+.kpi{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:#334155;line-height:1.6;margin-bottom:7px}
+.kpd{width:5px;height:5px;background:#6366f1;border-radius:50%;margin-top:8px;flex-shrink:0}
+.acb{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-top:14px}
+.acb h4{font-size:11px;font-weight:700;color:#15803d;margin-bottom:9px}
+.aci{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:#166534;margin-bottom:6px}
+.concl{margin-top:28px;padding:20px;text-align:center;background:linear-gradient(135deg,#f0f4ff,#f5f0ff);border-radius:12px}
+.concl p{font-size:14px;font-weight:700;color:#4338ca}.concl small{font-size:12px;color:#6366f1;margin-top:5px;display:block}
+.apg{padding:40px;background:linear-gradient(160deg,#1a1a2e,#16213e);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ah{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:#fff;margin-bottom:20px}
+.ac{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:26px;display:flex;gap:18px}
+.aa{width:64px;height:64px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#6366f1,#a5b4fc);display:flex;align-items:center;justify-content:center;font-size:28px}
+.an{font-size:17px;color:#fff;font-weight:700;margin-bottom:3px}.ar{font-size:10px;color:#6366f1;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px}.ab{font-size:13px;color:rgba(255,255,255,.58);line-height:1.8}
+.bkpg{padding:36px;text-align:center;background:linear-gradient(160deg,#0f0f1a,#07070f);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bkpg h3{font-family:'Noto Serif KR',serif;font-size:17px;color:#fff}.bkpg p{font-size:12px;color:rgba(255,255,255,.38);line-height:1.7;max-width:360px}
+.bkc{font-size:10px;color:rgba(255,255,255,.16);letter-spacing:1.3px;border-top:1px solid rgba(255,255,255,.07);padding-top:14px;width:100%;text-align:center}
+.prompt-box{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-left:4px solid #16a34a;border-radius:0 10px 10px 0;padding:16px 20px;margin:18px 0}
+.prompt-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.prompt-box-title{font-size:11px;font-weight:700;color:#16a34a;letter-spacing:.8px;text-transform:uppercase}
+
+/* MOBILE */
+
+/* ════════════════════════════════
+   PC 최적화 (1200px+)
+════════════════════════════════ */
+@media(min-width:1200px){
+  .lhero-h1{font-size:72px}
+  .lsec-inner{max-width:1160px}
+  .lsteps{grid-template-columns:repeat(3,1fr)}
+  .lfeat-grid{grid-template-columns:repeat(4,1fr)}
+  .ltesti-grid{grid-template-columns:repeat(3,1fr)}
+  .stat-grid{grid-template-columns:repeat(4,1fr)}
+  .ebook-grid{grid-template-columns:repeat(3,1fr)}
+}
+
+/* ════════════════════════════════
+   태블릿 (769px ~ 1199px)
+════════════════════════════════ */
+@media(min-width:769px) and (max-width:1199px){
+  :root{--sidebar:200px}
+  .lhero-h1{font-size:52px}
+  .lsteps{grid-template-columns:repeat(3,1fr)}
+  .lfeat-grid{grid-template-columns:repeat(2,1fr)}
+  .ltesti-grid{grid-template-columns:repeat(2,1fr)}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .ebook-grid{grid-template-columns:repeat(2,1fr)}
+  .content{padding:24px 22px}
+  .lsec{padding:80px 32px}
+}
+
+/* ════════════════════════════════
+   모바일 (최대 768px)
+════════════════════════════════ */
+@media(max-width:768px){
+  /* 사이드바 */
+  :root{--sidebar:0px}
+  .menu-btn{display:flex !important}
+  .sidebar{
+    transform:translateX(-100%);
+    width:260px;
+    z-index:200;
+    box-shadow:4px 0 24px rgba(0,0,0,.5);
+  }
+  .sidebar.open{transform:translateX(0)}
+  .main-content{margin-left:0 !important}
+  .topbar{padding:0 16px}
+
+  /* 컨텐츠 */
+  .content{padding:16px 16px}
+  .stat-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .ebook-grid{grid-template-columns:1fr}
+  .stat-val{font-size:26px}
+
+  /* 랜딩 NAV */
+  .lnav{padding:0 18px;height:60px}
+  .lnav-links{display:none}
+  .lnav-actions .btn-nav-ghost{display:none}
+  .lnav-logo-text{font-size:12px}
+
+  /* 히어로 */
+  .lhero{padding:90px 20px 60px;min-height:auto}
+  .lhero-h1{font-size:clamp(30px,8vw,44px);letter-spacing:-.5px}
+  .lhero-sub{font-size:14px;margin-bottom:36px}
+  .lhero-eyebrow{font-size:11px;padding:6px 14px;margin-bottom:24px}
+  .lhero-cta{flex-direction:column;align-items:center;gap:10px}
+  .btn-hero-primary{width:100%;max-width:320px;padding:16px 32px;font-size:15px}
+  .btn-hero-outline{width:100%;max-width:320px;padding:14px 28px;font-size:14px}
+  .lhero-stats{flex-direction:row;flex-wrap:wrap;padding:24px 0;gap:0;margin-top:48px}
+  .lstat{padding:12px 18px;flex:1;min-width:100px;border-right:1px solid var(--border)}
+  .lstat:last-child{border-right:none}
+  .lstat-num{font-size:24px}
+  .lstat-label{font-size:10px}
+
+  /* 섹션 */
+  .lsec{padding:56px 18px}
+  .lsec-h2{font-size:clamp(22px,6vw,32px)}
+  .lsec-sub{font-size:14px;margin-bottom:36px}
+  .lsec-eyebrow{font-size:10px}
+
+  /* 스텝 */
+  .lsteps{grid-template-columns:1fr;gap:8px}
+  .lstep{padding:28px 22px;border-radius:var(--r) !important}
+  .lstep-icon{width:44px;height:44px;font-size:20px}
+  .lstep-title{font-size:16px}
+  .lstep-num{font-size:48px;top:16px;right:16px}
+
+  /* 피처 */
+  .lfeat-grid{grid-template-columns:1fr 1fr;gap:0}
+  .lfeat{padding:22px 18px}
+  .lfeat-icon{width:40px;height:40px;font-size:18px;margin-bottom:12px}
+  .lfeat-title{font-size:13px}
+  .lfeat-desc{font-size:12px}
+
+  /* 요금제 */
+  .lsec-inner>div[style*="grid-template-columns:1fr 1fr"]{
+    grid-template-columns:1fr !important;
+    max-width:100% !important;
+  }
+
+  /* 후기 */
+  .ltesti-grid{grid-template-columns:1fr;gap:12px}
+  .ltcard{padding:22px 18px}
+  .lt-text{font-size:13px}
+
+  /* CTA */
+  .lcta{padding:72px 20px}
+  .lcta-title{font-size:clamp(24px,6vw,36px)}
+  .lcta-sub{font-size:14px}
+
+  /* 풋터 */
+  .lfooter{flex-direction:column;gap:10px;text-align:center;padding:20px 18px}
+
+  /* 컨버터 */
+  .converter-wrap{max-width:100%}
+  .input-tabs{gap:0}
+  .input-tab{font-size:12px;padding:9px 6px}
+  .cv-gen-btn{font-size:14px !important;padding:14px 28px !important}
+  .result-actions{gap:6px}
+  .r-btn{padding:8px 12px;font-size:12px;gap:5px}
+
+  /* 카드 */
+  .card{padding:18px}
+  .upgrade-banner{flex-direction:column;align-items:flex-start}
+
+  /* 설정 */
+  .settings-row{flex-direction:column;align-items:flex-start;gap:10px}
+  .settings-input{min-width:0;width:100%}
+
+  /* 인증 */
+  .auth-box{padding:32px 22px;border-radius:var(--r)}
+  .auth-title{font-size:19px}
+}
+
+/* ════════════════════════════════
+   소형 모바일 (최대 380px)
+════════════════════════════════ */
+@media(max-width:380px){
+  .lhero-h1{font-size:28px}
+  .lhero-stats{flex-direction:column}
+  .lstat{border-right:none;border-bottom:1px solid var(--border);padding:10px 0}
+  .lstat:last-child{border-bottom:none}
+  .lfeat-grid{grid-template-columns:1fr}
+  .input-tab{font-size:11px;padding:8px 4px}
+  .r-btn{padding:7px 10px;font-size:11px}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .ebook-grid{grid-template-columns:1fr}
+  .content{padding:14px 12px}
+}
+</style>
+<div id="pg-landing" class="page active">
+  <!-- 구독자용은 랜딩 없이 바로 로그인으로 이동 -->
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden;">
+    <div style="position:absolute;width:800px;height:800px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.09),transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none"></div>
+    <div style="text-align:center;position:relative;z-index:1;padding:24px;">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:40px;">
+        <div style="width:44px;height:44px;background:var(--grad);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 18px rgba(99,102,241,.45)">📘</div>
+        <div style="text-align:left;">
+          <div style="font-size:14px;font-weight:800;color:var(--text);line-height:1.3">PLR, AI 전자책</div>
+          <div style="font-size:14px;font-weight:800;color:var(--p2);line-height:1.3">자동생성 MAKE</div>
+        </div>
+      </div>
+      <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);padding:8px 20px;border-radius:100px;font-size:12px;color:var(--p2);font-weight:600;margin-bottom:32px;letter-spacing:.3px">
+        🔓 구독자 전용 서비스
+      </div>
+      <h1 style="font-family:'Noto Serif KR',serif;font-size:clamp(32px,5vw,56px);font-weight:900;line-height:1.15;margin-bottom:20px;word-break:keep-all;letter-spacing:-1px;">
+        구독자 전용<br><span style="background:linear-gradient(135deg,#818cf8,#c4b5fd,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">무제한 전자책 생성</span>
+      </h1>
+      <p style="font-size:16px;color:var(--text2);line-height:1.85;max-width:480px;margin:0 auto 44px;word-break:keep-all">
+        전자책 · 상세페이지 · PDF · Word 저장<br>모든 기능을 횟수 제한 없이 이용하세요.
+      </p>
+      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
+        <button onclick="showPage('auth','login')" style="padding:16px 48px;background:var(--grad);border:none;border-radius:100px;font-size:16px;font-weight:800;color:#fff;box-shadow:0 8px 30px rgba(99,102,241,.5);transition:all .3s;cursor:pointer;font-family:inherit">🔓 로그인하기</button>
+        <button onclick="showPage('auth','signup')" style="padding:15px 40px;background:transparent;border:1.5px solid var(--border2);border-radius:100px;font-size:15px;font-weight:600;color:var(--text2);transition:all .3s;cursor:pointer;font-family:inherit">처음이신가요? 가입하기</button>
+      </div>
+      <p style="font-size:12px;color:var(--text3)">구독자 전용 주소 · 외부 공유 금지</p>
+      <div style="display:flex;gap:0;justify-content:center;flex-wrap:wrap;padding:32px 24px;border-top:1px solid var(--border);margin-top:48px;max-width:560px;margin-left:auto;margin-right:auto;">
+        <div style="text-align:center;padding:0 36px;border-right:1px solid var(--border)">
+          <div style="font-size:clamp(24px,4vw,38px);font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#e8b84b,#f5d68a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">무제한</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:6px;font-weight:500">전자책 생성</div>
+        </div>
+        <div style="text-align:center;padding:0 36px;border-right:1px solid var(--border)">
+          <div style="font-size:clamp(24px,4vw,38px);font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#e8b84b,#f5d68a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">3가지</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:6px;font-weight:500">입력 방식</div>
+        </div>
+        <div style="text-align:center;padding:0 36px">
+          <div style="font-size:clamp(24px,4vw,38px);font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#e8b84b,#f5d68a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">₩29,000</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:6px;font-weight:500">월 정기구독</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="pg-auth" class="page">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">📘</div>
+      <div class="auth-logo-text">PLR, AI 전자책<br><em>자동생성 MAKE</em></div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">로그인</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">회원가입</button>
+    </div>
+    <div id="form-login">
+      <div class="auth-title">다시 오셨군요 👋</div>
+      <div class="auth-sub">계정에 로그인하세요<br><span style="font-size:12px;color:var(--text3)">처음이라면 이메일+비밀번호 입력 시 자동 가입됩니다</span></div>
+      <div class="auth-err" id="login-err"></div>
+      <div class="auth-form">
+        <div class="form-group"><label class="form-label">이메일</label><input id="l-email" class="form-input" type="email" placeholder="your@email.com"/></div>
+        <div class="form-group"><label class="form-label">비밀번호</label><input id="l-pw" class="form-input" type="password" placeholder="비밀번호 입력"/></div>
+        <button class="btn-auth" onclick="doLogin()">로그인 →</button>
+      </div>
+    </div>
+    <div id="form-signup" style="display:none">
+      <div class="auth-title">시작해봐요 🚀</div>
+      <div class="auth-sub">무료로 가입하고 첫 전자책을 만들어보세요</div>
+      <div class="auth-err" id="signup-err"></div>
+      <div class="auth-form">
+        <div class="form-group"><label class="form-label">이름</label><input id="s-name" class="form-input" type="text" placeholder="홍길동"/></div>
+        <div class="form-group"><label class="form-label">이메일</label><input id="s-email" class="form-input" type="email" placeholder="your@email.com"/></div>
+        <div class="form-group"><label class="form-label">비밀번호</label><input id="s-pw" class="form-input" type="password" placeholder="8자 이상"/></div>
+        <div style="background:rgba(34,201,138,.07);border:1px solid rgba(34,201,138,.18);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">🎁 무료 체험 — 방식별 1회씩 생성 가능</div>
+        <button class="btn-auth" onclick="doSignup()">가입하기 →</button>
+      </div>
+    </div>
+    <a class="auth-back" href="#" onclick="showPage('auth','login');return false;">← 로그인으로 돌아가기</a>
+  </div>
+</div>
+
+<div id="pg-app" class="page">
+  <div class="sb-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-icon">📘</div>
+      <div class="sb-logo-text" style="font-size:11px;line-height:1.35">PLR,AI 전자책<br>자동생성 MAKE</div>
+    </div>
+    <nav class="sb-nav">
+      <button class="sb-item active" id="sb-dashboard" onclick="showApp('dashboard')"><span class="sb-icon">🏠</span>대시보드</button>
+      <button class="sb-item" id="sb-converter" onclick="showApp('converter')"><span class="sb-icon">⚡</span>전자책 생성</button>
+      <button class="sb-item" id="sb-history" onclick="showApp('history')"><span class="sb-icon">📚</span>내 전자책</button>
+      <div class="sb-divider"></div>
+      <button class="sb-item" id="sb-settings" onclick="showApp('settings')"><span class="sb-icon">⚙️</span>설정</button>
+    </nav>
+    <div class="sb-bottom">
+      <div class="sb-user">
+        <div class="sb-av">👤</div>
+        <div style="overflow:hidden;flex:1">
+          <div class="sb-user-name" id="sb-uname">사용자</div>
+          <div class="sb-user-plan"><span class="plan-badge plan-free" id="sb-uplan">FREE</span></div>
+        </div>
+        <button style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--text3)" onclick="doLogout()" title="로그아웃">↩</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="menu-btn" id="menu-btn" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-title" id="topbar-title">대시보드</div>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-btn" onclick="showApp('converter')">+ 새 전자책</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="app-dashboard" class="content">
+      <div id="upgrade-banner-wrap"></div>
+      <div class="stat-grid" id="stat-grid"></div>
+      <div class="sec-head">
+        <div><div class="sec-head-title">최근 생성한 전자책</div><div class="sec-head-sub" id="dash-ebook-count"></div></div>
+        <button class="link-btn" onclick="showApp('history')">전체 보기 →</button>
+      </div>
+      <div id="dash-ebooks"></div>
+    </div>
+
+    <!-- CONVERTER -->
+    <div id="app-converter" class="content" style="display:none">
+      <div class="converter-wrap">
+        <div id="cv-apikey-warn" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px 18px;margin-bottom:14px;font-size:13px;color:#fca5a5;line-height:1.7">
+          <strong>⚠️ API 키가 설정되지 않았습니다</strong><br>
+          전자책을 생성하려면 Anthropic API 키가 필요합니다.<br>
+          <span style="color:#f87171;cursor:pointer;font-weight:700;text-decoration:underline" onclick="showApp('settings')">→ 설정 메뉴에서 API 키 입력하기</span>
+          &nbsp;|&nbsp;
+          <a href="https://console.anthropic.com/" target="_blank" style="color:#f87171;font-weight:700">발급받기 (무료) →</a>
+        </div>
+        <div id="cv-limit-warn" class="cv-limit-warn"></div>
+        <!-- UPLOAD STATE -->
+        <div id="cv-upload-state">
+          <div class="input-mode-badge">✨ 3가지 방식으로 전자책 생성</div>
+
+          <!-- 탭 -->
+          <div class="input-tabs">
+            <button class="input-tab active" onclick="switchInputTab('file')">📄 파일</button>
+            <button class="input-tab" onclick="switchInputTab('topic')">💡 주제</button>
+            <button class="input-tab" onclick="switchInputTab('url')">🔗 URL</button>
+          </div>
+
+          <!-- 파일 업로드 -->
+          <div class="input-panel active" id="panel-file">
+            <div class="cv-file-types">
+              <span class="cv-ftype">📄 PDF</span>
+              <span class="cv-ftype">📝 Word(.docx)</span>
+            </div>
+            <div class="cv-upload-area" id="cv-dz">
+              <input type="file" id="cv-fi" accept=".pdf,.docx,.doc" style="display:none"/>
+              <div class="cv-upload-icon" id="cv-uico">📂</div>
+              <div class="cv-upload-title" id="cv-utit">파일을 드래그하거나 클릭하세요</div>
+              <div class="cv-upload-sub" id="cv-usub">PDF · Word(.docx) 지원 · PLR 문서 권장</div>
+              <div class="cv-file-chip" id="cv-chip" style="display:none"></div>
+            </div>
+          </div>
+
+          <!-- 주제 입력 -->
+          <div class="input-panel" id="panel-topic">
+            <div class="cv-topic-wrap">
+              <div class="cv-topic-row">
+                <label class="cv-topic-label">📌 전자책 주제 / 키워드</label>
+                <input id="topic-main" class="cv-topic-input" type="text" placeholder="예: 직장인 부업, 블로그 수익화, 주식 투자 입문, SNS 마케팅"/>
+                <div class="topic-examples">
+                  <span class="topic-ex" onclick="setTopic('직장인 월급 외 수입 만들기')">💰 직장인 부업</span>
+                  <span class="topic-ex" onclick="setTopic('블로그 & 유튜브 수익화 전략')">📹 콘텐츠 수익화</span>
+                  <span class="topic-ex" onclick="setTopic('AI 도구 활용 업무 자동화')">🤖 AI 자동화</span>
+                  <span class="topic-ex" onclick="setTopic('퇴직 후 제2의 인생 설계')">🌱 인생 2막</span>
+                  <span class="topic-ex" onclick="setTopic('30대 재테크 & 투자 기초')">📈 재테크</span>
+                  <span class="topic-ex" onclick="setTopic('크몽·탈잉 프리랜서 성공 전략')">🏆 프리랜서</span>
+                </div>
+              </div>
+              <div class="cv-topic-row">
+                <label class="cv-topic-label">🎯 대상 독자 (선택)</label>
+                <input id="topic-target" class="cv-topic-input" type="text" placeholder="예: 월급이 부족한 30대 직장인, 퇴직을 앞둔 50대, 창업을 고민하는 직장인"/>
+              </div>
+              <div class="cv-topic-row">
+                <label class="cv-topic-label">📋 추가 정보 · 요구사항 (선택)</label>
+                <textarea id="topic-extra" class="cv-topic-input cv-topic-textarea" placeholder="포함시키고 싶은 내용, 특별히 강조할 포인트, 참고할 사례 등을 자유롭게 입력하세요.&#10;예: 쿠팡 파트너스 중심으로, 초보자도 쉽게 따라할 수 있게, 실제 수익 인증 사례 포함"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- URL 입력 -->
+          <div class="input-panel" id="panel-url">
+            <div class="cv-topic-wrap">
+              <div class="cv-topic-row">
+                <label class="cv-topic-label">🔗 참고할 URL 주소</label>
+                <div style="display:flex;gap:8px">
+                  <input id="url-input" class="cv-url-input" type="url" placeholder="https://blog.naver.com/... 또는 https://example.com/article"/>
+                  <button class="url-fetch-btn" id="url-fetch-btn" onclick="fetchUrl()">📥 불러오기</button>
+                </div>
+                <div style="font-size:11px;color:var(--text3);margin-top:6px">블로그 글, 뉴스 기사, 상품 페이지, 위키피디아 등 모든 URL 가능</div>
+                <div id="url-preview" class="url-preview"></div>
+              </div>
+              <div class="cv-topic-row">
+                <label class="cv-topic-label">📌 전자책 방향 (선택)</label>
+                <input id="url-direction" class="cv-topic-input" type="text" placeholder="예: 이 글을 바탕으로 실전 가이드북 형식으로, 초보자용 입문서로"/>
+              </div>
+              <div class="cv-topic-row">
+                <label class="cv-topic-label">+ 추가 URL (선택, 여러 개 가능)</label>
+                <textarea id="url-extra" class="cv-topic-input cv-topic-textarea" style="min-height:80px" placeholder="추가 참고 URL을 한 줄에 하나씩 입력&#10;https://...&#10;https://..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- 텍스트 직접 입력 -->
+          </div>
+          </div>
+          <div style="text-align:center"><button class="cv-gen-btn" id="cv-genbtn" disabled onclick="startGenerate()" style="width:auto;max-width:380px;padding:16px 40px;border-radius:100px;display:inline-block">🚀 전자책 + 상세페이지 생성하기</button></div>
+        </div>
+        <!-- PROCESS STATE -->
+        <div id="cv-process-state" class="cv-process" style="display:none">
+          <!-- 진행률 원형 -->
+          <div style="position:relative;width:130px;height:130px;margin:0 auto 24px">
+            <svg width="130" height="130" style="transform:rotate(-90deg)">
+              <circle cx="65" cy="65" r="56" fill="none" stroke="rgba(99,102,241,.15)" stroke-width="10"/>
+              <circle id="cv-progress-ring" cx="65" cy="65" r="56" fill="none" stroke="url(#grad)" stroke-width="10"
+                stroke-linecap="round" stroke-dasharray="352" stroke-dashoffset="352"
+                style="transition:stroke-dashoffset .6s ease"/>
+              <defs>
+                <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:#6366f1"/>
+                  <stop offset="100%" style="stop-color:#a855f7"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div id="cv-progress-pct" style="font-size:26px;font-weight:900;color:#fff;line-height:1">0%</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:3px">완성중</div>
+            </div>
+          </div>
+          <!-- 제목 -->
+          <div style="font-size:18px;font-weight:900;margin-bottom:4px;color:#fff">AI가 전자책을 만들고 있습니다</div>
+          <div style="font-size:13px;color:#94a3b8;margin-bottom:20px">분량이 많아 1~3분 소요될 수 있습니다</div>
+          <!-- 진행바 -->
+          <div style="max-width:400px;margin:0 auto 20px;width:100%">
+            <div style="height:8px;background:rgba(255,255,255,.08);border-radius:100px;overflow:hidden">
+              <div id="cv-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#a855f7);border-radius:100px;transition:width .6s ease"></div>
+            </div>
+          </div>
+          <!-- 단계 -->
+          <div class="cv-psteps">
+            <div class="cv-pstep" id="cvp1"><span>📄</span>&nbsp;원문 분석 중...</div>
+            <div class="cv-pstep" id="cvp2"><span>🎯</span>&nbsp;후킹 제목 생성 중...</div>
+            <div class="cv-pstep" id="cvp3"><span>✍️</span>&nbsp;본문 집필 중 (25,000자+)...</div>
+            <div class="cv-pstep" id="cvp4"><span>🛒</span>&nbsp;판매 상세페이지 작성 중...</div>
+            <div class="cv-pstep" id="cvp5"><span>✨</span>&nbsp;마무리 중...</div>
+          </div>
+          <!-- 재미 메시지 -->
+          <div id="cv-fun-msg" style="margin-top:18px;font-size:12px;color:#6366f1;font-weight:600;min-height:20px"></div>
+        </div>
+        <!-- RESULT STATE -->
+        <div id="cv-result-state" style="display:none">
+          <div class="result-actions">
+            <button class="r-btn r-btn-g" onclick="resetConverter()">↩ 새 파일</button>
+            <button class="r-btn r-btn-e" id="cv-editbtn" onclick="toggleCvEdit()">✏️ 편집</button>
+            <button class="r-btn r-btn-p" onclick="downloadPdfEbook()">📄 PDF 저장</button>
+            <button class="r-btn r-btn-w" id="cv-docxbtn">📝 Word 저장</button>
+            <button class="r-btn r-btn-s" onclick="checkAndShowSales()">🛒 상세페이지</button>
+          </div>
+          <!-- 에디터 툴바 -->
+          <div id="cv-editor-toolbar" style="display:none;flex-wrap:wrap;gap:6px;background:#1a1a2e;border:1px solid rgba(99,102,241,.3);border-radius:12px;padding:10px 14px;margin-bottom:12px;align-items:center">
+            <select onchange="execF('fontName',this.value)" style="padding:5px 8px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;font-size:12px;color:#e2e8f0;cursor:pointer">
+              <option value="Noto Sans KR">Noto Sans KR</option>
+              <option value="Noto Serif KR">Noto Serif KR</option>
+              <option value="malgun gothic">맑은 고딕</option>
+              <option value="dotum">돋움</option>
+              <option value="batang">바탕</option>
+              <option value="Arial">Arial</option>
+              <option value="Georgia">Georgia</option>
+              <option value="monospace">코드체</option>
+            </select>
+            <select onchange="execF('fontSize',this.value)" style="padding:5px 8px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;font-size:12px;color:#e2e8f0;cursor:pointer">
+              <option value="1">10px</option>
+              <option value="2">13px</option>
+              <option value="3" selected>16px</option>
+              <option value="4">18px</option>
+              <option value="5">24px</option>
+              <option value="6">32px</option>
+              <option value="7">48px</option>
+            </select>
+            <div style="display:flex;gap:4px">
+              <button onclick="execF('bold')" title="굵게" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-weight:900;font-size:14px;cursor:pointer">B</button>
+              <button onclick="execF('italic')" title="기울임" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-style:italic;font-size:14px;cursor:pointer">I</button>
+              <button onclick="execF('underline')" title="밑줄" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;text-decoration:underline;font-size:14px;cursor:pointer">U</button>
+              <button onclick="execF('strikeThrough')" title="취소선" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;text-decoration:line-through;font-size:14px;cursor:pointer">S</button>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button onclick="execF('justifyLeft')" title="왼쪽" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-size:13px;cursor:pointer">≡</button>
+              <button onclick="execF('justifyCenter')" title="가운데" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-size:13px;cursor:pointer">☰</button>
+              <button onclick="execF('justifyRight')" title="오른쪽" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-size:13px;cursor:pointer">≡</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <label style="font-size:11px;color:#94a3b8">글자색</label>
+              <input type="color" value="#1a1a2e" onchange="execF('foreColor',this.value)" style="width:30px;height:30px;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:2px;cursor:pointer;background:transparent"/>
+              <label style="font-size:11px;color:#94a3b8">배경색</label>
+              <input type="color" value="#ffffff" onchange="execF('hiliteColor',this.value)" style="width:30px;height:30px;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:2px;cursor:pointer;background:transparent"/>
+            </div>
+            <button onclick="insertEditorImage()" title="이미지 삽입" style="padding:5px 12px;background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.35);border-radius:7px;color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer">🖼️ 이미지</button>
+            <button onclick="execF('removeFormat')" title="서식 초기화" style="padding:5px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:7px;color:#fca5a5;font-size:12px;font-weight:700;cursor:pointer">✕ 서식초기화</button>
+            <input type="file" id="editor-img-input" accept="image/*" style="display:none" onchange="handleEditorImage(this,'cv-edoc')"/>
+            <span style="font-size:11px;color:#475569;margin-left:4px">텍스트 선택 후 버튼 클릭</span>
+          </div>
+          <div class="ebook-preview-wrap"><div class="ebook-preview-inner" id="cv-edoc"></div></div>
+        </div>
+        <!-- SALES RESULT -->
+        <div id="cv-sales-state" style="display:none">
+          <div class="result-actions">
+            <button class="r-btn r-btn-g" onclick="hideCvSales()">← 전자책으로</button>
+            <button class="r-btn r-btn-e" id="cv-sp-editbtn" onclick="toggleCvSalesEdit()">✏️ 편집</button>
+            <button class="r-btn r-btn-p" onclick="saveSpAsImage()" id="sp-img-save-btn">🖼️ 이미지 저장</button>
+            <button class="r-btn r-btn-s" id="cv-copybtn">📋 HTML 복사</button>
+          </div>
+          <!-- 상세페이지 에디터 툴바 -->
+          <div id="cv-sp-toolbar" style="display:none;flex-wrap:wrap;gap:6px;background:#1a1a2e;border:1px solid rgba(99,102,241,.3);border-radius:12px;padding:10px 14px;margin-bottom:12px;align-items:center">
+            <select onchange="execF('fontName',this.value)" style="padding:5px 8px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;font-size:12px;color:#e2e8f0;cursor:pointer">
+              <option value="Noto Sans KR">Noto Sans KR</option>
+              <option value="Noto Serif KR">Noto Serif KR</option>
+              <option value="malgun gothic">맑은 고딕</option>
+              <option value="dotum">돋움</option>
+              <option value="Arial">Arial</option>
+              <option value="Georgia">Georgia</option>
+            </select>
+            <select onchange="execF('fontSize',this.value)" style="padding:5px 8px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;font-size:12px;color:#e2e8f0;cursor:pointer">
+              <option value="1">10px</option>
+              <option value="2">13px</option>
+              <option value="3" selected>16px</option>
+              <option value="4">18px</option>
+              <option value="5">24px</option>
+              <option value="6">32px</option>
+              <option value="7">48px</option>
+            </select>
+            <div style="display:flex;gap:4px">
+              <button onclick="execF('bold')" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-weight:900;font-size:14px;cursor:pointer">B</button>
+              <button onclick="execF('italic')" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-style:italic;font-size:14px;cursor:pointer">I</button>
+              <button onclick="execF('underline')" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;text-decoration:underline;font-size:14px;cursor:pointer">U</button>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button onclick="execF('justifyLeft')" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-size:13px;cursor:pointer">≡</button>
+              <button onclick="execF('justifyCenter')" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-size:13px;cursor:pointer">☰</button>
+              <button onclick="execF('justifyRight')" style="width:30px;height:30px;background:#0c0c1a;border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e2e8f0;font-size:13px;cursor:pointer">≡</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <label style="font-size:11px;color:#94a3b8">글자색</label>
+              <input type="color" value="#1a1a2e" onchange="execF('foreColor',this.value)" style="width:30px;height:30px;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:2px;cursor:pointer;background:transparent"/>
+              <label style="font-size:11px;color:#94a3b8">배경색</label>
+              <input type="color" value="#ffffff" onchange="execF('hiliteColor',this.value)" style="width:30px;height:30px;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:2px;cursor:pointer;background:transparent"/>
+            </div>
+            <button onclick="insertSpImage()" style="padding:5px 12px;background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.35);border-radius:7px;color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer">🖼️ 이미지</button>
+            <button onclick="execF('removeFormat')" style="padding:5px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:7px;color:#fca5a5;font-size:12px;font-weight:700;cursor:pointer">✕ 서식초기화</button>
+            <input type="file" id="sp-img-input" accept="image/*" style="display:none" onchange="handleEditorImage(this,'cv-sp-body')"/>
+            <span style="font-size:11px;color:#475569;margin-left:4px">텍스트 선택 후 버튼 클릭</span>
+          </div>
+          <div id="cv-sp-body" style="background:#f8f8fc;border-radius:12px;overflow:hidden;font-family:'Noto Sans KR',sans-serif"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="app-history" class="content" style="display:none">
+      <div class="sec-head">
+        <div><div class="sec-head-title">📚 내 전자책</div><div class="sec-head-sub" id="hist-count"></div></div>
+        <button class="topbar-btn" onclick="showApp('converter')">+ 새 생성</button>
+      </div>
+      <div id="hist-ebooks"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="app-settings" class="content" style="display:none">
+      <div class="card" style="max-width:680px">
+        <div class="settings-section">
+          <div class="settings-title">🔑 API 키 설정</div>
+          <div class="settings-row">
+            <div><div class="settings-label">Anthropic API 키</div><div class="settings-desc">전자책 생성에 사용됩니다. 브라우저에만 저장되며 서버로 전송되지 않습니다.</div></div>
+            <div style="display:flex;gap:8px;flex:1;min-width:200px">
+              <input id="set-apikey" class="settings-input" type="password" placeholder="sk-ant-..."/>
+              <button style="padding:0 12px;background:var(--card);border:1px solid var(--card-border);border-radius:9px;color:var(--text2);font-size:15px" onclick="toggleSetKey()">👁️</button>
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn-save" onclick="saveApiKey()">저장</button>
+            <button style="padding:9px 18px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:9px;font-size:13px;font-weight:700;color:#34d399;cursor:pointer" onclick="testApiKey()">🧪 API 키 테스트</button>
+            <button class="btn-danger" onclick="clearApiKey()">🗑️ 삭제</button>
+            <a href="https://console.anthropic.com/" target="_blank" style="padding:9px 16px;font-size:13px;color:var(--indigo);display:flex;align-items:center">발급받기 →</a>
+          </div>
+          <div id="api-test-result" style="display:none;margin-top:12px;padding:12px 16px;border-radius:10px;font-size:13px;line-height:1.7"></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title">👤 계정 정보</div>
+          <div class="settings-row">
+            <div><div class="settings-label">이름</div></div>
+            <input id="set-name" class="settings-input" type="text"/>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">이메일</div></div>
+            <input id="set-email" class="settings-input" type="email" readonly style="opacity:.6"/>
+          </div>
+          <div style="margin-top:12px"><button class="btn-save" onclick="saveProfile()">저장</button></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title">💳 플랜 & 결제</div>
+          <div class="settings-row">
+            <div><div class="settings-label">현재 플랜</div><div class="settings-desc" id="set-plan-desc"></div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="plan-badge" id="set-plan-badge"></span>
+              <button style="padding:10px 22px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:10px;font-size:13px;font-weight:800;color:#a5b4fc;cursor:not-allowed;opacity:.7" disabled>🎁 무료 체험판</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">이번 달 사용량</div></div>
+            <div style="flex:1;min-width:200px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span id="set-usage-text"></span></div>
+              <div class="usage-bar-wrap"><div class="usage-bar" id="set-usage-bar"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title">🚪 계정 관리</div>
+          <div class="settings-row">
+            <div><div class="settings-label">로그아웃</div><div class="settings-desc">현재 기기에서 로그아웃합니다</div></div>
+            <button class="btn-danger" onclick="doLogout()">로그아웃</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- UPGRADE MODAL -->
+<div id="upgrade-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--bg2);border:1px solid var(--card-border);border-radius:24px;padding:36px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div style="font-size:18px;font-weight:900">플랜 변경</div>
+      <button style="background:none;border:none;font-size:22px;color:var(--text2)" onclick="hideUpgradeModal()">✕</button>
+    </div>
+    <div class="lplan-grid" style="grid-template-columns:1fr;gap:12px">
+      <div class="lplan" id="um-free" onclick="changePlan('free')"><div class="lplan-name">FREE</div><div class="lplan-price">₩0<small>/월</small></div><ul class="lplan-features" style="margin-bottom:0"><li>전자책 3권/월</li><li>기본 기능</li></ul></div>
+      <div class="lplan popular" id="um-starter" onclick="changePlan('starter')"><div class="lplan-badge">🔥 추천</div><div class="lplan-name">STARTER</div><div class="lplan-price">₩29,000<small>/월</small></div><ul class="lplan-features" style="margin-bottom:0"><li>전자책 20권/월</li><li>모든 기능</li></ul></div>
+      <div class="lplan" id="um-pro" onclick="changePlan('pro')"><div class="lplan-name">구독자용</div><div class="lplan-price" style="font-size:16px">래피드 정기구독</div><ul class="lplan-features" style="margin-bottom:0"><li>₩29,000/월</li><li>무제한 이용</li></ul></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+
+
+
+
+
+</body>
+</html>
+
+<script>
+// ════════════════════════════════════════
+// DATA & STATE
+// ════════════════════════════════════════
+var APP={user:null,ebook:null,editMode:false,salesEditMode:false,selFile:null,selPlan:'free',urlContent:''};
+var PLANS={free:{name:'구독',limit:9999,badge:'plan-pro'},starter:{name:'구독',limit:9999,badge:'plan-pro'},pro:{name:'구독',limit:9999,badge:'plan-pro'}};
+
+function getUsers(){return JSON.parse(localStorage.getItem('plrbooks_users')||'{}');}
+function saveUsers(u){localStorage.setItem('plrbooks_users',JSON.stringify(u));}
+function getUser(email){return getUsers()[email]||null;}
+function setCurrentUser(u){localStorage.setItem('plrbooks_cu',JSON.stringify(u));APP.user=u;}
+function getCurrentUser(){var u=localStorage.getItem('plrbooks_cu');return u?JSON.parse(u):null;}
+function clearCurrentUser(){localStorage.removeItem('plrbooks_cu');APP.user=null;}
+function getApiKey(){return localStorage.getItem('plrbooks_apikey')||'';}
+function setApiKey(k){localStorage.setItem('plrbooks_apikey',k);}
+function getUserEbooks(email){
+  // 전체 localStorage 스캔 - 이메일 무관하게 모든 전자책 통합
+  var all=[];
+  var seen={};
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(k&&k.startsWith('plrbooks_eb_')){
+      try{
+        var arr=JSON.parse(localStorage.getItem(k)||'[]');
+        arr.forEach(function(e){
+          if(e&&e.id&&!seen[e.id]){seen[e.id]=true;all.push(e);}
+        });
+      }catch(e2){}
+    }
+  }
+  // 날짜 내림차순 정렬
+  all.sort(function(a,b){return (b.id||0)-(a.id||0);});
+  // 전역 키에 통합 저장
+  localStorage.setItem('plrbooks_eb_global',JSON.stringify(all));
+  return all;
+}
+function saveUserEbooks(email,arr){localStorage.setItem('plrbooks_eb_global',JSON.stringify(arr));}
+function addEbook(email,ebook){var arr=getUserEbooks(email);arr.unshift({id:Date.now(),created:new Date().toLocaleDateString('ko-KR'),title:ebook.title,category:ebook.category||'자기계발',data:ebook});if(arr.length>50)arr=arr.slice(0,50);saveUserEbooks(email,arr);}
+function getThisMonthCount(email){var arr=getUserEbooks(email);var now=new Date();var mon=now.getFullYear()+'-'+(now.getMonth()+1);return arr.filter(function(e){return e.id&&new Date(e.id).getMonth()===now.getMonth()&&new Date(e.id).getFullYear()===now.getFullYear();}).length;}
+
+// ════════════════════════════════════════
+// PAGE NAVIGATION
+// ════════════════════════════════════════
+function showPage(pg,sub){
+  // access block 숨기기
+  var ab=document.getElementById('pg-access-block');
+  if(ab){ab.style.display='none';ab.style.position='';ab.style.zIndex='';}
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  var el=document.getElementById('pg-'+pg);
+  if(!el)return;
+  el.classList.add('active');
+  if(pg==='auth'){
+    if(sub==='signup')switchAuthTab('signup');
+    else switchAuthTab('login');
+  }
+  if(pg==='app'){
+    if(!checkAccessPeriod())return;
+    initApp();
+    if(sub)showApp(sub);
+  }
+  window.scrollTo(0,0);
+}
+function showApp(section){
+  ['dashboard','converter','history','settings'].forEach(function(s){
+    var el=document.getElementById('app-'+s);if(el)el.style.display='none';
+    var sb=document.getElementById('sb-'+s);if(sb)sb.classList.remove('active');
+  });
+  var el=document.getElementById('app-'+section);if(el)el.style.display='block';
+  var sb=document.getElementById('sb-'+section);if(sb)sb.classList.add('active');
+  var titles={dashboard:'대시보드',converter:'⚡ 전자책 생성',history:'📚 내 전자책',settings:'⚙️ 설정'};
+  document.getElementById('topbar-title').textContent=titles[section]||section;
+  closeSidebar();
+  if(section==='dashboard')renderDashboard();
+  if(section==='history')renderHistory();
+  if(section==='settings')renderSettings();
+  if(section==='converter'){setupConverter();checkCvReady();}
+}
+function toggleSidebar(){var sb=document.getElementById('sidebar');var ov=document.getElementById('sb-overlay');sb.classList.toggle('open');ov.classList.toggle('show');}
+function closeSidebar(){var sb=document.getElementById('sidebar');var ov=document.getElementById('sb-overlay');sb.classList.remove('open');ov.classList.remove('show');}
+
+// ════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════
+function switchAuthTab(tab){
+  document.getElementById('tab-login').classList.toggle('active',tab==='login');
+  document.getElementById('tab-signup').classList.toggle('active',tab==='signup');
+  document.getElementById('form-login').style.display=tab==='login'?'':'none';
+  document.getElementById('form-signup').style.display=tab==='signup'?'':'none';
+}
+function selectPlan(plan,el){
+  APP.selPlan=plan;
+  document.querySelectorAll('.plan-chip').forEach(function(c){c.classList.remove('sel');});
+  el.classList.add('sel');
+}
+function doLogin(){
+  var email=document.getElementById('l-email').value.trim();
+  var pw=document.getElementById('l-pw').value;
+  var err=document.getElementById('login-err');
+  if(!email||!pw){showErr(err,'이메일과 비밀번호를 입력해주세요.');return;}
+  var u=getUser(email);
+  if(!u){
+    // 계정 없으면 자동 생성
+    var name=email.split('@')[0];
+    u={name:name,email:email,pw:btoa(pw),plan:'free',joined:new Date().toLocaleDateString('ko-KR')};
+    var users=getUsers();users[email]=u;saveUsers(users);
+    setCurrentUser(u);showPage('app','dashboard');showToast('success','🎉 환영합니다! 자동으로 계정이 생성됐습니다.');
+  } else if(u.pw!==btoa(pw)){
+    showErr(err,'비밀번호가 올바르지 않습니다. 다시 확인해주세요.');return;
+  } else {
+    setCurrentUser(u);showPage('app','dashboard');showToast('success','👋 반갑습니다, '+u.name+'님!');
+  }
+}
+function doSignup(){
+  var name=document.getElementById('s-name').value.trim();
+  var email=document.getElementById('s-email').value.trim();
+  var pw=document.getElementById('s-pw').value;
+  var err=document.getElementById('signup-err');
+  if(!name||!email||!pw){showErr(err,'모든 항목을 입력해주세요.');return;}
+  if(pw.length<8){showErr(err,'비밀번호는 8자 이상이어야 합니다.');return;}
+  var users=getUsers();
+  if(users[email]){showErr(err,'이미 사용 중인 이메일입니다.');return;}
+  var u={name:name,email:email,pw:btoa(pw),plan:APP.selPlan,joined:new Date().toLocaleDateString('ko-KR')};
+  users[email]=u;saveUsers(users);setCurrentUser(u);
+  showPage('app','dashboard');showToast('success','🎉 가입 완료! 첫 전자책을 만들어보세요.');
+}
+function doLogout(){clearCurrentUser();APP.ebook=null;APP.selFile=null;showPage('auth','login');showToast('success','로그아웃되었습니다.');}
+function showErr(el,msg){el.textContent=msg;el.style.display='block';}
+
+// ════════════════════════════════════════
+// APP INIT
+// ════════════════════════════════════════
+function initApp(){
+  var u=getCurrentUser();if(!u){showPage('auth','login');return;}
+  APP.user=u;
+  // update sidebar
+  document.getElementById('sb-uname').textContent=u.name;
+  var pb=document.getElementById('sb-uplan');
+  pb.textContent='구독자';
+  pb.className='plan-badge plan-'+(u.plan||'free');
+  // load api key
+  var key=getApiKey();
+  if(key){var el=document.getElementById('cv-genbtn');if(el)checkCvReady();}
+  // check api key for converter
+  setupConverter();
+  setTimeout(checkCvReady,300);
+}
+function renderDashboard(){
+  if(!APP.user)return;
+  var u=APP.user;
+  var ebooks=getUserEbooks(u.email);
+  var monthCount=getThisMonthCount(u.email);
+  var cntEl=document.getElementById('dash-ebook-count');
+  if(cntEl)cntEl.textContent=ebooks.length>0?'총 '+ebooks.length+'권 저장됨':'아직 생성한 전자책이 없습니다';
+  var plan=PLANS[u.plan||'free'];
+  var limitLeft=plan.limit-monthCount;
+
+  // upgrade banner
+  var bw=document.getElementById('upgrade-banner-wrap');
+  bw.innerHTML='<div class="upgrade-banner" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(52,211,153,.08));border-color:rgba(16,185,129,.3)"><div class="upgrade-text"><h4>🔓 구독자 전용 서비스</h4><p>전자책 · 상세페이지 · PDF · Word 저장 모두 무제한으로 이용하세요 😊</p></div><span style="background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;padding:8px 18px;border-radius:10px;font-size:13px;font-weight:800;white-space:nowrap">🔓 구독자 전용</span></div>';
+
+  // stats
+  var sg=document.getElementById('stat-grid');
+  sg.innerHTML=[
+    {icon:'📚',val:ebooks.length,label:'총 생성 전자책',change:'↑ 전체 이력',cls:'neu'},
+    {icon:'📅',val:monthCount,label:'이번 달 생성',change:limitLeft>=0?'남은 횟수: '+limitLeft:'무제한',cls:'up'},
+    {icon:'💰',val:'₩29,000',label:'현재 플랜 요금',change:PLANS[u.plan||'free'].name,cls:'neu'},
+    {icon:'⚡',val:'~10분',label:'평균 생성 시간',change:'AI 자동 처리',cls:'up'}
+  ].map(function(s){return '<div class="stat-card"><div class="stat-icon">'+s.icon+'</div><div class="stat-val">'+s.val+'</div><div class="stat-label">'+s.label+'</div><div class="stat-change '+s.cls+'">'+s.change+'</div></div>';}).join('');
+
+  // recent ebooks
+  var de=document.getElementById('dash-ebooks');
+  var recent=ebooks.slice(0,6);
+  if(!recent.length){de.innerHTML='<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">아직 생성한 전자책이 없어요</div><div class="empty-sub">첫 PLR 전자책을 만들어보세요!</div><button class="btn-primary" onclick="showApp(\'converter\')">+ 지금 만들기</button></div>';return;}
+  de.innerHTML='<div class="ebook-grid">'+recent.map(function(eb){return ebookCard(eb);}).join('')+'</div>';
+}
+function renderHistory(){
+  if(!APP.user)return;
+  var ebooks=getUserEbooks(APP.user.email);
+  document.getElementById('hist-count').textContent='총 '+ebooks.length+'권';
+  var he=document.getElementById('hist-ebooks');
+  if(!ebooks.length){he.innerHTML='<div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">전자책 이력이 없습니다</div><div class="empty-sub">전자책을 생성하면 여기에 저장됩니다</div><button class="btn-primary" onclick="showApp(\'converter\')">+ 첫 전자책 만들기</button></div>';return;}
+  he.innerHTML='<div class="ebook-grid">'+ebooks.map(function(eb){return ebookCard(eb);}).join('')+'</div>';
+}
+function renderSettings(){
+  if(!APP.user)return;
+  var u=APP.user;
+  document.getElementById('set-name').value=u.name||'';
+  document.getElementById('set-email').value=u.email||'';
+  document.getElementById('set-apikey').value=getApiKey();
+  var plan=PLANS[u.plan||'free'];
+  var badge=document.getElementById('set-plan-badge');
+  badge.textContent='구독자';badge.className='plan-badge plan-starter';
+  document.getElementById('set-plan-desc').textContent='구독자 전용 · 전자책 · 상세페이지 · 저장 모두 무제한';
+  var monthCount=getThisMonthCount(u.email);
+  var txt=document.getElementById('set-usage-text');
+  var bar=document.getElementById('set-usage-bar');
+  txt.textContent=monthCount+'권 생성 완료 (무제한)';bar.style.width=Math.min(60,monthCount*5)+'%';
+}
+function ebookCard(eb){
+  var colors=['linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)','linear-gradient(135deg,#0f2027,#203a43,#2c5364)','linear-gradient(135deg,#1e1b4b,#312e81,#1e3a8a)','linear-gradient(135deg,#14532d,#166534,#15803d)','linear-gradient(135deg,#4c1d95,#5b21b6,#6d28d9)'];
+  var i=Math.abs(eb.id||0)%colors.length;
+  return '<div class="ebook-card" onclick="openEbook('+eb.id+')">'
+    +'<div class="ebook-cover" style="background:'+colors[i]+'">'
+    +'<div class="ebook-cover-cat">📚 '+(eb.category||'자기계발')+'</div>'
+    +'<div class="ebook-cover-title">'+(eb.title||'제목 없음')+'</div>'
+    +'</div>'
+    +'<div class="ebook-body">'
+    +'<div class="ebook-meta">'+eb.created+'</div>'
+    +'<div class="ebook-title">'+(eb.title||'제목 없음')+'</div>'
+    +'<div class="ebook-tags"><span class="ebook-tag">'+(eb.category||'자기계발')+'</span></div>'
+    +'<div class="ebook-actions">'
+    +'<button class="ebook-act-btn" onclick="event.stopPropagation();openEbook('+eb.id+')">📖 열기</button>'
+    +'<button class="ebook-act-btn" onclick="event.stopPropagation();deleteEbook('+eb.id+')">🗑️</button>'
+    +'</div></div></div>';
+}
+function openEbook(id){
+  var ebooks=getUserEbooks(APP.user.email);
+  var eb=ebooks.find(function(e){return e.id===id;});
+  if(!eb||!eb.data)return;
+  APP.ebook=eb.data;
+  showApp('converter');
+  document.getElementById('cv-upload-state').style.display='none';
+  document.getElementById('cv-process-state').style.display='none';
+  document.getElementById('cv-result-state').style.display='';
+  renderCvEbook(eb.data);renderCvSalesPage(eb.data);
+}
+function deleteEbook(id){
+  if(!confirm('이 전자책을 삭제하시겠습니까?'))return;
+  var ebooks=getUserEbooks(APP.user.email).filter(function(e){return e.id!==id;});
+  saveUserEbooks(APP.user.email,ebooks);
+  renderDashboard();renderHistory();
+  showToast('success','삭제되었습니다.');
+}
+
+// ════════════════════════════════════════
+// CONVERTER
+// ════════════════════════════════════════
+// ── INPUT MODE ──
+var CV_MODE='file'; // file | topic | url | text
+function switchInputTab(mode){
+  CV_MODE=mode;
+  document.querySelectorAll('.input-tab').forEach(function(t,i){
+    t.classList.toggle('active',['file','topic','url','text'][i]===mode);
+  });
+  document.querySelectorAll('.input-panel').forEach(function(p){p.classList.remove('active');});
+  var el=document.getElementById('panel-'+mode);if(el)el.classList.add('active');
+  checkCvReady();
+}
+function setTopic(t){
+  document.getElementById('topic-main').value=t;checkCvReady();
+}
+async function fetchUrl(){
+  var url=document.getElementById('url-input').value.trim();
+  if(!url)return;
+  var btn=document.getElementById('url-fetch-btn');
+  btn.textContent='⏳ 불러오는 중...';btn.disabled=true;
+  var preview=document.getElementById('url-preview');
+  try{
+    // CORS proxy를 통해 URL 내용 가져오기
+    var proxyUrl='https://api.allorigins.win/get?url='+encodeURIComponent(url);
+    var resp=await fetch(proxyUrl);
+    var data=await resp.json();
+    var html=data.contents||'';
+    // 태그 제거해서 텍스트만 추출
+    var tmp=document.createElement('div');tmp.innerHTML=html;
+    var text=tmp.innerText||tmp.textContent||'';
+    text=text.replace(/\s+/g,' ').trim().substring(0,1500);
+    APP.urlContent=(text||'URL 내용을 불러왔습니다.');
+    preview.textContent='✅ 불러오기 완료 ('+text.length+'자)\n\n'+text.substring(0,300)+'...';
+    preview.classList.add('show');
+    checkCvReady();
+    showToast('success','URL 내용을 불러왔습니다!');
+  }catch(e){
+    APP.urlContent='';
+    preview.textContent='⚠️ 불러오기 실패: '+e.message+'\n\nURL을 직접 입력해두면 AI가 참고합니다.';
+    preview.classList.add('show');
+    checkCvReady();
+  }finally{btn.textContent='📥 불러오기';btn.disabled=false;}
+}
+
+function setupConverter(){
+  var dz=document.getElementById('cv-dz'),fi=document.getElementById('cv-fi');
+  if(!dz||dz._setup)return;dz._setup=true;
+  dz.addEventListener('click',function(){fi.click();});
+  fi.addEventListener('change',function(e){cvPick(e.target.files[0]);});
+  dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});
+  dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});
+  dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('drag');cvPick(e.dataTransfer.files[0]);});
+  document.getElementById('cv-docxbtn').addEventListener('click',function(){if(APP.ebook)downloadDocx(APP.ebook);});
+  document.getElementById('cv-copybtn').addEventListener('click',function(){
+    var html=document.getElementById('cv-sp-body').innerHTML;
+    navigator.clipboard.writeText(html).then(function(){showToast('success','HTML이 복사되었습니다!');});
+  });
+  // live check for topic/url/text inputs
+  ['topic-main','topic-target','topic-extra','url-input','url-direction'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.addEventListener('input',checkCvReady);
+  });
+  checkCvReady();
+}
+function cvPick(f){
+  if(!f)return;
+  var allowed=['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/msword','text/plain','text/markdown',''];
+  // allow by extension too
+  var ext=f.name.split('.').pop().toLowerCase();
+  var okExts=['pdf','docx','doc','txt','md','hwp'];
+  if(!okExts.includes(ext)&&!allowed.includes(f.type)){showToast('error','PDF, Word, TXT, MD 파일만 지원합니다.');return;}
+  APP.selFile=f;
+  var icons={'pdf':'📄','docx':'📝','doc':'📝'};
+  document.getElementById('cv-dz').classList.add('has-file');
+  document.getElementById('cv-uico').textContent=icons[ext]||'📂';
+  document.getElementById('cv-utit').textContent='파일 준비 완료';
+  document.getElementById('cv-usub').style.display='none';
+  var chip=document.getElementById('cv-chip');chip.textContent='📎 '+f.name;chip.style.display='inline-flex';
+  checkCvReady();
+}
+function checkCvReady(){
+  var key=getApiKey();
+  var btn=document.getElementById('cv-genbtn');
+  if(!btn)return;
+  // API 키 경고 배너
+  var apiwarn=document.getElementById('cv-apikey-warn');
+  if(apiwarn)apiwarn.style.display=(!key||key.length<=10)?'block':'none';
+  var ready=false;
+  if(CV_MODE==='file')ready=!!(APP.selFile&&key&&key.length>10);
+  else if(CV_MODE==='topic')ready=!!(document.getElementById('topic-main')&&document.getElementById('topic-main').value.trim()&&key&&key.length>10);
+  else if(CV_MODE==='url'){var u=document.getElementById('url-input');ready=!!(u&&u.value.trim()&&key&&key.length>10);}
+  btn.disabled=!ready;
+  if(!key||key.length<=10){btn.textContent='🔑 API 키를 먼저 설정해주세요';btn.style.opacity='.5';}
+  else{btn.textContent='🚀 전자책 + 상세페이지 생성하기';btn.style.opacity=ready?'1':'.4';}
+  var warn=document.getElementById('cv-limit-warn');
+  if(warn)warn.style.display='none';
+}
+function resetConverter(){
+  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.salesEditMode=false;APP.urlContent='';
+  CV_MODE='file';
+  var fi=document.getElementById('cv-fi');if(fi)fi.value='';
+  var dz=document.getElementById('cv-dz');if(dz)dz.classList.remove('has-file');
+  document.getElementById('cv-uico').textContent='📂';
+  document.getElementById('cv-utit').textContent='파일을 드래그하거나 클릭하세요';
+  document.getElementById('cv-usub').style.display='';
+  document.getElementById('cv-chip').style.display='none';
+  // reset topic/url/text
+  ['topic-main','topic-target','topic-extra','url-input','url-direction','url-extra'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.value='';
+  });
+  var up=document.getElementById('url-preview');if(up){up.textContent='';up.classList.remove('show');}
+  // reset tabs
+  switchInputTab('file');
+  document.getElementById('cv-upload-state').style.display='';
+  document.getElementById('cv-process-state').style.display='none';
+  document.getElementById('cv-result-state').style.display='none';
+  document.getElementById('cv-sales-state').style.display='none';
+  checkCvReady();
+}
+function setCvStep(n){
+  for(var i=1;i<=5;i++){
+    var e=document.getElementById('cvp'+i);if(!e)continue;
+    e.classList.remove('active','done');
+    if(i<n)e.classList.add('done');
+    else if(i===n)e.classList.add('active');
+  }
+  // 진행률 업데이트
+  var pcts=[0,18,35,60,82,100];
+  var pct=pcts[Math.min(n,5)];
+  var bar=document.getElementById('cv-progress-bar');
+  var ring=document.getElementById('cv-progress-ring');
+  var pctEl=document.getElementById('cv-progress-pct');
+  if(bar)bar.style.width=pct+'%';
+  if(ring){var offset=352-(352*pct/100);ring.style.strokeDashoffset=offset;}
+  if(pctEl)pctEl.textContent=pct+'%';
+  // 재미 메시지
+  var msgs=['📖 원문을 꼼꼼히 읽고 있어요...','🎨 독자를 사로잡을 제목을 구상 중...','✍️ 25,000자 본문을 열심히 쓰고 있어요!','🛒 판매용 상세페이지 작성 중...','✨ 거의 다 됐어요! 조금만 기다려주세요~'];
+  var msg=document.getElementById('cv-fun-msg');
+  if(msg&&msgs[n-1])msg.textContent=msgs[n-1];
+  // 진행 중 애니메이션 (실제 API 응답 전 가짜 진행)
+  if(n===3){
+    // API 호출 중 - 60%~80% 사이를 천천히 채움
+    var fakeStart=60,fakeEnd=80,fakeDuration=90000; // 90초
+    var fakeStep=(fakeEnd-fakeStart)/fakeDuration*500;
+    var fakePct=fakeStart;
+    window._fakeTimer=setInterval(function(){
+      fakePct=Math.min(fakePct+fakeStep,fakeEnd);
+      var o=352-(352*fakePct/100);
+      if(bar)bar.style.width=fakePct+'%';
+      if(ring)ring.style.strokeDashoffset=o;
+      if(pctEl)pctEl.textContent=Math.round(fakePct)+'%';
+      if(fakePct>=fakeEnd)clearInterval(window._fakeTimer);
+    },500);
+  } else {
+    if(window._fakeTimer)clearInterval(window._fakeTimer);
+  }
+}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+async function startGenerate(){
+  var key=getApiKey();
+  if(!key||key.trim().length<=10){
+    showApp('settings');
+    showToast('error','⚠️ 설정에서 API 키를 먼저 입력해주세요.');
+    return;
+  }
+  // 무료 체험 생성 횟수 체크
+  if(!canGenerate('ebook')){
+    showTrialLimitPopup('ebook');
+    return;
+  }
+  var u=APP.user;
+
+  // 에러박스 초기화
+  var warn=document.getElementById('cv-limit-warn');
+  if(warn){warn.style.display='none';warn.innerHTML='';}
+
+  document.getElementById('cv-upload-state').style.display='none';
+  document.getElementById('cv-process-state').style.display='';
+  setCvStep(1);
+
+  function showGenError(msg){
+    document.getElementById('cv-process-state').style.display='none';
+    document.getElementById('cv-upload-state').style.display='';
+    var w=document.getElementById('cv-limit-warn');
+    w.style.display='block';
+    w.style.background='rgba(239,68,68,.12)';
+    w.style.border='1px solid rgba(239,68,68,.35)';
+    w.style.color='#fca5a5';
+    w.style.borderRadius='12px';
+    w.style.padding='16px 20px';
+    w.style.lineHeight='1.8';
+    w.style.whiteSpace='pre-line';
+    w.innerHTML=msg;
+    checkCvReady();
+  }
+
+  try{
+    // ── 모드별 메시지 구성
+    var messages=[];
+    if(CV_MODE==='file'){
+      if(!APP.selFile)throw new Error('파일을 선택해주세요.');
+      var ext=APP.selFile.name.split('.').pop().toLowerCase();
+      var mimeMap={'pdf':'application/pdf','docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','doc':'application/msword','txt':'text/plain','md':'text/plain'};
+      var mime=mimeMap[ext]||APP.selFile.type||'application/octet-stream';
+      var b64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(APP.selFile);});
+      // PDF는 document type, 나머지는 텍스트 추출 후 text type
+      if(mime==='application/pdf'){
+        messages=[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:PROMPT}]}];
+      } else {
+        // 텍스트 파일: base64 디코딩 후 텍스트로
+        var decoder=new TextDecoder('utf-8');
+        var bytes=Uint8Array.from(atob(b64),function(c){return c.charCodeAt(0);});
+        var fileText=decoder.decode(bytes).substring(0,12000); // 속도·안정성 위해 제한
+        messages=[{role:'user',content:[{type:'text',text:'다음은 전자책으로 변환할 문서 내용입니다:\n\n'+fileText+'\n\n---\n\n'+PROMPT}]}];
+      }
+    } else if(CV_MODE==='topic'){
+      var topic=document.getElementById('topic-main').value.trim();
+      var target=document.getElementById('topic-target').value.trim();
+      var extra=document.getElementById('topic-extra').value.trim();
+      var topicPrompt='주제: '+topic+(target?'\n대상 독자: '+target:'')+(extra?'\n추가 요구사항: '+extra:'');
+      messages=[{role:'user',content:[{type:'text',text:'아래 주제로 한국 베스트셀러 전자책을 처음부터 완전히 새로 창작해주세요.\n\n'+topicPrompt+'\n\n위 주제를 기반으로 실전 전문 지식과 구체적 예시를 풍부하게 담아 창작하세요.\n\n'+PROMPT}]}];
+    } else if(CV_MODE==='url'){
+      var urlVal=document.getElementById('url-input').value.trim();
+      var urlDir=document.getElementById('url-direction').value.trim();
+      var urlExtra=document.getElementById('url-extra').value.trim();
+      var urlFetched=APP.urlContent||'';
+      var urlContext='참고 URL: '+urlVal+(urlExtra?'\n추가 URL:\n'+urlExtra:'')+(urlDir?'\n전자책 방향: '+urlDir:'')+(urlFetched?'\n\nURL에서 불러온 내용 (참고용):\n'+urlFetched.substring(0,8000):'');
+      messages=[{role:'user',content:[{type:'text',text:'아래 URL의 내용을 분석하여 한국 베스트셀러 전자책을 창작해주세요.\n\n'+urlContext+'\n\nURL의 핵심 내용을 살리되, 더욱 풍부한 실전 예시와 한국 실정에 맞는 내용으로 확장하세요.\n\n'+PROMPT}]}];
+    } else if(CV_MODE==='text'){
+      var textContent=document.getElementById('text-content').value.trim();
+      var textDir=document.getElementById('text-direction').value.trim();
+      messages=[{role:'user',content:[{type:'text',text:'아래 텍스트를 참고하여 한국 베스트셀러 전자책을 창작해주세요.'+(textDir?'\n방향: '+textDir:'')+'\n\n참고 내용:\n'+textContent.substring(0,15000)+'\n\n---\n\n'+PROMPT_NEW}]}];
+    }
+    setCvStep(2);await sleep(600);setCvStep(3);
+
+    // 오래 걸릴 때 안내
+    var slowTimer=setTimeout(function(){
+      var msg=document.getElementById('cv-fun-msg');
+      if(msg)msg.innerHTML='<span style="color:#fbbf24">⏳ 응답이 오래 걸리고 있어요. 조금만 더 기다려주세요...</span>';
+    },60000);
+
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:32000,
+        system:'당신은 한국어 전자책 전문 작가입니다. 모든 응답은 반드시 한국어로만 작성하세요. JSON 키 이름은 영어로 유지하되, 모든 값(value)은 반드시 한국어로 작성하세요. 영어로 절대 응답하지 마세요.',
+        messages:messages
+      })
+    });
+    clearTimeout(slowTimer);
+    if(window._fakeTimer)clearInterval(window._fakeTimer);
+
+    setCvStep(4);
+    var data=await resp.json();
+    if(!resp.ok){
+      var errMsg=data.error?.message||'';
+      var errType=data.error?.type||'';
+      var koreanErr='';
+      if(errType==='authentication_error'||errMsg.includes('API key')||errMsg.includes('api_key')||resp.status===401)
+        koreanErr='❌ API 키 오류\nAPI 키가 잘못되었습니다. 설정 메뉴에서 API 키를 다시 확인해주세요.\n\n원인: '+errMsg;
+      else if(errType==='permission_error'||resp.status===403)
+        koreanErr='❌ 권한 오류\n크레딧이 부족하거나 키가 만료됐을 수 있습니다.\nconsole.anthropic.com에서 확인해주세요.\n\n원인: '+errMsg;
+      else if(errType==='rate_limit_error'||resp.status===429)
+        koreanErr='❌ 요청 한도 초과\n잠시 후 (30초~1분) 다시 시도해주세요.\n\n원인: '+errMsg;
+      else if(resp.status===500||resp.status===529)
+        koreanErr='❌ Anthropic 서버 오류\n잠시 후 다시 시도해주세요.\n\n원인: '+errMsg;
+      else if(errMsg.includes('credit')||errMsg.includes('billing')||errMsg.includes('balance'))
+        koreanErr='❌ API 크레딧 부족\nconsole.anthropic.com에서 크레딧을 충전해주세요.\n\n원인: '+errMsg;
+      else
+        koreanErr='❌ API 오류 ('+resp.status+')\n'+errMsg;
+      throw new Error(koreanErr);
+    }
+    // max_tokens 도달해도 생성된 내용으로 파싱 시도 (에러 안 냄)
+    var raw='';if(data.content)for(var i=0;i<data.content.length;i++)if(data.content[i].type==='text'){raw=data.content[i].text;break;}
+    var clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    var js=clean.indexOf('{'),je=clean.lastIndexOf('}');
+    if(js===-1)throw new Error('JSON을 찾을 수 없습니다. 다시 시도해주세요.');
+    clean=clean.substring(js,je+1);
+    var ebook;
+    try{ebook=JSON.parse(clean);}catch(e2){
+      // 1차: 후행 쉼표 제거
+      var fix=clean.replace(/,\s*([}\]])/g,'$1');
+      try{ebook=JSON.parse(fix);}catch(e3){
+        // 2차: 열린 괄호 닫기
+        fix=fix.replace(/,\s*$/,'');
+        var oa=(fix.match(/\[/g)||[]).length-(fix.match(/\]/g)||[]).length;
+        var ob=(fix.match(/\{/g)||[]).length-(fix.match(/\}/g)||[]).length;
+        for(var kk=0;kk<oa;kk++)fix+=']';for(var kk=0;kk<ob;kk++)fix+='}';
+        try{ebook=JSON.parse(fix);}catch(e4){
+          // 3차: 마지막 완전한 챕터까지만 파싱 시도
+          var chIdx=clean.lastIndexOf('"content"');
+          if(chIdx>0){
+            var partial=clean.substring(0,chIdx);
+            var li=partial.lastIndexOf('{');
+            if(li>0){
+              partial=partial.substring(0,li).replace(/,\s*$/,'')+'],"conclusion":"자세한 내용은 각 챕터를 참고해주세요.","appendices":[],"copyright":{"year":"2025","publisher":"독립 출판","notice":"","disclaimer":"","contact":""},"sales":{"hook":"","subhook":"","pains":[],"solution":"","learnings":[],"benefits":[],"before":[],"after":[],"testimonials":[],"price":"9900","originalPrice":"19900","savings":"50% 할인","faqs":[],"finalPush":""}}';
+              try{ebook=JSON.parse(partial);}catch(e5){
+                throw new Error('❌ JSON 파싱 오류\n다시 시도해주세요. 계속 실패 시 더 짧은 내용으로 시도해보세요.');
+              }
+            } else throw new Error('❌ JSON 파싱 오류\n다시 시도해주세요.');
+          } else throw new Error('❌ JSON 파싱 오류\n다시 시도해주세요.');
+        }
+      }
+    }
+    setCvStep(5);await sleep(400);
+    APP.ebook=ebook;
+    addEbook(u.email,ebook);
+    addTrialCount('ebook'); // 체험 횟수 기록
+    // update user in storage
+    var users=getUsers();u.plan=u.plan||'free';users[u.email]=u;saveUsers(users);
+    document.getElementById('cv-process-state').style.display='none';
+    document.getElementById('cv-result-state').style.display='';
+    renderCvEbook(ebook);renderCvSalesPage(ebook);
+    showToast('success','🎉 전자책이 생성되었습니다!');
+  }catch(e){
+    console.error('생성 오류:', e);
+    var msg=e.message||'알 수 없는 오류가 발생했습니다.';
+    // 네트워크 오류 처리
+    if(msg.includes('fetch')||msg.includes('network')||msg.includes('Failed to fetch')||msg.includes('NetworkError')){
+      msg='❌ 네트워크 연결 오류\n인터넷 연결을 확인하거나 잠시 후 다시 시도해주세요.\n\nCORS 오류일 경우: 브라우저가 API 직접 호출을 막을 수 있습니다.\nChrome에서 접속해주세요.';
+    }
+    showErrorPopup(msg);
+  }
+}
+
+function checkAndShowSales(){
+  if(!canGenerate('sales')){showTrialLimitPopup('sales');return;}
+  addTrialCount('sales');
+  showCvSales();
+}
+function closeErrorPopup(el){var p=el;while(p&&!p.style.cssText.includes("fixed")){p=p.parentElement;}if(p)p.remove();}
+function showErrorPopup(msg){
+  var ps=document.getElementById('cv-process-state');
+  var us=document.getElementById('cv-upload-state');
+  if(ps)ps.style.display='none';
+  if(us)us.style.display='';
+  checkCvReady();
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var icon='⚠️';
+  var lines=msg.split('\n');
+  var title=(lines[0]||'생성 실패').replace('❌ ','').replace('⚠️ ','');
+  var detail=lines.slice(1).join('\n').trim();
+  var extraHtml='';
+  if(msg.includes('요청 한도 초과')||msg.includes('rate_limit')){
+    icon='⏱️';
+    extraHtml='<div style="padding:10px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);border-radius:10px;font-size:13px;color:#fde047;margin-bottom:10px">⏰ 30초~1분 후 다시 시도해주세요</div>';
+  } else if(msg.includes('API 키')||msg.includes('authentication')){
+    icon='🔑';
+    extraHtml='<button onclick="closeErrorPopup(this);showApp(\'settings\'" style="width:100%;padding:11px;background:linear-gradient(135deg,#6366f1,#a855f7);border:none;border-radius:10px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:8px">⚙️ 설정에서 API 키 확인</button>';
+  } else if(msg.includes('크레딧')||msg.includes('credit')){
+    icon='💳';
+    extraHtml='<a href="https://console.anthropic.com/settings/billing" target="_blank" style="display:block;padding:11px;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none;margin-bottom:8px">💳 크레딧 충전하기</a>';
+  } else if(msg.includes('취소')){
+    icon='⏹️';
+  }
+  var div=document.createElement('div');
+  div.setAttribute('data-popup','1');
+  div.style.cssText='background:#0c0c1a;border:2px solid rgba(239,68,68,.4);border-radius:20px;padding:32px 26px;max-width:440px;width:100%;text-align:center';
+  div.innerHTML='<div style="font-size:48px;margin-bottom:14px">'+icon+'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#a5b4fc;margin-bottom:6px">PLR, AI 전자책 자동생성 MAKE</div>'
+    +'<h2 style="font-size:18px;font-weight:900;color:#fff;margin-bottom:16px;word-break:keep-all">'+title+'</h2>'
+    +(detail?'<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px;margin-bottom:14px;text-align:left;font-size:12px;color:#94a3b8;line-height:1.8;white-space:pre-line;word-break:keep-all">'+detail+'</div>':'')
+    +extraHtml
+    +'<button onclick="closeErrorPopup(this)" style="width:100%;padding:11px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:10px;font-size:13px;color:#94a3b8;cursor:pointer">닫기</button>';
+  overlay.appendChild(div);
+  document.body.appendChild(overlay);
+}
+
+
+function showCvSales(){document.getElementById('cv-result-state').style.display='none';document.getElementById('cv-sales-state').style.display='';}
+function hideCvSales(){document.getElementById('cv-sales-state').style.display='none';document.getElementById('cv-result-state').style.display='';}
+
+// ── 리치 에디터 ──
+function execF(cmd,val){document.execCommand(cmd,false,val||null);}
+function saveRange(){var s=window.getSelection();return(s&&s.rangeCount>0)?s.getRangeAt(0):null;}
+function restoreRange(r){if(!r)return;var s=window.getSelection();s.removeAllRanges();s.addRange(r);}
+function insertEditorImage(){APP._savedRange=saveRange();document.getElementById('editor-img-input').click();}
+function insertSpImage(){APP._savedRange=saveRange();document.getElementById('sp-img-input').click();}
+function handleEditorImage(input,targetId){
+  var f=input.files[0];if(!f)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var img=document.createElement('img');
+    img.src=ev.target.result;
+    img.style.cssText='max-width:100%;height:auto;border-radius:8px;margin:10px 0;display:block;cursor:pointer';
+    img.onclick=function(){var w=prompt('너비 입력 (예: 300px, 80%)',img.style.width||'100%');if(w){img.style.width=w;img.style.height='auto';}};
+    if(APP._savedRange){restoreRange(APP._savedRange);document.execCommand('insertHTML',false,img.outerHTML);}
+    else{var t=document.getElementById(targetId);if(t)t.appendChild(img);}
+    input.value='';
+  };
+  reader.readAsDataURL(f);
+}
+function setEditableAll(container,on){
+  container.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,div,li,blockquote').forEach(function(el){
+    var hasBtn=el.querySelector('button,input,select');
+    if(hasBtn)return;
+    if(on){el.setAttribute('contenteditable','true');el.style.outline='1px dashed rgba(99,102,241,.35)';el.style.minHeight='1em';}
+    else{el.removeAttribute('contenteditable');el.style.outline='none';}
+  });
+}
+function toggleCvEdit(){
+  APP.editMode=!APP.editMode;
+  var btn=document.getElementById('cv-editbtn');
+  var toolbar=document.getElementById('cv-editor-toolbar');
+  var doc=document.getElementById('cv-edoc');
+  toolbar.style.display=APP.editMode?'flex':'none';
+  btn.textContent=APP.editMode?'✅ 완료':'✏️ 편집';
+  btn.style.cssText=APP.editMode?'background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.4);color:#34d399':'';
+  setEditableAll(doc,APP.editMode);
+  if(!APP.editMode)showToast('success','✅ 편집이 저장되었습니다');
+}
+function toggleCvSalesEdit(){
+  APP.salesEditMode=!APP.salesEditMode;
+  var btn=document.getElementById('cv-sp-editbtn');
+  var toolbar=document.getElementById('cv-sp-toolbar');
+  var body=document.getElementById('cv-sp-body');
+  toolbar.style.display=APP.salesEditMode?'flex':'none';
+  btn.textContent=APP.salesEditMode?'✅ 완료':'✏️ 편집';
+  btn.style.cssText=APP.salesEditMode?'background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.4);color:#34d399':'';
+  setEditableAll(body,APP.salesEditMode);
+  if(!APP.salesEditMode)showToast('success','✅ 상세페이지 편집이 저장되었습니다');
+}
+
+// ── PDF 저장 (jsPDF + html2canvas 직접 변환) ──
+async function downloadPdfEbook(){
+  var btn=document.querySelector('[onclick="downloadPdfEbook()"]');
+  if(btn){btn.textContent='⏳ PDF 변환 중...';btn.disabled=true;}
+  try{
+    if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
+    if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'){
+      showToast('error','라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;
+    }
+    showToast('success','📄 PDF 생성 중... (10~30초 소요)');
+    var el=document.getElementById('cv-edoc');
+    if(!el){showToast('error','전자책 화면을 먼저 열어주세요.');return;}
+
+    var jsPDF=window.jspdf.jsPDF;
+    var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var pdfW=pdf.internal.pageSize.getWidth();   // 210mm
+    var pdfH=pdf.internal.pageSize.getHeight();  // 297mm
+
+    // 전체 전자책 요소를 페이지별(.pg)로 캡처
+    var pages=Array.from(el.querySelectorAll('.pg'));
+    if(pages.length===0) pages=[el]; // 페이지 구분 없으면 전체
+
+    for(var i=0;i<pages.length;i++){
+      if(i>0) pdf.addPage();
+      var canvas=await html2canvas(pages[i],{
+        scale:2,
+        useCORS:true,
+        allowTaint:true,
+        backgroundColor:'#ffffff',
+        logging:false,
+        windowWidth:pages[i].scrollWidth,
+        windowHeight:pages[i].scrollHeight
+      });
+      var imgData=canvas.toDataURL('image/jpeg',0.92);
+      var canvasW=canvas.width;
+      var canvasH=canvas.height;
+      // mm 단위로 변환 (96dpi 기준 → mm)
+      var imgWmm=pdfW;
+      var imgHmm=(canvasH/canvasW)*pdfW;
+
+      if(imgHmm<=pdfH){
+        // 한 페이지에 맞음
+        pdf.addImage(imgData,'JPEG',0,0,imgWmm,imgHmm);
+      } else {
+        // 여러 페이지로 나눠서 출력
+        var pageHpx=canvasH*(pdfH/imgHmm); // 한 페이지 분량 픽셀
+        var yOffset=0;
+        var isFirst=true;
+        while(yOffset<canvasH){
+          if(!isFirst) pdf.addPage();
+          // 현재 페이지 분량만큼 자르기
+          var sliceH=Math.min(pageHpx, canvasH-yOffset);
+          var sliceCanvas=document.createElement('canvas');
+          sliceCanvas.width=canvasW;
+          sliceCanvas.height=sliceH;
+          var ctx=sliceCanvas.getContext('2d');
+          ctx.drawImage(canvas,0,yOffset,canvasW,sliceH,0,0,canvasW,sliceH);
+          var sliceData=sliceCanvas.toDataURL('image/jpeg',0.92);
+          var sliceHmm=(sliceH/canvasW)*pdfW;
+          pdf.addImage(sliceData,'JPEG',0,0,pdfW,sliceHmm);
+          yOffset+=sliceH;
+          isFirst=false;
+        }
+      }
+    }
+
+    var safeTitle=(APP.ebook.title||'전자책').replace(/[/\\:*?"<>|]/g,'_').substring(0,50);
+    pdf.save(safeTitle+'.pdf');
+    showToast('success','✅ PDF 저장 완료!');
+  }catch(err){
+    console.error('PDF 오류:',err);
+    showToast('error','PDF 생성 실패. 다시 시도해주세요.\n'+err.message);
+  }finally{
+    if(btn){btn.textContent='📄 PDF 저장';btn.disabled=false;}
+  }
+}
+
+// ── 상세페이지 이미지 저장 ──
+async function saveSpAsImage(){
+  var btn=document.getElementById('sp-img-save-btn');
+  if(btn){btn.textContent='⏳ 저장 중...';btn.disabled=true;}
+  try{
+    var el=document.getElementById('cv-sp-body');
+    if(typeof html2canvas==='undefined'){
+      showToast('error','html2canvas 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    var canvas=await html2canvas(el,{
+      scale:2,
+      useCORS:true,
+      allowTaint:true,
+      backgroundColor:'#f8f8fc',
+      logging:false,
+      width:el.scrollWidth,
+      height:el.scrollHeight,
+      windowWidth:el.scrollWidth,
+      windowHeight:el.scrollHeight
+    });
+    var dataUrl=canvas.toDataURL('image/jpeg',0.95);
+    var a=document.createElement('a');
+    a.href=dataUrl;
+    a.download=(APP.ebook&&APP.ebook.title?APP.ebook.title:'상세페이지')+'_image.jpg';
+    a.click();
+    showToast('success','🖼️ 이미지로 저장됐습니다!');
+  }catch(err){
+    showToast('error','이미지 저장 실패: '+err.message);
+  }finally{
+    if(btn){btn.textContent='🖼️ 이미지 저장';btn.disabled=false;}
+  }
+}
+
+// ── 랜덤 표지 테마 ──
+var COVER_THEMES=[
+  // 1: 다크 네이비 (기본)
+  {bg:'linear-gradient(160deg,#1a1a2e 0%,#16213e 40%,#0f3460 100%)',accent:'#6366f1',accentLight:'#a5b4fc',catBg:'rgba(99,102,241,.22)',catBorder:'rgba(99,102,241,.5)',divBg:'linear-gradient(90deg,#6366f1,#a5b4fc)'},
+  // 2: 딥 그린
+  {bg:'linear-gradient(160deg,#052e16 0%,#14532d 50%,#166534 100%)',accent:'#4ade80',accentLight:'#86efac',catBg:'rgba(74,222,128,.15)',catBorder:'rgba(74,222,128,.4)',divBg:'linear-gradient(90deg,#4ade80,#86efac)'},
+  // 3: 퍼플 드림
+  {bg:'linear-gradient(160deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%)',accent:'#a78bfa',accentLight:'#c4b5fd',catBg:'rgba(167,139,250,.18)',catBorder:'rgba(167,139,250,.45)',divBg:'linear-gradient(90deg,#a78bfa,#c4b5fd)'},
+  // 4: 미드나잇 레드
+  {bg:'linear-gradient(160deg,#1a0a0a 0%,#3b0f0f 50%,#7f1d1d 100%)',accent:'#f87171',accentLight:'#fca5a5',catBg:'rgba(248,113,113,.15)',catBorder:'rgba(248,113,113,.4)',divBg:'linear-gradient(90deg,#f87171,#fca5a5)'},
+  // 5: 오션 블루
+  {bg:'linear-gradient(160deg,#0f172a 0%,#0c4a6e 50%,#075985 100%)',accent:'#38bdf8',accentLight:'#7dd3fc',catBg:'rgba(56,189,248,.15)',catBorder:'rgba(56,189,248,.4)',divBg:'linear-gradient(90deg,#38bdf8,#7dd3fc)'},
+  // 6: 골드 이그제큐티브
+  {bg:'linear-gradient(160deg,#1c1008 0%,#292202 50%,#3d3000 100%)',accent:'#fbbf24',accentLight:'#fde68a',catBg:'rgba(251,191,36,.15)',catBorder:'rgba(251,191,36,.4)',divBg:'linear-gradient(90deg,#fbbf24,#fde68a)'},
+  // 7: 핑크 모던
+  {bg:'linear-gradient(160deg,#1a0616 0%,#3b0764 50%,#6b21a8 100%)',accent:'#f0abfc',accentLight:'#e879f9',catBg:'rgba(240,171,252,.15)',catBorder:'rgba(240,171,252,.4)',divBg:'linear-gradient(90deg,#f0abfc,#e879f9)'},
+  // 8: 슬레이트 모노
+  {bg:'linear-gradient(160deg,#0f172a 0%,#1e293b 50%,#334155 100%)',accent:'#94a3b8',accentLight:'#cbd5e1',catBg:'rgba(148,163,184,.15)',catBorder:'rgba(148,163,184,.4)',divBg:'linear-gradient(90deg,#94a3b8,#cbd5e1)'},
+];
+
+// 랜덤 상세페이지 히어로 테마
+var SALES_HERO_THEMES=[
+  {bg:'linear-gradient(150deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)',btnBg:'linear-gradient(135deg,#f59e0b,#fbbf24)',statColor:'#fde047'},
+  {bg:'linear-gradient(150deg,#052e16 0%,#14532d 50%,#166534 100%)',btnBg:'linear-gradient(135deg,#fbbf24,#f59e0b)',statColor:'#4ade80'},
+  {bg:'linear-gradient(150deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%)',btnBg:'linear-gradient(135deg,#f59e0b,#fbbf24)',statColor:'#c4b5fd'},
+  {bg:'linear-gradient(150deg,#0f172a 0%,#0c4a6e 50%,#075985 100%)',btnBg:'linear-gradient(135deg,#fbbf24,#f59e0b)',statColor:'#7dd3fc'},
+  {bg:'linear-gradient(150deg,#1c1008 0%,#292202 50%,#3d3000 100%)',btnBg:'linear-gradient(135deg,#f59e0b,#fb923c)',statColor:'#fde68a'},
+  {bg:'linear-gradient(150deg,#1a0616 0%,#3b0764 50%,#6b21a8 100%)',btnBg:'linear-gradient(135deg,#fbbf24,#f59e0b)',statColor:'#f0abfc'},
+];
+
+function getRandomTheme(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+function printCvSales(){
+  var html='<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"/><title>상세페이지</title>'+getSalesCss()+'</head><body>'+document.getElementById('cv-sp-body').innerHTML+'</body></html>';
+  var w=window.open('','_blank');if(!w)return;w.document.write(html);w.document.close();
+}
+
+// Settings
+function saveApiKey(){var k=document.getElementById('set-apikey').value.trim();if(k)setApiKey(k);checkCvReady();showToast('success','API 키가 저장되었습니다.');}
+function clearApiKey(){localStorage.removeItem('plrbooks_apikey');document.getElementById('set-apikey').value='';checkCvReady();showToast('success','API 키가 삭제되었습니다.');}
+function toggleSetKey(){var i=document.getElementById('set-apikey');i.type=i.type==='password'?'text':'password';}
+async function testApiKey(){
+  var k=document.getElementById('set-apikey').value.trim()||getApiKey();
+  var box=document.getElementById('api-test-result');
+  if(!k){box.style.display='block';box.style.background='rgba(239,68,68,.1)';box.style.border='1px solid rgba(239,68,68,.3)';box.style.color='#fca5a5';box.innerHTML='❌ API 키가 입력되지 않았습니다.';return;}
+  box.style.display='block';box.style.background='rgba(99,102,241,.1)';box.style.border='1px solid rgba(99,102,241,.3)';box.style.color='#a5b4fc';box.innerHTML='⏳ API 키 테스트 중...';
+  try{
+    var r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:10,messages:[{role:'user',content:'안녕'}]})
+    });
+    var d=await r.json();
+    if(r.ok){
+      box.style.background='rgba(16,185,129,.1)';box.style.border='1px solid rgba(16,185,129,.3)';box.style.color='#34d399';
+      box.innerHTML='✅ API 키 정상입니다! 전자책 생성을 사용할 수 있습니다.';
+      if(k!==getApiKey()){setApiKey(k);document.getElementById('set-apikey').value=k;}
+    } else {
+      var em=d.error?.message||JSON.stringify(d);
+      var et=d.error?.type||'';
+      var kor='';
+      if(et==='authentication_error'||r.status===401)kor='❌ API 키가 잘못되었습니다.\nconsole.anthropic.com에서 키를 다시 확인해주세요.';
+      else if(et==='permission_error'||r.status===403)kor='❌ 권한 오류 또는 크레딧 부족.\nconsole.anthropic.com에서 잔액을 확인해주세요.';
+      else if(r.status===429)kor='⚠️ 요청 한도 초과. 잠시 후 다시 시도해주세요.';
+      else kor='❌ 오류 ('+r.status+'): '+em;
+      box.style.background='rgba(239,68,68,.1)';box.style.border='1px solid rgba(239,68,68,.3)';box.style.color='#fca5a5';
+      box.innerHTML=kor.replace(/\n/g,'<br>');
+    }
+  }catch(e){
+    box.style.background='rgba(239,68,68,.1)';box.style.border='1px solid rgba(239,68,68,.3)';box.style.color='#fca5a5';
+    box.innerHTML='❌ 네트워크 오류: '+e.message+'<br><br>인터넷 연결을 확인하거나 Chrome 브라우저로 접속해주세요.';
+  }
+}
+function saveProfile(){
+  if(!APP.user)return;
+  var name=document.getElementById('set-name').value.trim();
+  if(!name)return;
+  APP.user.name=name;
+  var users=getUsers();users[APP.user.email]=APP.user;saveUsers(users);setCurrentUser(APP.user);
+  document.getElementById('sb-uname').textContent=name;
+  showToast('success','프로필이 저장되었습니다.');
+}
+
+// Plan
+function showUpgradeModal(){document.getElementById('upgrade-modal').style.display='flex';}
+function hideUpgradeModal(){document.getElementById('upgrade-modal').style.display='none';}
+function changePlan(plan){
+  if(!APP.user)return;
+  APP.user.plan=plan;
+  var users=getUsers();users[APP.user.email]=APP.user;saveUsers(users);setCurrentUser(APP.user);
+  hideUpgradeModal();renderDashboard();renderSettings();
+  var pb=document.getElementById('sb-uplan');pb.textContent=PLANS[plan].name;pb.className='plan-badge plan-'+plan;
+  showToast('success','플랜이 '+PLANS[plan].name+'(으)로 변경되었습니다!');
+}
+
+// Toast
+var toastTimer;
+function showToast(type,msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type;
+  clearTimeout(toastTimer);
+  setTimeout(function(){t.classList.add('show');},10);
+  toastTimer=setTimeout(function(){t.classList.remove('show');},3500);
+}
+
+// ── 접속 코드 시스템 ──
+var FREE_END = new Date('2026-04-30T20:00:00+09:00').getTime();
+
+// ── 무료 체험 기간 ──
+var LATPEED_URL = 'https://www.latpeed.com/memberships/69e81cb28dffc208089f1e8e';
+
+// ── 생성 횟수 관리 (1회씩만) ──
+function getTrialCount(){
+  try{return JSON.parse(localStorage.getItem('plrbooks_trial')||'{"ebook":0,"sales":0}');}catch(e){return {ebook:0,sales:0};}
+}
+function addTrialCount(type){
+  var t=getTrialCount();t[type]=(t[type]||0)+1;
+  localStorage.setItem('plrbooks_trial',JSON.stringify(t));
+}
+function canGenerate(type){return true;} // 구독자 버전
+
+// ── 기간 체크 ──
+function checkStoredAccess(){return false;} // 코드 시스템 제거
+function checkAccessPeriod(){
+  return true; // 구독자 버전 - 제한 없음
+}
+
+// ── 카운트다운 화면 ──
+
+// ── 팝업 공통 링크 ──
+// ── 종료 화면 (4/30 이후) ──
+function showEnded(){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  var el=getOrCreateBlock();
+  el.innerHTML=
+    '<div style="text-align:center;padding:40px 24px;max-width:520px;font-family:\'Noto Sans KR\',sans-serif">'
+    +'<div style="font-size:56px;margin-bottom:18px">📘</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#a5b4fc;letter-spacing:.5px;margin-bottom:8px">PLR, AI 전자책 자동생성 MAKE</div>'
+    +'<h1 style="font-size:22px;font-weight:900;color:#fff;margin-bottom:14px;word-break:keep-all">무료 체험판, 잘 사용하셨나요? 😊</h1>'
+    +'<p style="font-size:14px;color:#94a3b8;line-height:1.9;margin-bottom:24px;word-break:keep-all">'
+    +'짧은 체험 기간이었지만<br>PLR, AI 전자책 자동생성 MAKE가 얼마나 강력한지<br>느끼셨길 바랍니다.<br><br>'
+    +'<strong style="color:#e2e8f0">기대하셨던 것 이상의 경험</strong>이 되었다면,<br>'
+    +'이제 제한 없이 무제한으로 사용해보세요!</p>'
+    +'<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:14px;padding:18px 20px;margin-bottom:20px;text-align:left">'
+    +'<div style="font-size:12px;font-weight:700;color:#a5b4fc;margin-bottom:12px">구독 시 무제한 사용 가능한 기능</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ 전자책 무제한 생성</div>'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ 상세페이지 무제한</div>'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ PDF · Word 저장</div>'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ 3가지 입력 방식</div>'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ 인라인 편집 기능</div>'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ 무제한 이력 저장</div>'
+    +'</div></div>'
+    +'<div style="background:rgba(245,158,11,.08);border:2px solid rgba(245,158,11,.3);border-radius:16px;padding:24px 20px;margin-bottom:18px">'
+    +'<div style="font-size:16px;font-weight:900;color:#fbbf24;margin-bottom:8px">🔓 구독 시 무제한 사용 가능</div>'
+    +'<div style="font-size:13px;color:#94a3b8;margin-bottom:18px;line-height:1.75">횟수 제한 없이 원하는 만큼<br>전자책과 상세페이지를 만들어보세요</div>'
+    +'<a href="'+LATPEED_URL+'" target="_blank" style="display:block;padding:15px 36px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#1a1a2e;font-size:16px;font-weight:900;border-radius:100px;text-decoration:none">🔓 지금 구독하기 →</a>'
+    +'</div>'
+    +'<p style="font-size:12px;color:#475569;line-height:1.7">언제든 해지 가능 · 구독 즉시 무제한 사용</p>'
+    +'</div>';
+}
+
+// ── 팝업 1: 환영 팝업 (로그인 직후) ──
+function showTrialWelcomePopup(){
+  if(localStorage.getItem('plrbooks_trial_welcomed'))return;
+  localStorage.setItem('plrbooks_trial_welcomed','1');
+  var overlay=document.createElement('div');
+  overlay.id='trial-popup-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
+  overlay.innerHTML=
+    '<div style="background:#0c0c1a;border:2px solid rgba(99,102,241,.4);border-radius:20px;padding:24px 22px;max-width:420px;width:100%;text-align:center;font-family:\'Noto Sans KR\',sans-serif;position:relative;margin:auto">'
+    +'<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-size:11px;font-weight:900;padding:4px 16px;border-radius:100px;white-space:nowrap;letter-spacing:.5px">🎁 무료 체험판</div>'
+    +'<div style="font-size:36px;margin:8px 0 8px">📘</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#a5b4fc;letter-spacing:.5px;margin-bottom:3px">PLR, AI 전자책 자동생성 MAKE</div>'
+    +'<h2 style="font-size:16px;font-weight:900;color:#fff;margin-bottom:14px;word-break:keep-all">로 할 수 있는 것들</h2>'
+    +'<div style="text-align:left;display:flex;flex-direction:column;gap:7px;margin-bottom:14px">'
+    +'<div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:10px">'
+    +'<span style="font-size:18px;flex-shrink:0">📄</span><div><div style="font-size:12px;font-weight:700;color:#fff">PLR PDF 문서 → 한국어 전자책 자동 변환</div><div style="font-size:11px;color:#94a3b8">영어 PLR PDF 업로드만 하면 10분 완성</div></div></div>'
+    +'<div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:10px">'
+    +'<span style="font-size:18px;flex-shrink:0">🔗</span><div><div style="font-size:12px;font-weight:700;color:#fff">URL 입력 → 전자책 자동 생성</div><div style="font-size:11px;color:#94a3b8">블로그 · 뉴스 · 유튜브 링크만 넣으면 완성</div></div></div>'
+    +'<div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:10px">'
+    +'<span style="font-size:18px;flex-shrink:0">💡</span><div><div style="font-size:12px;font-weight:700;color:#fff">주제 키워드 → 전자책 처음부터 창작</div><div style="font-size:11px;color:#94a3b8">소재 없어도 OK · 아이디어만 있으면 완성</div></div></div>'
+    +'<div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:10px">'
+    +'<span style="font-size:18px;flex-shrink:0">🛒</span><div><div style="font-size:12px;font-weight:700;color:#fff">크몽 · 탈잉용 판매 상세페이지 자동 생성</div><div style="font-size:11px;color:#94a3b8">오늘 만들고 오늘 바로 판매 시작 가능</div></div></div>'
+    +'</div>'
+    +'<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:10px;padding:10px 14px;margin-bottom:14px;text-align:left">'
+    +'<div style="font-size:11px;color:#fde047;font-weight:700;margin-bottom:6px">⚠️ 무료 체험판 안내</div>'
+    +'<div style="font-size:11px;color:#cbd5e1;line-height:1.8">'
+    +'<div>✅ 전자책 생성 <strong style="color:#fff">1회</strong> 무료 &nbsp;|&nbsp; ✅ 상세페이지 <strong style="color:#fff">1회</strong> 무료</div>'
+    +'<div style="color:#94a3b8;margin-top:3px;font-size:10px">⏰ 4월 30일 오후 8시까지 · 구독 시 무제한 사용 가능</div>'
+    +'</div></div>'
+    +'<button onclick="document.getElementById(\'trial-popup-overlay\').remove()" style="width:100%;padding:12px;background:linear-gradient(135deg,#6366f1,#a855f7);border:none;border-radius:100px;font-size:14px;font-weight:900;color:#fff;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif">🚀 지금 바로 체험하기</button>'
+    +'</div>';
+  document.body.appendChild(overlay);
+}
+
+// ── 팝업 2/3: 생성 횟수 초과 팝업 ──
+function showTrialLimitPopup(type){
+  var typeLabel=type==='ebook'?'전자책':'상세페이지';
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML=
+    '<div style="background:#0c0c1a;border:2px solid rgba(239,68,68,.4);border-radius:20px;padding:36px 28px;max-width:440px;width:100%;text-align:center;font-family:\'Noto Sans KR\',sans-serif">'
+    +'<div style="font-size:52px;margin-bottom:16px">🔒</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#a5b4fc;letter-spacing:.5px;margin-bottom:8px">PLR, AI 전자책 자동생성 MAKE</div>'
+    +'<h2 style="font-size:18px;font-weight:900;color:#fff;margin-bottom:12px;word-break:keep-all">무료 체험 '+typeLabel+' 생성<br>횟수를 모두 사용했습니다</h2>'
+    +'<p style="font-size:13px;color:#94a3b8;line-height:1.85;margin-bottom:20px;word-break:keep-all">'
+    +'무료 체험판은 '+typeLabel+' 생성이 <strong style="color:#fff">1회</strong>로 제한됩니다.<br>'
+    +'구독하시면 횟수 제한 없이<br><strong style="color:#34d399">무제한으로 이용</strong>하실 수 있습니다!</p>'
+    +'<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;margin-bottom:18px">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ 전자책 무제한 생성</div>'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ 상세페이지 무제한</div>'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ PDF · Word 저장</div>'
+    +'<div style="font-size:12px;color:#cbd5e1">✅ 모든 기능 무제한</div>'
+    +'</div></div>'
+    +'<a href="'+LATPEED_URL+'" target="_blank" style="display:block;padding:14px 36px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#1a1a2e;font-size:15px;font-weight:900;border-radius:100px;text-decoration:none;margin-bottom:12px">🔓 지금 구독하기 →</a>'
+    +'<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:10px 28px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:100px;font-size:13px;color:#94a3b8;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif">닫기</button>'
+    +'</div>';
+  document.body.appendChild(overlay);
+}
+
+function getOrCreateBlock(){
+  var el=document.getElementById('pg-access-block');
+  if(!el){
+    el=document.createElement('div');
+    el.id='pg-access-block';
+    document.body.appendChild(el);
+  }
+  // 모든 페이지 숨기고 access block만 표시
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  var lp=document.getElementById('pg-landing');
+  if(lp)lp.classList.remove('active');
+  el.style.cssText='min-height:100vh;display:flex;align-items:center;justify-content:center;background:#07070f;position:fixed;inset:0;z-index:50;overflow:auto';
+  return el;
+}
+
+window.addEventListener('load',function(){
+  if(!checkAccessPeriod())return;
+  var u=getCurrentUser();
+  if(u){
+    APP.user=u;
+    showPage('app','dashboard');
+    // 구독자 버전 - 팝업 없음
+  }
+});
+
+</script>
+<script>
+/* ── RENDER EBOOK ── */
+function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function pad(n){return String(n||0).padStart(2,'0');}
+
+function cleanText(s){
+  if(!s)return '';
+
+  // 1. ** 굵기 마크다운 → <strong>
+  s=s.replace(/\*\*([^*]+)\*\*/g,function(_,t){return t;});
+
+  // 2. # 헤더 마크다운 제거
+  s=s.replace(/^#{1,6}\s*/gm,'');
+
+  // 3. 불릿(*) → 번호 변환
+  var n=0;
+  s=s.replace(/^\*\s+/gm,function(){n++;return n+'. ';});
+  s=s.replace(/\*\s+/g,'');
+
+  // 4. 체크박스 □ → ☑ 스타일 텍스트로 변환 (빈 네모칸 제거)
+  s=s.replace(/^\s*□\s*/gm,'✅ ');   // 줄 시작 □ → 체크 이모지
+  s=s.replace(/□/g,'');              // 나머지 □ 완전 제거
+  s=s.replace(/■/g,'▪');             // ■ → 작은 점
+  s=s.replace(/☐/g,'✅ ');            // ☐ (다른 체크박스 유니코드)
+  s=s.replace(/✓\s*/g,'✅ ');         // ✓ → ✅
+
+  // 5. 마크다운 표 → HTML 표 변환
+  s=s.replace(/(\|[^\n]+\|\n?)+/g,function(table){
+    var rows=table.trim().split('\n');
+    var html='<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:13px">';
+    var isHead=true;
+    rows.forEach(function(row){
+      if(/^\|[\s\-:|]+\|$/.test(row.replace(/\|[\s\-:|]+/g,'|').replace(/\|$/,'|')))return;
+      if(/^[\|\s\-:]+$/.test(row))return;
+      var cells=row.split('|').filter(function(c,i,arr){return i>0&&i<arr.length-1;});
+      if(cells.length===0)return;
+      if(isHead){
+        html+='<thead><tr>';
+        cells.forEach(function(c){html+='<th style="background:#f0f4ff;color:#1a1a2e;font-weight:700;padding:9px 12px;border:1px solid #dde3f0;text-align:left;word-break:keep-all">'+c.trim()+'</th>';});
+        html+='</tr></thead><tbody>';
+        isHead=false;
+      } else {
+        html+='<tr>';
+        cells.forEach(function(c,ci){html+='<td style="padding:8px 12px;border:1px solid #e2e8f0;background:'+(ci%2===0?'#fff':'#f8fafc')+';word-break:keep-all;line-height:1.6">'+c.trim()+'</td>';});
+        html+='</tr>';
+      }
+    });
+    html+='</tbody></table>';
+    return html;
+  });
+
+  // 6. 깨진 특수문자 제거
+  s=s.replace(/\uFFFD/g,'');          // 깨진 문자 대체 기호
+  s=s.replace(/[\uE000-\uF8FF]/g,''); // 사용자 영역 문자
+  s=s.replace(/[^\u0000-\uFFFF]/g,'');// 보충 문자 제거
+
+  return s;
+}function renderCvSalesPage(e){
+  var s=e.sales||{}, chs=e.chapters||[];
+  var ch1=chs[0]||{}, ch2=chs[1]||{}, ch3=chs[2]||{};
+
+  var v=Math.floor(Math.random()*5)+1;
+  var themes={
+    1:{name:'코랄',    P:'#E85D4A',PL:'#FF9B8E',PD:'#B33A2A',LBG:'#FAF5F3',LBD:'#EDE0DC',DBG:'#1A1210'},
+    2:{name:'골드',    P:'#D4A843',PL:'#F0CC7A',PD:'#9E7820',LBG:'#FAF8F0',LBD:'#EDE5CC',DBG:'#1A1608'},
+    3:{name:'민트',    P:'#2DD4BF',PL:'#7EEEE1',PD:'#0A9E8C',LBG:'#F0FAF8',LBD:'#C8EDEA',DBG:'#071A18'},
+    4:{name:'바이올렛',P:'#7C3AED',PL:'#A78BFA',PD:'#5B21B6',LBG:'#F5F3FF',LBD:'#DDD6FF',DBG:'#0F0A1E'},
+    5:{name:'오렌지',  P:'#E84A1F',PL:'#FF8C6B',PD:'#B33510',LBG:'#FFF5F0',LBD:'#FFD8C8',DBG:'#1A0B08'}
+  };
+  var t=themes[v];
+  var GRAD='linear-gradient(165deg,'+t.PD+' 0%,'+t.P+' 50%,'+t.PL+' 100%)';
+  var TOTAL=7;
+
+  // 콘텐츠 추출
+  var title=x(e.title||'베스트셀러 전자책');
+  var category=x(e.category||'EBOOK');
+  var author=x(e.author||'저자');
+  var hook=x(s.hook||e.title||'');
+  var subhook=x(s.subhook||e.description||'');
+  var solution=x(s.solution||e.description||'');
+  var finalPush=x(s.finalPush||'지금 바로 시작하세요');
+  var pains=s.pains&&s.pains.length?s.pains:[
+    {icon:'😩',title:'시간이 없다',desc:'바쁜 일상에 공부할 여유가 없습니다'},
+    {icon:'😤',title:'정보가 너무 많다',desc:'무엇부터 시작해야 할지 모릅니다'},
+    {icon:'😞',title:'결과가 안 나온다',desc:'열심히 해도 변화가 없습니다'}
+  ];
+  var learnings=s.learnings&&s.learnings.length?s.learnings:chs.map(function(c2){return c2.title||'';}).filter(Boolean);
+  var after=s.after&&s.after.length?s.after:['명확한 방향이 생긴다','효율이 3배 올라간다','결과가 나온다'];
+
+  // 공통
+  function pBar(idx,isLight){
+    var pct=Math.round((idx+1)/TOTAL*100);
+    var track=isLight?'rgba(0,0,0,0.08)':'rgba(255,255,255,0.12)';
+    var fill=isLight?t.P:'#ffffff';
+    var lbl=isLight?'rgba(0,0,0,0.3)':'rgba(255,255,255,0.4)';
+    return '<div style="position:absolute;bottom:0;left:0;right:0;padding:12px 26px 16px;display:flex;align-items:center;gap:10px;">'
+      +'<div style="flex:1;height:3px;background:'+track+';border-radius:100px;overflow:hidden;">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+fill+';border-radius:100px;transition:width .4s;"></div></div>'
+      +'<span style="font-size:10px;font-weight:600;color:'+lbl+';white-space:nowrap;">'+(idx+1)+'/'+TOTAL+'</span>'
+      +'</div>';
+  }
+  function arrow(isLight){
+    var bg=isLight?'linear-gradient(to right,transparent,rgba(0,0,0,0.05))':'linear-gradient(to right,transparent,rgba(0,0,0,0.18))';
+    var stroke=isLight?'rgba(0,0,0,0.3)':'rgba(255,255,255,0.5)';
+    return '<div style="position:absolute;right:0;top:0;bottom:0;width:40px;background:'+bg+';display:flex;align-items:center;justify-content:flex-end;padding-right:8px;pointer-events:none;">'
+      +'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="'+stroke+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></div>';
+  }
+  function tag(text,isLight){
+    var bg=isLight?t.P+'18':'rgba(255,255,255,0.12)';
+    var color=isLight?t.P:'rgba(255,255,255,0.8)';
+    return '<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:'+color+';background:'+bg+';padding:5px 12px;border-radius:100px;">'+text+'</span>';
+  }
+  function slide(idx,isLight,isGrad,inner){
+    var bgStyle=isGrad?('background:'+GRAD):('background:'+(isLight?t.LBG:t.DBG));
+    return '<div class="sp-card" id="sp-card-'+(idx+1)+'" style="width:540px;height:675px;position:relative;overflow:hidden;box-sizing:border-box;font-family:\'Plus Jakarta Sans\',\'Noto Sans KR\',sans-serif;'+bgStyle+';flex-shrink:0;">'
+      +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+t.P+';z-index:2;"></div>'
+      +inner
+      +pBar(idx,isLight&&!isGrad)
+      +(idx<TOTAL-1?arrow(isLight&&!isGrad):'')
+      +'</div>';
+  }
+  // 장식용 큰 배경 텍스트/도형
+  function bgDeco(text,color){
+    return '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:200px;font-weight:900;color:'+color+';opacity:0.035;pointer-events:none;white-space:nowrap;letter-spacing:-10px;line-height:1;">'+text+'</div>';
+  }
+  function bgCircles(color){
+    return '<div style="position:absolute;top:-80px;right:-80px;width:320px;height:320px;border-radius:50%;background:'+color+';opacity:0.08;pointer-events:none;"></div>'
+      +'<div style="position:absolute;bottom:-60px;left:-60px;width:240px;height:240px;border-radius:50%;background:'+color+';opacity:0.05;pointer-events:none;"></div>';
+  }
+
+  var slides='';
+
+  // ── 슬라이드 1: Hero (LIGHT) ──
+  var topKeyword=(ch1.keyPoints&&ch1.keyPoints[0]?ch1.keyPoints[0]:'').substring(0,18);
+  slides+=slide(0,true,false,
+    bgCircles(t.P)
+    +'<div style="position:absolute;top:36px;right:36px;font-size:96px;opacity:0.07;line-height:1;">📘</div>'
+    +'<div style="padding:44px 36px 56px;display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;">'
+    // 상단
+    +'<div>'
+    +tag(category,true)
+    +'</div>'
+    // 중앙 메인
+    +'<div>'
+    +'<h1 style="font-size:40px;font-weight:900;line-height:1.1;letter-spacing:-1px;color:#1a1a2e;margin-bottom:16px;word-break:keep-all;">'+hook+'</h1>'
+    +'<div style="width:44px;height:4px;background:'+t.P+';border-radius:2px;margin-bottom:16px;"></div>'
+    +'<p style="font-size:15px;color:#555;line-height:1.65;word-break:keep-all;max-width:380px;">'+subhook+'</p>'
+    +'</div>'
+    // 하단 저자
+    +'<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:'+t.P+'12;border-radius:14px;border:1px solid '+t.P+'25;">'
+    +'<div style="width:40px;height:40px;border-radius:10px;background:'+GRAD+';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📘</div>'
+    +'<div><div style="font-size:14px;font-weight:800;color:#1a1a2e;">'+title.substring(0,20)+'</div><div style="font-size:11px;color:'+t.P+';font-weight:600;">by '+author+'</div></div>'
+    +'</div>'
+    +'</div>'
+  );
+
+  // ── 슬라이드 2: Problem (DARK) ──
+  slides+=slide(1,false,false,
+    bgDeco('WHY',t.PL)
+    +'<div style="padding:44px 36px 56px;display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;">'
+    +'<div>'+tag('PROBLEM',false)+'</div>'
+    +'<div>'
+    +'<div style="font-size:54px;font-weight:900;line-height:1;color:#fff;margin-bottom:8px;letter-spacing:-2px;word-break:keep-all;">'+
+      (pains[0]?x(pains[0].title):'이런 문제')+'</div>'
+    +'<p style="font-size:15px;color:rgba(255,255,255,0.5);line-height:1.6;margin-bottom:20px;">'+
+      (pains[0]?x(pains[0].desc):'지금 겪고 계신가요?')+'</p>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;">'
+    +pains.slice(0,3).map(function(p2,pi){
+      return '<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:14px;">'
+        +'<span style="font-size:28px;flex-shrink:0;">'+x(p2.icon||'😩')+'</span>'
+        +'<div><div style="font-size:14px;font-weight:700;color:#fff;">'+x(p2.title||'')+'</div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px;">'+x(p2.desc||'')+'</div></div>'
+        +'</div>';
+    }).join('')
+    +'</div></div>'
+    +'<div></div>'
+    +'</div>'
+  );
+
+  // ── 슬라이드 3: Solution (GRADIENT) ──
+  slides+=slide(2,false,true,
+    '<div style="position:absolute;top:-100px;right:-100px;width:400px;height:400px;border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none;"></div>'
+    +'<div style="position:absolute;bottom:-60px;left:-60px;width:280px;height:280px;border-radius:50%;background:rgba(0,0,0,0.1);pointer-events:none;"></div>'
+    +'<div style="padding:44px 36px 56px;display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;">'
+    +'<div>'+tag('SOLUTION',false)+'</div>'
+    +'<div>'
+    +'<h2 style="font-size:42px;font-weight:900;line-height:1.1;color:#fff;margin-bottom:20px;word-break:keep-all;letter-spacing:-1px;">'+title+'</h2>'
+    +'<div style="padding:18px 22px;background:rgba(0,0,0,0.22);border-radius:16px;border:1px solid rgba(255,255,255,0.1);margin-bottom:18px;">'
+    +'<p style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;font-size:10px;font-weight:600;">핵심 메시지</p>'
+    +'<p style="font-size:16px;color:#fff;font-style:italic;line-height:1.6;word-break:keep-all;">"'+solution.substring(0,80)+(solution.length>80?'...':'')+'"</p>'
+    +'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;">'
+    +after.slice(0,3).map(function(a){return '<span style="font-size:12px;padding:7px 16px;background:rgba(255,255,255,0.15);border-radius:100px;color:#fff;font-weight:600;">✓ '+x(a)+'</span>';}).join('')
+    +'</div></div>'
+    +'<div></div>'
+    +'</div>'
+  );
+
+  // ── 슬라이드 4: Features (LIGHT) ──
+  var feats=learnings.length>=3?learnings.slice(0,4):chs.slice(0,4).map(function(c2){return c2.title||'';}).filter(Boolean);
+  var ficons=['🎯','📚','💡','⚡'];
+  slides+=slide(3,true,false,
+    bgCircles(t.P)
+    +'<div style="padding:44px 36px 56px;display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;">'
+    +'<div>'+tag('WHAT YOU GET',true)+'</div>'
+    +'<div>'
+    +'<h2 style="font-size:38px;font-weight:900;color:#1a1a2e;line-height:1.1;letter-spacing:-1px;margin-bottom:24px;word-break:keep-all;">이 책에서<br>배우는 것들</h2>'
+    +'<div style="display:flex;flex-direction:column;gap:0;">'
+    +feats.slice(0,4).map(function(item,i){
+      return '<div style="display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid '+t.LBD+';">'
+        +'<span style="font-size:26px;flex-shrink:0;">'+ficons[i]+'</span>'
+        +'<span style="font-size:15px;font-weight:700;color:#1a1a2e;line-height:1.4;word-break:keep-all;">'+x(item)+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div></div>'
+    +'<div></div>'
+    +'</div>'
+  );
+
+  // ── 슬라이드 5: Chapters / Details (DARK) ──
+  slides+=slide(4,false,false,
+    bgDeco('CH',t.PL)
+    +'<div style="padding:44px 36px 56px;display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;">'
+    +'<div>'+tag('INSIDE THE BOOK',false)+'</div>'
+    +'<div>'
+    +'<h2 style="font-size:38px;font-weight:900;color:#fff;line-height:1.1;letter-spacing:-1px;margin-bottom:22px;word-break:keep-all;">챕터별<br>핵심 내용</h2>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;">'
+    +chs.slice(0,3).map(function(ch,i){
+      var kp=ch.keyPoints&&ch.keyPoints[0]?x(ch.keyPoints[0]).substring(0,40)+'...':'';
+      return '<div style="padding:16px 18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:14px;">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+        +'<span style="font-size:11px;font-weight:800;color:'+t.P+';background:'+t.P+'30;padding:3px 11px;border-radius:100px;flex-shrink:0;">CH.0'+(i+1)+'</span>'
+        +'<span style="font-size:14px;font-weight:700;color:#fff;word-break:keep-all;">'+x(ch.title||'')+'</span>'
+        +'</div>'
+        +(kp?'<p style="font-size:12px;color:rgba(255,255,255,0.45);line-height:1.5;margin:0;word-break:keep-all;">'+kp+'</p>':'')
+        +'</div>';
+    }).join('')
+    +'</div></div>'
+    +'<div></div>'
+    +'</div>'
+  );
+
+  // ── 슬라이드 6: How-to (LIGHT) ──
+  var actions=[];
+  chs.forEach(function(ch){if(ch.actionBox)actions=actions.concat(ch.actionBox);});
+  var steps6=actions.slice(0,4);
+  if(steps6.length<3)steps6=[
+    ch1.title||'핵심 개념을 이해한다',
+    ch2.title||'실전에 바로 적용한다',
+    ch3.title||'결과를 확인하고 개선한다',
+    e.appendices&&e.appendices[0]?e.appendices[0].title:'반복하며 완성한다'
+  ];
+  slides+=slide(5,true,false,
+    bgCircles(t.P)
+    +'<div style="padding:44px 36px 56px;display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;">'
+    +'<div>'+tag('HOW TO START',true)+'</div>'
+    +'<div>'
+    +'<h2 style="font-size:38px;font-weight:900;color:#1a1a2e;line-height:1.1;letter-spacing:-1px;margin-bottom:22px;word-break:keep-all;">실천 로드맵<br>4단계</h2>'
+    +'<div style="display:flex;flex-direction:column;gap:0;">'
+    +steps6.slice(0,4).map(function(step,i){
+      return '<div style="display:flex;align-items:flex-start;gap:18px;padding:13px 0;border-bottom:1px solid '+t.LBD+';">'
+        +'<span style="font-size:28px;font-weight:300;color:'+t.P+';min-width:36px;line-height:1.2;font-family:Georgia,serif;">0'+(i+1)+'</span>'
+        +'<span style="font-size:14px;font-weight:700;color:#1a1a2e;line-height:1.5;word-break:keep-all;padding-top:4px;">'+x(step)+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div></div>'
+    +'<div></div>'
+    +'</div>'
+  );
+
+  // ── 슬라이드 7: CTA (GRADIENT, 마지막) ──
+  slides+=slide(6,false,true,
+    '<div style="position:absolute;top:-100px;right:-100px;width:380px;height:380px;border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none;"></div>'
+    +'<div style="position:absolute;bottom:-80px;left:-80px;width:300px;height:300px;border-radius:50%;background:rgba(0,0,0,0.12);pointer-events:none;"></div>'
+    +'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:220px;font-weight:900;color:rgba(255,255,255,0.04);pointer-events:none;line-height:1;">📘</div>'
+    +'<div style="padding:44px 36px 56px;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;box-sizing:border-box;text-align:center;position:relative;z-index:1;">'
+    +'<div style="width:64px;height:64px;border-radius:18px;background:rgba(255,255,255,0.18);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:22px;">📘</div>'
+    +'<h2 style="font-size:36px;font-weight:900;color:#fff;line-height:1.1;margin-bottom:14px;word-break:keep-all;letter-spacing:-1px;">'+title+'</h2>'
+    +'<p style="font-size:14px;color:rgba(255,255,255,0.7);line-height:1.65;margin-bottom:28px;max-width:340px;word-break:keep-all;">'+x(finalPush.substring(0,80))+'</p>'
+    +'<div style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:rgba(255,255,255,0.95);color:'+t.PD+';font-weight:800;font-size:15px;border-radius:100px;box-shadow:0 6px 24px rgba(0,0,0,0.2);margin-bottom:18px;">'
+    +'📘 지금 바로 읽기 →</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
+    +(s.price?'<span style="font-size:12px;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.12);padding:6px 14px;border-radius:100px;">₩'+x(s.price)+'</span>':'')
+    +'<span style="font-size:12px;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.12);padding:6px 14px;border-radius:100px;">'+x(e.category||'전자책')+'</span>'
+    +'<span style="font-size:12px;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.12);padding:6px 14px;border-radius:100px;">by '+author+'</span>'
+    +'</div>'
+    +'</div>'
+  );
+
+  // 전체 래퍼
+  var cardParts=slides.split(/(?=<div class="sp-card")/);
+  var finalHtml=
+    '<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>'
+    +'<div style="background:#0e0e0e;padding:36px 20px;font-family:\'Plus Jakarta Sans\',\'Noto Sans KR\',sans-serif;min-height:100vh;box-sizing:border-box;">'
+    +'<div style="text-align:center;margin-bottom:28px;">'
+    +'<div style="font-size:10px;font-weight:700;color:'+t.P+';letter-spacing:2.5px;margin-bottom:6px;text-transform:uppercase;">CARD NEWS · 버전 '+v+' · '+t.name+'</div>'
+    +'<div style="font-size:17px;font-weight:800;color:#fff;word-break:keep-all;">'+title+'</div>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;align-items:center;gap:40px;">';
+
+  cardParts.forEach(function(part,idx){
+    if(!part.trim())return;
+    finalHtml+='<div style="display:flex;flex-direction:column;align-items:center;gap:10px;">'
+      +part
+      +'<button onclick="dlSpSlide('+(idx+1)+',this)" style="padding:8px 22px;background:transparent;border:2px solid '+t.P+';border-radius:100px;color:'+t.P+';font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;">⬇ slide_0'+(idx)+'.png</button>'
+      +'</div>';
+  });
+
+  finalHtml+='</div></div>'
+    +'<script>function dlSpSlide(n,btn){'
+    +'var el=document.getElementById("sp-card-"+n);if(!el)return;'
+    +'var orig=btn.textContent;btn.textContent="⏳ 렌더링 중...";btn.disabled=true;'
+    +'if(typeof html2canvas==="undefined"){btn.textContent=orig;btn.disabled=false;return;}'
+    +'html2canvas(el,{scale:2,useCORS:true,backgroundColor:null,logging:false}).then(function(canvas){'
+    +'var a=document.createElement("a");a.href=canvas.toDataURL("image/png");'
+    +'a.download="slide_0"+n+".png";a.click();'
+    +'btn.textContent=orig;btn.disabled=false;'
+    +'}).catch(function(e2){btn.textContent=orig;btn.disabled=false;});'
+    +'}<\/script>';
+
+  document.getElementById('cv-sp-body').innerHTML=finalHtml;
+}
+
+
+>
