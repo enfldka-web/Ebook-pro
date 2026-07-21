@@ -340,6 +340,7 @@
             <button class="r-btn r-btn-w" id="cv-docxbtn" onclick="downloadDocx(APP.ebook)">📝 Word 저장</button>
             <button class="r-btn r-btn-s" onclick="checkAndShowSales()">🛒 썸네일 + 상세페이지</button>
             <button class="r-btn r-btn-e" onclick="tsOpen()">🎯 Thumbnail Studio</button>
+            <button class="r-btn r-btn-e" onclick="spsOpen()">📄 Sales Page Studio</button>
             <button class="r-btn r-btn-e" onclick="openAtlasPartialModal()">🪄 필요한 부분만 수정</button>
           </div>
           <div id="atlas-quality-body"></div>
@@ -409,7 +410,14 @@
           </div>
           <div id="ts-root"></div>
         </div>
-      
+        <!-- SALES PAGE STUDIO (Milestone 3) -->
+        <div id="cv-salespagestudio-state" style="display:none">
+          <div class="result-actions">
+            <button class="r-btn r-btn-g" onclick="spsClose()">← 전자책으로</button>
+          </div>
+          <div id="sps-root"></div>
+        </div>
+
 
   </div>
     
@@ -516,6 +524,8 @@
 <script src="js/thumbnail-studio.js"></script>
 <script src="js/thumbnail-studio-io.js"></script>
 <script src="js/thumbnail-intelligence.js"></script>
+<script src="js/sales-page-studio.js"></script>
+<script src="js/sales-page-studio-io.js"></script>
 
 </body>
 </html>

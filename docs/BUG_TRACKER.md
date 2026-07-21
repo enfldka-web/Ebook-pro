@@ -32,6 +32,10 @@
 - Milestone 2/2.5 QA: "← 전자책으로" 같은 동일 텍스트 버튼이 여러 화면(예: 기존 상세페이지 화면과
   신규 Thumbnail Studio 화면)에 각각 존재해, 범위를 좁히지 않은 선택자가 다른 화면의 숨겨진 버튼을
   잘못 찾은 사례 — 선택자를 해당 화면으로 한정해 해결
+- Milestone 3 QA: 섹션 On/Off 토글의 실제 `<input type="checkbox">`는 커스텀 스위치 스타일을 위해
+  `opacity:0`으로 숨겨져 있어, Playwright가 이 input을 직접 클릭하려 하면 "not visible"로 판단해
+  타임아웃 발생 — input을 감싸는 `<label class="sps-toggle">`를 클릭하도록 테스트 스크립트를 수정해
+  해결(앱 코드 문제 아님, 실제 사용자는 마우스로 스위치 전체를 클릭하므로 정상 동작)
 
 ## 현재 Open Bugs
 
@@ -46,3 +50,5 @@
 | 실제 Claude API 기반 Hook 추천 미검증 | Known Limitation | Hook Generator(Milestone 2)와 Hook 추천(Milestone 2.5)은 전부 규칙/fallback 기반이며, 유효한 Anthropic API 키가 없어 실제 AI 응답 경로 자체가 검증된 적이 없습니다. |
 | 브라우저별 Export 품질 확인 | Verification Needed | 지금까지의 검증은 Chromium(Playwright) 한 브라우저에서만 이루어졌습니다. Safari/Firefox 등 다른 브라우저에서의 html2canvas 동작은 확인되지 않았습니다. |
 | 모바일 레이아웃 추가 검증 | Verification Needed | Thumbnail Studio/Intelligence는 데스크톱 우선으로 설계되었고 최소한의 반응형 CSS만 있습니다. 실제 모바일 기기에서의 사용성은 검증되지 않았습니다. |
+| Sales Page Studio 실제 JSZip 묶음 품질 확인 | Verification Needed | 이 개발 샌드박스는 `cdnjs.cloudflare.com` 접근이 차단되어 있어, ZIP Export는 스텁(대역) 함수로 파이프라인(파일 개수·이름·순서)만 검증했습니다. 실제 JSZip으로 생성된 ZIP 파일의 압축 품질/무결성은 인터넷이 연결된 실제 사용자 환경에서 별도 확인이 필요합니다. |
+| Sales Page Studio 대량 섹션 Export 시 메모리 사용량 | Verification Needed | v1은 8개 섹션(카드) 기준으로만 검증했습니다. html2canvas로 여러 카드를 연속 캡처할 때의 실제 메모리 사용량은 스텁 환경에서는 의미 있게 측정할 수 없어, 실제 환경에서 추가 확인이 필요합니다. |

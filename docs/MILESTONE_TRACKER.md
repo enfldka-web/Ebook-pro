@@ -12,7 +12,7 @@
 | 2 | Thumbnail Studio v1 | 완료 | `claude/milestone-2-thumbnail-studio` / PR #2 | 템플릿 8종, 색상/레이아웃/스타일, Live Preview, Prompt Builder, PNG/JPG Export, 저장/불러오기 |
 | 2.5 | Thumbnail Intelligence v1 | 완료 | `claude/milestone-2.5-thumbnail-intelligence` / PR #3 | 결정적 점수, 개선 제안, 규칙 기반 추천, 추천 적용, 실제 CTR 예측 아님 |
 | 2.6 | Before/After Comparison | 후보 | 없음 | 아직 미착수 — Milestone 2.5 사전 분석에서 다음 후보로만 기록됨 |
-| 3 | Sales Page Studio | 예정 | 없음 | 아직 분석 전 — 이번 문서화 작업 완료 후 별도 사전 분석 예정 |
+| 3 | Sales Page Studio v1 | 완료(병합 대기) | `claude/milestone-3-sales-page-studio` / PR 생성 대기 | 섹션 구조 빌더(8종), 텍스트 편집, 색상 테마/카드 레이아웃, Live Preview, 개별 PNG/전체 ZIP Export, 저장/불러오기 |
 
 ---
 
@@ -68,8 +68,19 @@
 - **배경**: Milestone 2.5 사전 분석 단계에서 "적용 전/후 비교 화면"을 만들지, 이번 Milestone에 포함할지 검토했고, 범위 확대를 피하기 위해 다음 Milestone 후보로 분리하기로 결정함(사용자 승인 완료).
 - **현재 상태**: 사전 분석도 아직 시작하지 않음. 착수 여부와 시점 미정.
 
-## Milestone 3 — Sales Page Studio
+## Milestone 3 — Sales Page Studio v1
 
-- **상태**: 예정
-- **Branch/PR**: 없음
-- **현재 상태**: 사전 분석 전. 이번 운영 문서화 작업이 병합된 후 별도로 사전 분석을 진행할 예정(사용자 지시에 따라 이번 작업에서는 착수하지 않음).
+- **상태**: 완료(병합 대기 — 403으로 직접 push 불가, ZIP을 통한 GitHub Desktop 반영 대기)
+- **Branch/PR**: `claude/milestone-3-sales-page-studio` (Atlas 운영 문서 v1.0이 병합된 `main`, 커밋 `71229b7`에서 분기). PR 번호는 병합 후 갱신 예정
+- **완료 기준**: 결과 화면에서 새 Sales Page Studio 진입 → 섹션 On/Off·순서 변경 → 문구 편집 → 템플릿·색상·카드 레이아웃 선택 → Live Preview → 개별 PNG/전체 ZIP 다운로드 → 프로젝트 저장/불러오기까지 전체 흐름이 실제 브라우저에서 동작
+- **결과**:
+  - `js/sales-page-studio.js`, `js/sales-page-studio-io.js` 신규
+  - 기본 섹션 8종(hero/pain/solution/toc/benefits/beforeAfter/targetAudience/cta), 색상 테마 6종(기존 상세페이지 카드뉴스 테마를 시각 기준으로 재사용), 카드 레이아웃 6종(섹션 타입별 허용 목록으로 관리)
+  - 개별 PNG 다운로드 파일이 실제로 1080×1350px임을 바이너리 헤더 직접 파싱으로 확인(기존 `dlSpSlide`와 동일한 `scale:2` 파라미터 재사용)
+  - 전체 ZIP 다운로드는 활성 섹션 수와 ZIP 내부 파일 수가 항상 일치함을 확인, 순서 변경/On-Off 변경 후 재검증
+  - `atlasCollectDraft`/`atlasLoadDraft`에 `salesPageStudio` 필드 추가(기존 필드는 무변경, 구버전 draft 호환 확인), 전자책이 바뀌면 `sourceEbookKey` 불일치로 자동 재초기화
+- **실제 미검증 사항**:
+  - `html2canvas`/`JSZip`은 이 개발 환경의 CDN 차단으로 실제 라이브러리 렌더링을 검증하지 못하고, 스텁으로 다운로드 파이프라인·픽셀 크기·ZIP 파일 개수만 검증함
+  - 실제 Claude API 기반 판매 문구 생성은 이번 v1 범위 밖(규칙 기반 초기 매핑만 구현)
+- **회귀 테스트 결과**: 기존 "썸네일 + 상세페이지"(9장 카드뉴스, 크몽 썸네일/리스팅), Thumbnail Studio, Thumbnail Intelligence 전부 회귀 없음을 Playwright로 확인. 7개 Phase마다 실제 클릭·입력 기반 검증, 콘솔 오류 없음(CDN 차단 관련 네트워크 오류만 존재)
+- **관련 문서**: [Milestone 3 완료 보고서](./MILESTONE_3_COMPLETION_REPORT.md)

@@ -175,3 +175,50 @@
 - 수정: `ARCHITECTURE.md`(운영 문서 링크 섹션 추가), `CURRENT_FEATURES.md`(변경 없음 — 이미 Thumbnail
   Intelligence까지 반영되어 있음을 확인), `CHANGELOG.md`(본 항목 추가)
 - 기존 Milestone 완료 보고서(`MILESTONE_1/2/2_5_COMPLETION_REPORT.md`)는 수정하지 않음
+
+---
+
+## Milestone 3 — Sales Page Studio v1 (신규 기능, 기존 기능 무변경)
+
+브랜치: `claude/milestone-3-sales-page-studio` (Atlas 운영 문서 v1.0이 병합된 최신 `main`, 커밋 `71229b7`에서 분기)
+
+### 변경 내용
+
+1. **`js/sales-page-studio.js` 신규** — `window.SalesPageStudio` 네임스페이스. 상태 초기화, 섹션 8종
+   정의(hero/pain/solution/toc/benefits/beforeAfter/targetAudience/cta), On/Off·순서 변경·선택, 텍스트
+   편집, 6종 색상 테마·6종 카드 레이아웃 선택, 카드(540×675) 렌더링, 전체 render/부분 Preview render
+2. **`js/sales-page-studio-io.js` 신규** — 기존 `APP.ebook`/`APP.ebook.sales`를 8개 섹션으로 매핑하는
+   순수 함수(`buildSectionsFromEbook`), 전자책 식별 키 생성, 안전한 파일명 생성, 개별 PNG Export(기존
+   `dlSpSlide`와 동일한 `html2canvas scale:2` 파라미터 재사용 → 1080×1350px), 전체 ZIP Export(JSZip 재사용)
+3. **`index.html` 수정** — 결과 화면에 `📄 Sales Page Studio` 버튼 1개, 신규 화면
+   `#cv-salespagestudio-state`(`#sps-root`), 신규 script 2줄 추가
+4. **`css/styles.css` 수정** — 파일 끝에 "Sales Page Studio" 섹션 추가(신규 `sps-` 접두사 클래스만)
+5. **`js/application.js` 수정 (3줄)** — `atlasCollectDraft`/`atlasLoadDraft`에 `salesPageStudio` 필드
+   추가(Thumbnail Studio의 `thumbnailStudio` 필드와 동일한 패턴)
+
+### 사전 분석 보고서 대비 조정 사항
+
+`templateId`/`colorId`가 v1에서는 완전히 동일한 역할(6가지 색상 테마)이라 `themeId` 하나로 통합했습니다.
+자세한 이유는 `docs/ARCHITECTURE.md`의 "Milestone 3 추가분" 섹션 참고.
+
+### 이번 Milestone에서 하지 않은 것
+
+- FAQ 섹션, Drag & Drop 순서 변경, Sales Page Intelligence, 실제 전환율/매출 예측, 신규 이미지 생성 API
+- `renderCvSalesPage`, `showSalesThemeModal`, `dlSpSlide`, `dlAllSlides`, `downloadKmongLongPage`,
+  `renderKmongThumbnails`, `renderKmongListing`, 기존 9장 카드뉴스, 기존 4개 썸네일, `bootstrap.js`
+  몽키패치, 기존 Prompt Engine, `APP.ebook.sales` 스키마, Thumbnail Studio/Intelligence — 전부 무수정
+
+### 검증 방법 및 결과 (요약, 상세는 완료 보고서 참고)
+
+- 7개 Phase(화면 골격 → 상태/섹션/구조빌더 → 편집/테마/레이아웃/Live Preview → 저장·불러오기 →
+  개별 PNG → 전체 ZIP → 전체 회귀·문서)마다 Playwright(Chromium)로 실제 클릭·입력 기반 검증
+- 개별 PNG를 바이너리 헤더(IHDR)로 직접 파싱해 정확히 1080×1350px임을 확인
+- ZIP 파일 개수(활성 섹션 수와 일치)·파일명 순서·On/Off 변경 후 개수 재확인
+- 구버전 드래프트(salesPageStudio 필드 없음) 정상 로드, 전자책 변경 시 `sourceEbookKey` 불일치로 안전한
+  재초기화 확인
+- 기존 "썸네일 + 상세페이지"(9장 카드뉴스, 크몽 썸네일/리스팅), Thumbnail Studio, Thumbnail Intelligence
+  전부 회귀 없음을 확인
+- `html2canvas`/`JSZip`은 이 개발 샌드박스가 CDN(cdnjs.cloudflare.com) 접근을 차단하고 있어 실제
+  라이브러리로는 검증하지 못했고, 기존 Milestone들과 동일하게 스텁(stub) 함수로 대체해 **파이프라인
+  자체**(옵션 전달, 파일 생성, 정확한 픽셀 크기, ZIP 파일 개수)만 검증함. 실제 라이브러리로 렌더링된
+  이미지 품질은 인터넷이 연결된 환경에서 별도 확인이 필요함
