@@ -108,3 +108,55 @@
   별도 확인이 필요함.
 - 유효한 Anthropic API 키가 없어 Hook Generator의 실제 AI 호출은 검증하지 못했으며, fallback 데이터로
   UI 동작만 확인함
+
+---
+
+## Milestone 2.5 — Thumbnail Intelligence v1 (분석·추천 패널 추가, 기존 기능 무변경)
+
+브랜치: `claude/milestone-2.5-thumbnail-intelligence` (Milestone 2가 병합된 최신 `main`, 커밋 `f39ee9f`에서 분기)
+
+### 변경 내용
+
+1. **`js/thumbnail-intelligence.js` 신규** — Thumbnail Score(8항목, 총 100점) 순수 계산 함수, 개선
+   제안 생성, Hook/색상/레이아웃/스타일 추천(전부 규칙 기반, 결정적, 실제 Claude API 미호출), 적용
+   위임(`applyRecommendation`), 접이식 분석 패널 UI
+2. **`js/thumbnail-studio.js` 수정 (2줄)** — `TS.render()`/`TS.renderPreviewOnly()`에 Thumbnail
+   Intelligence 확장 훅 추가(Prompt Builder 때와 동일한 `typeof` 가드 패턴)
+3. **`index.html` 수정** — `<script src="js/thumbnail-intelligence.js">` 1줄 추가
+4. **`css/styles.css` 수정** — 파일 끝에 "Thumbnail Intelligence" 섹션 추가(신규 `ti-` 접두사 클래스만)
+
+### 이번 Milestone에서 하지 않은 것
+
+- 실제 CTR/매출 예측 수치 제공 — "Thumbnail Score"는 항상 "실제 클릭률·판매량·매출을 예측하거나
+  보장하지 않는다"는 문구와 함께 표시됨
+- 무작위 점수/추천 생성 — 전부 순수 함수, 같은 입력에는 항상 같은 결과
+- 신규 이미지 생성 API 연동
+- Before/After 비교 화면 — Milestone 2.6 후보로 남김
+- `js/application.js`, `js/bootstrap.js`, 기존 렌더러의 썸네일 함수, 기존 Prompt Engine, 기존 저장
+  스키마 — 전부 무수정
+
+### 개발 중 발견하고 즉시 수정한 문제 (2건)
+
+- **Phase 2**: 분석 패널이 항상 빈 상태(`{}`)를 기준으로 점수를 계산하는 버그를 발견함. 원인은
+  `thumbnail-intelligence.js`에서 `ThumbnailStudio.state`를 가리키려던 코드가 실수로 `TS.state`(전역에
+  존재하지 않는 이름 — `TS`는 `thumbnail-studio.js` 내부 IIFE의 지역 매개변수일 뿐)를 참조하고 있었기
+  때문. 화면에 표시된 점수가 실제 입력과 무관하게 항상 같은 값(46점)으로 나오는 것을 스크린샷 육안
+  확인으로 발견하고, `ThumbnailStudio.state`로 수정 후 재검증함.
+- **Phase 5**: 추천 Hook의 "적용" 버튼을 눌러도 내부 상태와 미리보기는 정확히 바뀌지만, Hook 섹션의
+  "직접 수정" 입력창에는 적용된 문구가 표시되지 않는 문제를 발견함. `ThumbnailStudio.setCustomHook`이
+  타이핑 중 포커스 보존을 위해 미리보기만 다시 그리는 가벼운 경로(`renderPreviewOnly`)를 쓰기 때문—
+  외부(추천 패널)에서 프로그래밍 방식으로 적용한 경우에는 이 경로만으로 입력창 자체가 갱신되지 않음.
+  `applyRecommendation`이 Hook 적용 시에는 `ThumbnailStudio.setCustomHook()` 호출 뒤 `ThumbnailStudio.render()`
+  (전체 재렌더)도 함께 호출하도록 수정해 해결함.
+
+### 검증 방법 및 결과 (요약, 상세는 완료 보고서 참고)
+
+- 6개 Phase(namespace/score → 총점카드·접이식패널 → 개선제안 → 추천 → 적용버튼 → 저장·불러오기/전체회귀)
+  마다 Playwright(Chromium)로 실제 클릭·입력 기반 검증, 매 Phase 콘솔 오류 확인
+- 최종 통합 테스트 29개 항목(신규 Intelligence 기능 24개 + 기존 기능 회귀 4개 + 콘솔 오류 확인 1개)
+  전부 통과
+- 점수/추천의 재현성(동일 입력 → 동일 출력)을 반복 호출 및 깊은 복사 입력으로 직접 검증
+- 저장 데이터(localStorage draft)에 `score`/`recommendation`/`breakdown` 필드가 추가되지 않았음을
+  문자열 검사로 확인
+- 유효한 Anthropic API 키가 없어 Hook 추천은 규칙 기반(fallback) 구현만 검증했으며, 실제 AI 기반
+  추천은 이번 Milestone 범위에 포함되지 않음

@@ -860,3 +860,27 @@ textarea{resize:vertical}
 /* Phase 4: Prompt Builder + Export */
 .ts-prompt-box{width:100%;min-height:90px;padding:10px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:#0c0c1a;color:#e2e8f0;font-size:12px;line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box}
 .ts-export-row{display:flex;gap:8px;margin-top:14px}
+
+/* Milestone 2.5: Thumbnail Intelligence (ti- 접두사, 신규 규칙만) */
+#ti-panel{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+.ti-summary-row{display:flex;gap:12px;align-items:flex-start}
+.ti-score-circle{flex-shrink:0;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4f46e5,#a855f7);color:#fff;font-size:18px;font-weight:900;box-shadow:0 6px 18px rgba(99,102,241,.3)}
+.ti-summary-text{flex:1;min-width:0}
+.ti-summary-title{font-size:13px;font-weight:800;color:#e2e8f0}
+.ti-disclaimer{margin-top:4px;font-size:10px;line-height:1.5;color:#64748b}
+.ti-toggle-btn{margin-top:10px;width:100%;text-align:center}
+.ti-details{margin-top:10px}
+.ti-breakdown{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.ti-bd-row{display:grid;grid-template-columns:110px 1fr 56px;align-items:center;gap:8px}
+.ti-bd-label{font-size:10px;color:#94a3b8;font-weight:700}
+.ti-bd-bar{height:6px;border-radius:10px;background:rgba(255,255,255,.08);overflow:hidden}
+.ti-bd-bar-fill{height:100%;background:linear-gradient(90deg,#6366f1,#a855f7);border-radius:10px}
+.ti-bd-val{font-size:10px;color:#cbd5e1;text-align:right}
+.ti-suggest-title{font-size:11px;font-weight:800;color:#94a3b8;margin-bottom:6px}
+.ti-suggest-list{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.ti-suggest-list li{font-size:11px;line-height:1.6;color:#cbd5e1;background:rgba(99,102,241,.08);border-radius:8px;padding:8px 10px}
+.ti-rec-grid{display:flex;flex-direction:column;gap:8px}
+.ti-rec-row{display:flex;align-items:center;gap:8px;font-size:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:8px 10px}
+.ti-rec-main{flex:1;min-width:0;color:#e2e8f0}
+.ti-rec-reason{display:block;color:#64748b;font-size:10px;margin-top:2px}
+.ti-rec-apply{flex-shrink:0;padding:6px 10px;border-radius:100px;border:0;background:#6366f1;color:#fff;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}

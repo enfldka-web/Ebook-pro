@@ -277,6 +277,7 @@ var TS_IMAGE_STYLES = [
   TS.renderPreviewOnly = function(){
     TS.renderPreview();
     if(typeof TS.renderPromptOnly==='function') TS.renderPromptOnly();
+    if(typeof ThumbnailIntelligence!=='undefined' && typeof ThumbnailIntelligence.refreshIntelligence==='function') ThumbnailIntelligence.refreshIntelligence();
   };
 
   TS.render = function(){
@@ -295,6 +296,7 @@ var TS_IMAGE_STYLES = [
       +'</div>'
       +'<div class="ts-studio-preview"><div class="ts-section-title">실시간 미리보기 (652×488)</div><div id="ts-preview"></div>'
         +(typeof TS.renderExportSection==='function'?TS.renderExportSection():'')
+        +(typeof ThumbnailIntelligence!=='undefined' && typeof ThumbnailIntelligence.renderIntelligenceSection==='function'?ThumbnailIntelligence.renderIntelligenceSection():'')
       +'</div>'
       +'</div>';
     TS.renderPreview();
