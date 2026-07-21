@@ -24,11 +24,14 @@
 
 | ID | 기능명 | 설명 | 사용자 가치 | 우선순위 | 상태 | 선행 조건 | 목표 Milestone | 메모 |
 |---|---|---|---|---|---|---|---|---|
-| BL-001 | Sales Page Studio v1 | 상세페이지 전용 편집 화면 신설 | 판매 준비 자료를 한 화면에서 완성 | P1 | 분석 필요 | Thumbnail Studio 패턴 재사용 가능성 검토 | Milestone 3 | 다음 사전 분석 대상 |
-| BL-002 | Sales Page Live Preview | 상세페이지 실시간 미리보기 | 즉시 결과 확인 | P1 | 분석 필요 | BL-001 | Milestone 3 | Thumbnail Studio의 Live Preview 패턴 참고 |
-| BL-003 | 상세페이지 템플릿 | 상세페이지용 레이아웃/템플릿 데이터 | 다양한 스타일 선택 | P1 | 제안 | BL-001 | Milestone 3 | 템플릿 개수는 Milestone 3 사전 분석에서 결정 |
-| BL-004 | 상세페이지 PNG 묶음 Export | 카드뉴스형 상세페이지를 이미지 묶음으로 다운로드 | 플랫폼 등록 편의성 | P2 | 제안 | BL-001, BL-002 | Milestone 3 | 기존 `dlAllSlides`(크몽 엔진) 재사용 가능성 검토 |
-| BL-005 | 상세페이지 문구 편집 | 상세페이지 텍스트 직접 수정 | 결과 커스터마이징 | P1 | 제안 | BL-001 | Milestone 3 | Thumbnail Text Builder 패턴 참고 |
+| BL-001 | Sales Page Studio v1 | 상세페이지 전용 편집 화면 신설 | 판매 준비 자료를 한 화면에서 완성 | P1 | 완료 | Thumbnail Studio 패턴 재사용 가능성 검토 | Milestone 3 | `#cv-salespagestudio-state`, `window.SalesPageStudio`로 구현 완료(병합 대기) |
+| BL-002 | Sales Page Live Preview | 상세페이지 실시간 미리보기 | 즉시 결과 확인 | P1 | 완료 | BL-001 | Milestone 3 | Thumbnail Studio의 Live Preview 패턴 재사용, 카드 540×675 |
+| BL-003 | 상세페이지 템플릿 | 상세페이지용 레이아웃/템플릿 데이터 | 다양한 스타일 선택 | P1 | 완료 | BL-001 | Milestone 3 | 색상 테마 6종(기존 카드뉴스 테마 재사용) + 카드 레이아웃 6종(섹션별 허용 목록) |
+| BL-004 | 상세페이지 PNG 묶음 Export | 카드뉴스형 상세페이지를 이미지 묶음으로 다운로드 | 플랫폼 등록 편의성 | P1 | 완료 | BL-001, BL-002 | Milestone 3 | 기존 `dlAllSlides`는 재사용하지 않고 JSZip 기반 신규 구현(기존은 순차 개별 다운로드만 지원, ZIP 없었음) |
+| BL-005 | 상세페이지 문구 편집 | 상세페이지 텍스트 직접 수정 | 결과 커스터마이징 | P1 | 완료 | BL-001 | Milestone 3 | 섹션 타입별 필드만 표시(제목/본문/배지/CTA, beforeAfter는 비포·애프터 별도) |
+| BL-030 | FAQ 섹션 (Sales Page Studio) | 상세페이지에 FAQ 섹션 추가 | 자주 묻는 질문 선제 대응 | P2 | 보류 | BL-001 완료 | 미정 | Milestone 3 v1 범위에서 명시적으로 제외됨(사용자 지시) — 후속 버전 후보 |
+| BL-031 | Sales Page Studio 순서 변경 Drag & Drop | 위/아래 버튼 대신 드래그로 순서 변경 | 조작 편의성 | P3 | 보류 | BL-001 완료 | 미정 | v1은 위/아래 버튼만 지원(사용자 지시로 Drag & Drop 제외) |
+| BL-032 | Sales Page Intelligence | 상세페이지 품질 점수/추천 (Thumbnail Intelligence와 유사) | 상세페이지 완성도 개선 근거 제공 | P2 | 제안 | BL-001 완료 | 미정 | Milestone 3 v1 범위 밖으로 명시적으로 제외됨. Thumbnail Intelligence 패턴 재사용 검토 가능 |
 | BL-006 | Thumbnail Before/After | 추천 적용 전/후 비교 화면 | 개선 효과를 시각적으로 확인 | P2 | 후보 (Milestone 2.6) | Thumbnail Intelligence 완료(완료됨) | Milestone 2.6 | 상태는 [Milestone Tracker](./MILESTONE_TRACKER.md) 참고 |
 | BL-007 | 실제 Claude Hook 추천 | Hook Generator/Intelligence를 실제 Claude API 기반으로 전환 | 더 정교한 추천 | P1 | 제안 | API 키 서버 보관 여부 결정(BL-018) 또는 클라이언트 키 사용 유지 결정 | 미정 | 현재는 규칙 기반(fallback)만 존재 |
 | BL-008 | 실제 이미지 생성 API | AI 이미지 생성 API 연동 | 실제 이미지 포함 썸네일/상세페이지 | P2 | 제안 | 비용/정책 검토, 어떤 API를 쓸지 결정 | 미정 | 현재 Prompt Builder는 텍스트 프롬프트만 생성, 실제 이미지 생성 없음 |
@@ -59,8 +62,8 @@
 ## 우선순위 요약
 
 - **P0 (4건)**: 사용자 계정, 서버 인증, API Key 서버 보관, 결제/구독 — 전부 Phase 4~5(SaaS 인프라·과금) 항목이며 아직 착수 전
-- **P1 (9건)**: Sales Page Studio 관련 4건(Milestone 3 직접 대상), Trial/Pro 권한, 실제 Claude Hook 추천, 관리자 Dashboard, 사용량 추적
-- **P2 (10건)**: 각종 기존 기능 개선 항목과 EPUB Export 등
-- **P3 (6건)**: 팀 Workspace, 브랜드 색상 저장, 사용자 템플릿 저장 등 — 현재 1인 사용자 중심 방향과 맞지 않거나 계정 시스템 선행 필요
+- **P1 (9건)**: Sales Page Studio 관련 5건(Milestone 3 완료), Trial/Pro 권한, 실제 Claude Hook 추천, 관리자 Dashboard, 사용량 추적
+- **P2 (12건)**: 각종 기존 기능 개선 항목, EPUB Export, FAQ 섹션(BL-030), Sales Page Intelligence(BL-032) 등
+- **P3 (7건)**: 팀 Workspace, 브랜드 색상 저장, 사용자 템플릿 저장, Sales Page Studio Drag & Drop(BL-031) 등 — 현재 방향과 맞지 않거나 후속 버전 후보
 
-Milestone 3(Sales Page Studio) 착수 시 BL-001~BL-005를 우선 검토합니다.
+Milestone 3(Sales Page Studio v1)는 BL-001~BL-005를 전부 반영해 완료되었습니다(병합 대기). FAQ 섹션(BL-030), Drag & Drop(BL-031), Sales Page Intelligence(BL-032)는 v1 범위에서 의도적으로 제외되어 후속 후보로 남아 있습니다.

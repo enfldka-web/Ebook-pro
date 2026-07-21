@@ -58,5 +58,19 @@ Thumbnail Studio의 실시간 미리보기 하단에 추가된 분석 패널(`wi
 - **적용 버튼**: 각 추천 옆 "적용" 클릭 시 기존 `ThumbnailStudio.setCustomHook/selectColor/selectLayout/selectStyle`에 위임 — 별도 상태 변경 로직 없이 기존 메서드가 이미 처리하는 미리보기 갱신에 얹혀 점수/제안도 함께 자동 재계산됨
 - **저장/불러오기**: 점수·추천·개선 제안은 저장하지 않고 항상 재계산. 사용자가 "적용"해서 바뀐 Thumbnail Studio 상태 자체는 기존 저장 기능으로 그대로 저장됨
 
+## Sales Page Studio v1 (Milestone 3 신규)
+결과 화면(`#cv-result-state`)의 `📄 Sales Page Studio` 버튼으로 진입하는 신규 전용 화면(`#cv-salespagestudio-state`). 기존 "썸네일 + 상세페이지"(크몽 9장 카드뉴스) 흐름과는 완전히 분리된 병렬 기능이며, 서로의 코드/DOM/전역 상태를 공유하지 않는다.
+- **섹션 구조 빌더**: hero·pain·solution·toc·benefits·beforeAfter·targetAudience·cta 8개 섹션. 좌측 목록에서 On/Off 토글, 위/아래 순서 이동(Drag & Drop 없음). 비활성 섹션도 목록에는 표시되지만 Live Preview에서는 제외됨
+- **자동 초기 매핑**: 최초 진입 시 `APP.ebook.title/subtitle/chapters`, `APP.ebook.sales.hook/subhook/solution/finalPush/pains/learnings/before/after`를 규칙 기반으로 8개 섹션에 채움(실제 Claude API 신규 호출 없음). 데이터가 없으면 안전한 기본 문구로 대체
+- **목차(toc) 섹션**: `APP.ebook.chapters`를 그대로 사용. 챕터가 없으면 기본적으로 비활성 상태로 시작하고, 카드에는 안내 문구만 표시(빈 목차를 억지로 렌더링하지 않음)
+- **텍스트 편집**: 선택한 섹션 타입에 필요한 필드만 표시(제목/본문/배지/CTA, beforeAfter는 비포·애프터 별도 입력). 입력 중에는 Live Preview만 부분 갱신해 입력 포커스·커서 위치를 유지
+- **템플릿·색상**: 기존 상세페이지 카드뉴스 6개 테마(네이비 골드/차콜 민트/크림 바이올렛/코랄 에너지/골드 럭셔리/파스텔 핑크)를 시각 기준으로 재사용한 전용 데이터 배열(`SPS_THEMES`) — 기존 `renderCvSalesPage`의 내부 변수는 참조하지 않음
+- **카드 레이아웃**: text-center·text-left·icon-list·split·comparison·checklist 6종, 섹션 타입별로 허용되는 레이아웃만 선택 가능(예: beforeAfter는 comparison/split만)
+- **Live Preview**: 활성화된 섹션만 순서대로 카드(540×675px, Export 기준 크기와 동일) 형태로 표시. 선택된 섹션은 테두리로 강조되지만, 이 강조 표시는 실제 Export 이미지에는 포함되지 않음(래퍼 DOM에만 적용, 캡처 대상은 카드 자체)
+- **Export A — 개별 PNG**: 각 카드 아래 "⬇ PNG" 버튼. 기존 `dlSpSlide`와 동일한 `html2canvas(scale:2)` 파라미터로 **1080×1350px** PNG 생성. 파일명은 활성 섹션의 현재 순서 기준으로 `sales-01-hero.png` 형식 자동 생성
+- **Export B — 전체 ZIP**: 활성화된 섹션만, 현재 화면 순서대로 순차 캡처해 JSZip(기존에 `downloadDocx`에서만 쓰이던 라이브러리 재사용)으로 묶어 다운로드. 일부 카드 캡처 실패 시 전체를 성공으로 보고하지 않음. PNG만 지원(JPG 없음), 긴 이미지 Export는 기존 기능과 중복 구현하지 않음
+- **저장/불러오기**: `APP.salesPageStudio` 필드 1개로 저장(버전·테마·섹션 전체·순서·활성화 여부·사용자 문구·레이아웃). 전자책이 바뀌면(`sourceEbookKey` 불일치) 이전 프로젝트의 문구가 새 전자책에 남지 않도록 자동으로 새로 초기화. 구버전 드래프트(필드 없음)도 정상 로드됨
+- 실제 전환율/매출 예측 기능 없음(FAQ 섹션, Drag & Drop, Sales Page Intelligence는 v1 범위 밖)
+
 ---
-(출처: `PROJECT_ANALYSIS.md`의 코드 분석 결과를 기준으로 재확인함, Milestone 2에서 Thumbnail Studio v1 섹션 추가, Milestone 2.5에서 Thumbnail Intelligence v1 섹션 추가)
+(출처: `PROJECT_ANALYSIS.md`의 코드 분석 결과를 기준으로 재확인함, Milestone 2에서 Thumbnail Studio v1 섹션 추가, Milestone 2.5에서 Thumbnail Intelligence v1 섹션 추가, Milestone 3에서 Sales Page Studio v1 섹션 추가)
