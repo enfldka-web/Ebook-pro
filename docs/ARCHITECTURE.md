@@ -69,3 +69,57 @@
 - `application.js`를 기능별로 더 세분화 (단, 몽키패치 IIFE 의존성 등 로드 순서를 사전에 전수 조사한 뒤 진행)
 - 중복 `getRandomTheme` 정리
 - 인라인 스타일/이벤트 핸들러를 CSS 클래스·이벤트 리스너로 전환
+
+---
+
+# Milestone 2 추가분 — Thumbnail Studio v1
+
+## 신규 파일 및 로드 순서
+
+```html
+<script src="js/renderers.js"></script>
+<script src="js/application.js"></script>
+<script src="js/bootstrap.js"></script>
+<script src="js/thumbnail-studio.js"></script>      ← 신규
+<script src="js/thumbnail-studio-io.js"></script>    ← 신규
+```
+
+기존 3개 뒤에 로드하는 이유: `thumbnail-studio.js`가 `APP`(application.js), `atlasSetWorkspaceStage`
+(application.js), `x`/`showToast`(renderers.js) 등 기존 전역을 참조하기 때문입니다. 새 2개 파일은
+서로 강하게 결합되어 있으므로(`thumbnail-studio-io.js`가 `thumbnail-studio.js`의 `TS.state`,
+`TS_COLOR_THEMES`를 참조) 항상 이 순서로 함께 로드해야 합니다.
+
+- `thumbnail-studio.js`: 상태 초기화(`window.ThumbnailStudio`, `APP.thumbnailStudio`), 진입/종료,
+  Hook Generator, Thumbnail Text Builder, Template Gallery(`THUMB_TEMPLATES`, 8개), Color Theme
+  (`TS_COLOR_THEMES`), Layout Engine(`TS_LAYOUTS`), 이미지 스타일(`TS_IMAGE_STYLES`), Live Preview
+  렌더링(`TS.renderPreview`).
+- `thumbnail-studio-io.js`: Prompt 생성(순수 함수 `TS.buildPrompt`, DOM/전역 상태에 의존하지 않음),
+  Prompt UI(자동 생성·직접 수정·복사), Export(PNG/JPG, 기존 html2canvas 재사용, 652×488 scale:1로 캡처).
+
+## 전역 네임스페이스
+
+Thumbnail Studio의 모든 로직은 `window.ThumbnailStudio`(단축 `TS`) 객체 아래에 있습니다. 기존 코드베이스는
+전역 함수를 150개 가까이 그대로 나열하는 방식이라, 새 기능까지 같은 방식으로 늘리면 충돌 위험과
+탐색 난이도가 함께 커집니다. `onclick`/`oninput`에서 호출해야 하는 것만 최소 래퍼 함수(`tsOpen`,
+`tsSelectTemplate`, `tsSelectColor` 등, 전부 `ts` 접두사)로 전역에 노출하고, 실제 로직은 전부
+`ThumbnailStudio.*` 메서드 안에 있습니다.
+
+## 기존 코드와의 접점 (읽기만 함, 수정 없음)
+
+- `APP` 객체 — `APP.thumbnailStudio` 하위 필드로만 상태를 저장(최상위 필드 추가 없음)
+- `atlasSetWorkspaceStage('sales', ...)` — Thumbnail Studio 진입 시 기존 "5단계·판매 디자인" 스텝을
+  그대로 사용(새 워크스페이스 단계를 추가하지 않음)
+- `showToast`, `x()`, `getApiKey` 등 core 유틸 — 그대로 호출
+- `atlasCollectDraft`/`atlasLoadDraft`(application.js) — `thumbnailStudio` 필드 1개만 추가(기존 필드
+  순서/이름 변경 없음). 구버전 draft(필드 없음)를 불러오면 `ThumbnailStudio.init()`이 기본값으로
+  대체하므로 오류 없이 동작함.
+- `html2canvas` — 기존 `downloadKmongThumbnail`과 동일한 호출 패턴 재사용, 단 캡처 대상은 새 DOM
+  (`#ts-preview-canvas`)이며 `scale:1`로 캡처해 다운로드 파일이 정확히 652×488px이 되도록 함(기존
+  크몽 엔진은 `scale:2`로 더 높은 해상도를 우선하는 별개 정책이며 그대로 둠).
+
+## 건드리지 않은 것 (기존 썸네일/상세페이지 흐름과 완전 분리)
+
+`renderKmongThumbnails`, `renderCvSalesPage`, `checkAndShowSales`, `showSalesThemeModal`,
+`window._kmThumbSelected`, `#cv-thumb-body`, `#cv-sp-body`, bootstrap.js의 몽키패치 IIFE — 전부 한 글자도
+수정하지 않았습니다. Thumbnail Studio는 `#cv-thumbstudio-state`라는 완전히 새로운 화면에서 동작하며,
+기존 "🛒 썸네일 + 상세페이지" 버튼과 그 흐름은 그대로 남아 있습니다.
