@@ -817,3 +817,46 @@ textarea{resize:vertical}
 .aft-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:13px}.aft-metric{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);border-radius:11px;padding:10px}.aft-metric b{display:block;font-size:16px;color:#fff}.aft-metric span{font-size:10px;color:#94a3b8}.aft-note{margin-top:10px;font-size:12px;line-height:1.65;color:#cbd5e1;background:rgba(99,102,241,.09);border-radius:10px;padding:10px 12px}.aft-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.aft-btn{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#e2e8f0;border-radius:100px;padding:8px 12px;font-size:11px;font-weight:800;cursor:pointer}.aft-btn.primary{border:0;background:linear-gradient(135deg,#4f46e5,#8b5cf6);color:white}
 .atlas-modal-bg{position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:18px;z-index:99999}.atlas-modal{width:min(620px,100%);max-height:88vh;overflow:auto;background:#0f172a;border:1px solid rgba(129,140,248,.32);border-radius:20px;padding:20px;color:#e2e8f0;box-shadow:0 30px 90px rgba(0,0,0,.5)}.atlas-modal h3{margin:0 0 5px;font-size:20px}.atlas-modal p{margin:0 0 15px;color:#94a3b8;font-size:12px;line-height:1.6}.atlas-form-row{margin-bottom:12px}.atlas-form-row label{display:block;font-size:11px;color:#a5b4fc;font-weight:800;margin-bottom:6px}.atlas-form-row select,.atlas-form-row textarea{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.15);background:#020617;color:#e2e8f0;border-radius:11px;padding:10px;font-family:inherit}.atlas-form-row textarea{min-height:105px;resize:vertical}.atlas-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.atlas-platform-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}.atlas-platform-row select{background:#0f172a;color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:100px;padding:7px 11px;font-size:11px;font-weight:800}
 @media(max-width:760px){.aft-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* ════════════════════════════════
+   THUMBNAIL STUDIO (Milestone 2) — 별도 섹션, 기존 규칙 재사용 없음
+════════════════════════════════ */
+.ts-section{margin-bottom:20px}
+.ts-section-title{font-size:14px;font-weight:800;color:#e2e8f0;margin-bottom:10px}
+.ts-section-sub{font-size:11px;font-weight:600;color:#64748b;margin-left:6px}
+.ts-tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ts-tpl-card{border:2px solid rgba(255,255,255,.1);border-radius:12px;padding:8px;background:rgba(255,255,255,.03);cursor:pointer;transition:border-color .15s,background .15s}
+.ts-tpl-card:hover{border-color:rgba(129,140,248,.4)}
+.ts-tpl-card.active{border-color:#818cf8;background:rgba(99,102,241,.12)}
+.ts-tpl-swatch{position:relative;width:100%;aspect-ratio:4/3;border-radius:8px;overflow:hidden}
+.ts-tpl-swatch-bar{position:absolute;left:10px;bottom:10px;width:36px;height:4px;border-radius:10px}
+.ts-tpl-name{margin-top:7px;font-size:11px;font-weight:700;color:#cbd5e1;line-height:1.4}
+.ts-tpl-check{color:#a5b4fc}
+.ts-preview-placeholder{padding:24px;text-align:center;color:#64748b;font-size:12px;border:1px dashed rgba(255,255,255,.12);border-radius:12px}
+
+/* Phase 3: Hook / Text Builder / Color / Layout / Style / Live Preview */
+.ts-studio-grid{display:grid;grid-template-columns:1fr 420px;gap:20px;align-items:start}
+.ts-studio-controls{min-width:0}
+.ts-studio-preview{position:sticky;top:16px}
+.ts-hook-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.ts-hook-card{padding:8px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cbd5e1;font-size:12px;font-weight:700;cursor:pointer}
+.ts-hook-card:hover{border-color:rgba(129,140,248,.5)}
+.ts-hook-card.active{border-color:#818cf8;background:rgba(99,102,241,.16);color:#fff}
+.ts-row{display:flex;gap:8px;align-items:center}
+.ts-wrap{flex-wrap:wrap}
+.ts-btn{padding:8px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#e2e8f0;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.ts-btn:hover{border-color:rgba(129,140,248,.5)}
+.ts-input{flex:1;padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:#0c0c1a;color:#e2e8f0;font-size:13px;font-family:inherit}
+.ts-field{margin-bottom:10px}
+.ts-field label{display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:5px}
+.ts-color-row{display:flex;gap:10px}
+.ts-color-chip{width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:900;border:2px solid transparent}
+.ts-color-chip.active{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+.ts-chip-btn{padding:7px 13px;border-radius:100px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cbd5e1;font-size:11px;font-weight:700;cursor:pointer}
+.ts-chip-btn:hover{border-color:rgba(129,140,248,.5)}
+.ts-chip-btn.active{border-color:#818cf8;background:rgba(99,102,241,.18);color:#fff}
+@media(max-width:900px){.ts-studio-grid{grid-template-columns:1fr}.ts-studio-preview{position:static}}
+
+/* Phase 4: Prompt Builder + Export */
+.ts-prompt-box{width:100%;min-height:90px;padding:10px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:#0c0c1a;color:#e2e8f0;font-size:12px;line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box}
+.ts-export-row{display:flex;gap:8px;margin-top:14px}

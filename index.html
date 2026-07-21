@@ -339,6 +339,7 @@
             
             <button class="r-btn r-btn-w" id="cv-docxbtn" onclick="downloadDocx(APP.ebook)">📝 Word 저장</button>
             <button class="r-btn r-btn-s" onclick="checkAndShowSales()">🛒 썸네일 + 상세페이지</button>
+            <button class="r-btn r-btn-e" onclick="tsOpen()">🎯 Thumbnail Studio</button>
             <button class="r-btn r-btn-e" onclick="openAtlasPartialModal()">🪄 필요한 부분만 수정</button>
           </div>
           <div id="atlas-quality-body"></div>
@@ -400,6 +401,13 @@
             <span style="font-size:11px;color:#475569;margin-left:4px">텍스트 선택 후 버튼 클릭</span>
           </div>
           <div id="cv-sp-body" style="background:#f8f8fc;border-radius:12px;overflow:hidden;font-family:'Noto Sans KR',sans-serif"></div>
+        </div>
+        <!-- THUMBNAIL STUDIO (Milestone 2) -->
+        <div id="cv-thumbstudio-state" style="display:none">
+          <div class="result-actions">
+            <button class="r-btn r-btn-g" onclick="tsClose()">← 전자책으로</button>
+          </div>
+          <div id="ts-root"></div>
         </div>
       
 
@@ -505,6 +513,8 @@
 
 <script src="js/application.js"></script>
 <script src="js/bootstrap.js"></script>
+<script src="js/thumbnail-studio.js"></script>
+<script src="js/thumbnail-studio-io.js"></script>
 
 </body>
 </html>
