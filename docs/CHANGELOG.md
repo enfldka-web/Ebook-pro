@@ -160,3 +160,18 @@
   문자열 검사로 확인
 - 유효한 Anthropic API 키가 없어 Hook 추천은 규칙 기반(fallback) 구현만 검증했으며, 실제 AI 기반
   추천은 이번 Milestone 범위에 포함되지 않음
+
+---
+
+## docs: add Atlas operations documentation v1
+
+브랜치: `claude/docs-atlas-operations-v1` (Milestone 2.5가 병합된 최신 `main`, 커밋 `1a81f20`에서 분기)
+
+애플리케이션 코드(`index.html`, `css/`, `js/`) 변경 없이 `docs/` 아래에 운영 문서 6종을 신규 추가하고,
+기존 문서 3개(`ARCHITECTURE.md`, `CURRENT_FEATURES.md`, `CHANGELOG.md`)에 최소 수정만 반영했습니다.
+
+- 신규: `MASTER_ROADMAP.md`, `PRODUCT_VISION.md`, `MILESTONE_TRACKER.md`, `FEATURE_BACKLOG.md`,
+  `RELEASE_NOTES.md`, `BUG_TRACKER.md`
+- 수정: `ARCHITECTURE.md`(운영 문서 링크 섹션 추가), `CURRENT_FEATURES.md`(변경 없음 — 이미 Thumbnail
+  Intelligence까지 반영되어 있음을 확인), `CHANGELOG.md`(본 항목 추가)
+- 기존 Milestone 완료 보고서(`MILESTONE_1/2/2_5_COMPLETION_REPORT.md`)는 수정하지 않음
