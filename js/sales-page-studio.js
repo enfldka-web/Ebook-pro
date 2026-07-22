@@ -210,32 +210,38 @@ var SPS_THEMES = [
     return '<div class="sps-section"><div class="sps-section-title">템플릿 · 색상 테마</div><div class="sps-row sps-wrap">'+chips+'</div></div>';
   }
 
-  /* ── 우측: 카드(540×675) 내부 HTML — Export 대상 DOM과 동일한 구조를 그대로 사용한다 ── */
+  /* ── 우측: 카드(540×675) 내부 HTML — Export 대상 DOM과 동일한 구조를 그대로 사용한다.
+     모든 색상은 var(--ads-*, 기존 SPS_THEMES 색상) 형태로 감싸, 브랜드 테마가 선택되면
+     카드 자체(배경·뱃지·목록·CTA)가 실제로 다시 스킨되고, 선택되지 않았을 때는 기존 동작과
+     완전히 동일하다(폴백 = 기존 값). Export 대상 DOM과 Live Preview DOM이 같은 엘리먼트이므로
+     Export 결과에도 동일한 토큰이 그대로 반영된다. ── */
   function cardInner(section, th, ebook){
-    var badgeHtml = section.badge ? '<div style="display:inline-block;padding:4px 12px;border-radius:100px;background:'+th.accentSoft+';border:1px solid '+th.accent+';color:'+th.accent+';font-size:12px;font-weight:800;margin-bottom:14px">'+x(section.badge)+'</div>' : '';
-    var titleHtml = '<h2 style="font-size:28px;font-weight:900;line-height:1.28;color:'+th.text+';word-break:keep-all;margin:0 0 12px">'+x(section.title||'')+'</h2>';
-    var ctaHtml = section.cta ? '<div style="margin-top:16px;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:100px;background:'+th.accent+';color:#fff;font-weight:800;font-size:13px">'+x(section.cta)+' →</div>' : '';
+    var themeId = (typeof AtlasDesignSystem!=='undefined') ? AtlasDesignSystem.state.themeId : null;
+    var underline = (typeof AtlasDesignSystem!=='undefined' && AtlasDesignSystem.titleUnderline) ? AtlasDesignSystem.titleUnderline(themeId) : '';
+    var badgeHtml = section.badge ? '<div style="display:inline-block;padding:4px 12px;border-radius:100px;background:var(--ads-primary-soft,'+th.accentSoft+');border:1px solid var(--ads-primary,'+th.accent+');color:var(--ads-primary,'+th.accent+');font-size:12px;font-weight:800;margin-bottom:14px;font-family:var(--ads-accent-font,inherit)">'+x(section.badge)+'</div>' : '';
+    var titleHtml = '<h2 style="font-size:28px;font-weight:900;line-height:1.28;color:var(--ads-text-primary,'+th.text+');word-break:keep-all;margin:0 0 12px;font-family:var(--ads-heading-font,inherit)">'+x(section.title||'')+'</h2>' + underline;
+    var ctaHtml = section.cta ? '<div style="margin-top:16px;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:100px;background:var(--ads-primary,'+th.accent+');color:var(--ads-button-text,#fff);font-weight:800;font-size:13px;font-family:var(--ads-accent-font,inherit)">'+x(section.cta)+' →</div>' : '';
 
     var bodyHtml = '';
     if(section.type==='toc'){
       var chapters = (ebook && ebook.chapters) || [];
       if(!chapters.length){
-        bodyHtml = '<div style="font-size:13px;color:'+th.sub+'">챕터 데이터가 없습니다.</div>';
+        bodyHtml = '<div style="font-size:13px;color:var(--ads-text-secondary,'+th.sub+')">챕터 데이터가 없습니다.</div>';
       } else {
         bodyHtml = '<div style="display:flex;flex-direction:column;gap:9px">'+chapters.slice(0,7).map(function(c,i){
-          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 13px;background:'+th.panel+';border:1px solid '+th.panelBorder+';border-radius:10px">'
-            +'<div style="width:24px;height:24px;border-radius:7px;background:'+th.accent+';color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
-            +'<div style="font-size:13px;font-weight:700;color:'+th.text+';word-break:keep-all">'+x(c.title||'')+'</div></div>';
+          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 13px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:10px">'
+            +'<div style="width:24px;height:24px;border-radius:7px;background:var(--ads-primary,'+th.accent+');color:var(--ads-button-text,#fff);font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
+            +'<div style="font-size:13px;font-weight:700;color:var(--ads-text-primary,'+th.text+');word-break:keep-all">'+x(c.title||'')+'</div></div>';
         }).join('')+'</div>';
       }
     } else if(section.type==='beforeAfter'){
       var beforeArr = linesOf(section.beforeText);
       var afterArr = linesOf(section.afterText);
       function col(label, arr, tone){
-        var tcolor = tone==='after' ? th.accent : th.sub;
-        return '<div style="flex:1;padding:13px;background:'+th.panel+';border:1px solid '+th.panelBorder+';border-radius:12px">'
+        var tcolor = tone==='after' ? 'var(--ads-primary,'+th.accent+')' : 'var(--ads-text-secondary,'+th.sub+')';
+        return '<div style="flex:1;padding:13px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:12px">'
           +'<div style="font-size:10px;font-weight:900;letter-spacing:1px;color:'+tcolor+';margin-bottom:8px">'+label+'</div>'
-          +(arr.length ? arr.slice(0,5).map(function(l){return '<div style="font-size:12px;color:'+th.text+';margin-bottom:6px;line-height:1.5">'+(tone==='after'?'✓ ':'– ')+x(l)+'</div>';}).join('') : '<div style="font-size:11px;color:'+th.sub+'">내용 없음</div>')
+          +(arr.length ? arr.slice(0,5).map(function(l){return '<div style="font-size:12px;color:var(--ads-text-primary,'+th.text+');margin-bottom:6px;line-height:1.5">'+(tone==='after'?'✓ ':'– ')+x(l)+'</div>';}).join('') : '<div style="font-size:11px;color:var(--ads-text-secondary,'+th.sub+')">내용 없음</div>')
           +'</div>';
       }
       bodyHtml = (section.layoutId==='split')
@@ -243,26 +249,26 @@ var SPS_THEMES = [
         : '<div style="display:flex;gap:10px">'+col('BEFORE',beforeArr,'before')+col('AFTER',afterArr,'after')+'</div>';
     } else if(section.layoutId==='icon-list' || section.layoutId==='checklist'){
       var arr = linesOf(section.body);
-      var icon = section.layoutId==='checklist' ? '✓' : '•';
       bodyHtml = arr.length
-        ? '<div style="display:flex;flex-direction:column;gap:8px">'+arr.slice(0,6).map(function(l){
-            return '<div style="display:flex;align-items:flex-start;gap:9px;padding:9px 13px;background:'+th.panel+';border:1px solid '+th.panelBorder+';border-radius:10px">'
-              +'<div style="color:'+th.accent+';font-weight:900;font-size:13px;flex-shrink:0">'+icon+'</div>'
-              +'<div style="font-size:12px;color:'+th.text+';line-height:1.5;word-break:keep-all">'+x(l)+'</div></div>';
+        ? '<div style="display:flex;flex-direction:column;gap:8px">'+arr.slice(0,6).map(function(l,i){
+            var icon = (typeof AtlasDesignSystem!=='undefined' && AtlasDesignSystem.listIcon) ? AtlasDesignSystem.listIcon(themeId,i) : (section.layoutId==='checklist'?'✓':'•');
+            return '<div style="display:flex;align-items:flex-start;gap:9px;padding:9px 13px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:10px">'
+              +'<div style="color:var(--ads-primary,'+th.accent+');font-weight:900;font-size:13px;flex-shrink:0">'+icon+'</div>'
+              +'<div style="font-size:12px;color:var(--ads-text-primary,'+th.text+');line-height:1.5;word-break:keep-all">'+x(l)+'</div></div>';
           }).join('')+'</div>'
-        : '<div style="font-size:12px;color:'+th.sub+'">내용을 입력해주세요.</div>';
+        : '<div style="font-size:12px;color:var(--ads-text-secondary,'+th.sub+')">내용을 입력해주세요.</div>';
     } else if(section.layoutId==='comparison'){
       var all = linesOf(section.body);
       var half = Math.ceil(all.length/2);
-      bodyHtml = '<div style="display:flex;gap:10px;font-size:12px;color:'+th.text+';line-height:1.7;word-break:keep-all">'
+      bodyHtml = '<div style="display:flex;gap:10px;font-size:12px;color:var(--ads-text-primary,'+th.text+');line-height:1.7;word-break:keep-all">'
         +'<div style="flex:1">'+all.slice(0,half).map(x).join('<br>')+'</div>'
         +'<div style="flex:1">'+all.slice(half).map(x).join('<br>')+'</div></div>';
     } else {
-      bodyHtml = '<div style="font-size:13px;color:'+th.sub+';line-height:1.75;word-break:keep-all;white-space:pre-line">'+x(section.body||'')+'</div>';
+      bodyHtml = '<div style="font-size:13px;color:var(--ads-text-secondary,'+th.sub+');line-height:1.75;word-break:keep-all;white-space:pre-line">'+x(section.body||'')+'</div>';
     }
 
     var centered = section.layoutId==='text-center';
-    return '<div style="padding:34px 28px;display:flex;flex-direction:column;height:100%;box-sizing:border-box;'
+    return '<div style="position:relative;z-index:1;padding:34px 28px;display:flex;flex-direction:column;height:100%;box-sizing:border-box;'
       +(centered?'text-align:center;align-items:center;justify-content:center':'text-align:left;align-items:flex-start;justify-content:flex-start')
       +';gap:2px">'
       + badgeHtml + titleHtml + bodyHtml + ctaHtml
@@ -271,10 +277,13 @@ var SPS_THEMES = [
 
   function cardShell(section, th, innerHtml, orderDisplay, total){
     var def = sectionDef(section.type);
-    return '<div class="sps-card" id="sps-card-'+section.id+'" style="width:540px;height:675px;position:relative;overflow:hidden;box-sizing:border-box;background:'+th.bg+';font-family:\'Noto Sans KR\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif">'
-      + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+th.accent+'"></div>'
+    var themeId = (typeof AtlasDesignSystem!=='undefined') ? AtlasDesignSystem.state.themeId : null;
+    var deco = (typeof AtlasDesignSystem!=='undefined' && AtlasDesignSystem.cardDecoration) ? AtlasDesignSystem.cardDecoration(themeId) : '';
+    return '<div class="sps-card" id="sps-card-'+section.id+'" style="width:540px;height:675px;position:relative;overflow:hidden;box-sizing:border-box;background:var(--ads-bg,'+th.bg+');font-family:var(--ads-body-font,\'Noto Sans KR\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif)">'
+      + deco
+      + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--ads-primary,'+th.accent+');z-index:2"></div>'
       + innerHtml
-      + '<div style="position:absolute;bottom:14px;left:28px;right:28px;display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:700;color:'+th.sub+'">'
+      + '<div style="position:absolute;bottom:14px;left:28px;right:28px;display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:700;color:var(--ads-text-secondary,'+th.sub+');z-index:2">'
         + '<span>'+x(def.label)+'</span><span>'+orderDisplay+' / '+total+'</span>'
       + '</div></div>';
   }
@@ -316,11 +325,19 @@ var SPS_THEMES = [
   SPS.render = function(){
     var root = document.getElementById('sps-root');
     if(!root) return;
+    var detailTabs = [
+      {id:'color', label:'색상', content: renderThemeSection()},
+      {id:'font',  label:'폰트', content: (typeof AtlasDesignSystem!=='undefined' && typeof AtlasDesignSystem.renderFontPairComparison==='function'?AtlasDesignSystem.renderFontPairComparison('sps'):'')}
+    ];
+    var detailSection = (typeof AtlasDesignSystem!=='undefined' && typeof AtlasDesignSystem.renderTabs==='function')
+      ? AtlasDesignSystem.renderTabs('sps-detail', detailTabs)
+      : detailTabs.map(function(t){return t.content;}).join('');
     root.innerHTML = '<div class="sps-studio-grid">'
       + '<div class="sps-studio-controls">'
         + renderStructureList()
+        + (typeof AtlasDesignSystem!=='undefined' && typeof AtlasDesignSystem.renderThemeSelectorSection==='function'?AtlasDesignSystem.renderThemeSelectorSection('sps'):'')
         + renderEditor()
-        + renderThemeSection()
+        + detailSection
       + '</div>'
       + '<div class="sps-studio-preview">'
         + '<div class="sps-section-title">전체 미리보기 <span class="sps-hint">(카드 540×675 · Export 기준 크기)</span></div>'

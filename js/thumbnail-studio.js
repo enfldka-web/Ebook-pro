@@ -223,38 +223,41 @@ var TS_IMAGE_STYLES = [
 
   function renderLayoutBody(layoutId, ct, hook, title, sub, cta){
     var accent=ct.accent, textc=ct.text;
-    var titleBlock='<div style="font-size:34px;line-height:1.18;font-weight:900;color:'+textc+';word-break:keep-all">'+x(title||'메인 제목을 입력하세요')+'</div>'
-      +'<div style="font-size:16px;margin-top:12px;color:'+textc+';opacity:.82;word-break:keep-all">'+x(sub||'')+'</div>';
-    var hookBadge='<div style="display:inline-block;padding:5px 12px;border-radius:100px;background:'+accent+'33;border:1px solid '+accent+';color:'+accent+';font-size:12px;font-weight:800;margin-bottom:14px">'+x(hook||'후킹 문구')+'</div>';
-    var ctaBlock=cta?'<div style="margin-top:18px;font-size:13px;font-weight:800;color:'+accent+'">'+x(cta)+' →</div>':'';
+    var themeId = (typeof AtlasDesignSystem!=='undefined') ? AtlasDesignSystem.state.themeId : null;
+    var underline = (typeof AtlasDesignSystem!=='undefined' && AtlasDesignSystem.titleUnderline) ? AtlasDesignSystem.titleUnderline(themeId) : '';
+    var titleBlock='<div style="font-size:34px;line-height:1.18;font-weight:900;color:var(--ads-text-primary,'+textc+');word-break:keep-all;font-family:var(--ads-heading-font,inherit)">'+x(title||'메인 제목을 입력하세요')+'</div>'
+      + underline
+      +'<div style="font-size:16px;margin-top:12px;color:var(--ads-text-secondary,'+textc+');opacity:.82;word-break:keep-all;font-family:var(--ads-body-font,inherit)">'+x(sub||'')+'</div>';
+    var hookBadge='<div style="display:inline-block;padding:5px 12px;border-radius:100px;background:var(--ads-primary-soft,'+accent+'33);border:1px solid var(--ads-primary,'+accent+');color:var(--ads-primary,'+accent+');font-size:12px;font-weight:800;margin-bottom:14px;font-family:var(--ads-accent-font,inherit)">'+x(hook||'후킹 문구')+'</div>';
+    var ctaBlock=cta?'<div style="margin-top:18px;font-size:13px;font-weight:800;color:var(--ads-primary,'+accent+');font-family:var(--ads-accent-font,inherit)">'+x(cta)+' →</div>':'';
 
     if(layoutId==='left-image'){
-      return '<div style="position:absolute;left:40px;top:60px;bottom:60px;width:160px;border-radius:16px;border:1px solid '+accent+'55;background:rgba(255,255,255,.06)"></div>'
-        +'<div style="position:absolute;left:230px;right:40px;top:60px">'+hookBadge+titleBlock+ctaBlock+'</div>';
+      return '<div style="position:absolute;left:40px;top:60px;bottom:60px;width:160px;border-radius:16px;border:1px solid var(--ads-border,'+accent+'55);background:rgba(255,255,255,.06);z-index:1"></div>'
+        +'<div style="position:absolute;left:230px;right:40px;top:60px;z-index:1">'+hookBadge+titleBlock+ctaBlock+'</div>';
     }
     if(layoutId==='right-image'){
-      return '<div style="position:absolute;right:40px;top:60px;bottom:60px;width:160px;border-radius:16px;border:1px solid '+accent+'55;background:rgba(255,255,255,.06)"></div>'
-        +'<div style="position:absolute;left:40px;right:230px;top:60px">'+hookBadge+titleBlock+ctaBlock+'</div>';
+      return '<div style="position:absolute;right:40px;top:60px;bottom:60px;width:160px;border-radius:16px;border:1px solid var(--ads-border,'+accent+'55);background:rgba(255,255,255,.06);z-index:1"></div>'
+        +'<div style="position:absolute;left:40px;right:230px;top:60px;z-index:1">'+hookBadge+titleBlock+ctaBlock+'</div>';
     }
     if(layoutId==='center-text'){
-      return '<div style="position:absolute;left:40px;right:40px;top:50%;transform:translateY(-50%);text-align:center">'+hookBadge+titleBlock+ctaBlock+'</div>';
+      return '<div style="position:absolute;left:40px;right:40px;top:50%;transform:translateY(-50%);text-align:center;z-index:1">'+hookBadge+titleBlock+ctaBlock+'</div>';
     }
     if(layoutId==='number-focus'){
-      return '<div style="position:absolute;left:40px;top:50px;font-size:110px;font-weight:900;color:'+accent+'33">01</div>'
-        +'<div style="position:absolute;left:40px;right:40px;bottom:60px">'+hookBadge+titleBlock+ctaBlock+'</div>';
+      return '<div style="position:absolute;left:40px;top:50px;font-size:110px;font-weight:900;color:var(--ads-primary-soft,'+accent+'33);z-index:1">01</div>'
+        +'<div style="position:absolute;left:40px;right:40px;bottom:60px;z-index:1">'+hookBadge+titleBlock+ctaBlock+'</div>';
     }
     if(layoutId==='comparison'){
-      return '<div style="position:absolute;left:40px;top:60px;bottom:60px;right:326px;border-right:1px dashed '+accent+'55">'
-        +'<div style="font-size:11px;font-weight:800;color:'+accent+'">BEFORE</div></div>'
-        +'<div style="position:absolute;right:40px;top:60px;bottom:60px;left:326px">'
-        +'<div style="font-size:11px;font-weight:800;color:'+accent+'">AFTER</div></div>'
-        +'<div style="position:absolute;left:40px;right:40px;bottom:60px">'+hookBadge+titleBlock+ctaBlock+'</div>';
+      return '<div style="position:absolute;left:40px;top:60px;bottom:60px;right:326px;border-right:1px dashed var(--ads-border,'+accent+'55);z-index:1">'
+        +'<div style="font-size:11px;font-weight:800;color:var(--ads-primary,'+accent+')">BEFORE</div></div>'
+        +'<div style="position:absolute;right:40px;top:60px;bottom:60px;left:326px;z-index:1">'
+        +'<div style="font-size:11px;font-weight:800;color:var(--ads-primary,'+accent+')">AFTER</div></div>'
+        +'<div style="position:absolute;left:40px;right:40px;bottom:60px;z-index:1">'+hookBadge+titleBlock+ctaBlock+'</div>';
     }
     if(layoutId==='icon-focus'){
-      return '<div style="position:absolute;right:60px;top:70px;width:130px;height:130px;border-radius:50%;background:'+accent+'33;border:1px solid '+accent+'"></div>'
-        +'<div style="position:absolute;left:40px;right:230px;top:60px">'+hookBadge+titleBlock+ctaBlock+'</div>';
+      return '<div style="position:absolute;right:60px;top:70px;width:130px;height:130px;border-radius:50%;background:var(--ads-primary-soft,'+accent+'33);border:1px solid var(--ads-primary,'+accent+');z-index:1"></div>'
+        +'<div style="position:absolute;left:40px;right:230px;top:60px;z-index:1">'+hookBadge+titleBlock+ctaBlock+'</div>';
     }
-    return '<div style="position:absolute;left:40px;right:40px;top:60px">'+hookBadge+titleBlock+ctaBlock+'</div>';
+    return '<div style="position:absolute;left:40px;right:40px;top:60px;z-index:1">'+hookBadge+titleBlock+ctaBlock+'</div>';
   }
 
   TS.renderPreview = function(){
@@ -265,9 +268,12 @@ var TS_IMAGE_STYLES = [
     var title = TS.state.mainTitle;
     var sub = TS.state.subtitle;
     var cta = TS.state.cta;
+    var themeId = (typeof AtlasDesignSystem!=='undefined') ? AtlasDesignSystem.state.themeId : null;
+    var deco = (typeof AtlasDesignSystem!=='undefined' && AtlasDesignSystem.cardDecoration) ? AtlasDesignSystem.cardDecoration(themeId) : '';
     host.innerHTML =
-      '<div id="ts-preview-canvas" style="width:652px;height:488px;max-width:100%;aspect-ratio:4/3;position:relative;overflow:hidden;border-radius:12px;background:'+ct.bg+';font-family:Pretendard,\'Noto Sans KR\',sans-serif;box-sizing:border-box">'
-      +'<div style="position:absolute;left:40px;top:24px;font-size:10px;font-weight:800;letter-spacing:1.5px;color:'+ct.accent+'">'+x(styleBadge())+'</div>'
+      '<div id="ts-preview-canvas" style="width:652px;height:488px;flex-shrink:0;aspect-ratio:4/3;position:relative;overflow:hidden;border-radius:12px;background:var(--ads-bg,'+ct.bg+');font-family:var(--ads-body-font,Pretendard,\'Noto Sans KR\',sans-serif);box-sizing:border-box;box-shadow:var(--ads-shadow,none)">'
+      + deco
+      +'<div style="position:absolute;left:40px;top:24px;font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--ads-primary,'+ct.accent+');z-index:1">'+x(styleBadge())+'</div>'
       +renderLayoutBody(TS.state.layoutId, ct, hook, title, sub, cta)
       +'</div>';
   };
@@ -283,16 +289,21 @@ var TS_IMAGE_STYLES = [
   TS.render = function(){
     var root = document.getElementById('ts-root');
     if(!root) return;
+    var tabs = [
+      {id:'text',   label:'텍스트',   content: renderTextBuilder() + renderHookSection()},
+      {id:'layout', label:'레이아웃', content: renderTemplateGallery() + renderLayoutSection() + renderStyleSection()},
+      {id:'color',  label:'색상',     content: renderColorSection()},
+      {id:'font',   label:'폰트',     content: (typeof AtlasDesignSystem!=='undefined' && typeof AtlasDesignSystem.renderFontPairComparison==='function')?AtlasDesignSystem.renderFontPairComparison('ts'):''},
+      {id:'prompt', label:'Prompt',   content: (typeof TS.renderPromptSection==='function'?TS.renderPromptSection():'')}
+    ];
+    var tabsHtml = (typeof AtlasDesignSystem!=='undefined' && typeof AtlasDesignSystem.renderTabs==='function')
+      ? AtlasDesignSystem.renderTabs('ts', tabs)
+      : tabs.map(function(t){return t.content;}).join('');
     root.innerHTML =
       '<div class="ts-studio-grid">'
       +'<div class="ts-studio-controls">'
-        +renderHookSection()
-        +renderTextBuilder()
-        +renderTemplateGallery()
-        +renderColorSection()
-        +renderLayoutSection()
-        +renderStyleSection()
-        +(typeof TS.renderPromptSection==='function'?TS.renderPromptSection():'')
+        +(typeof AtlasDesignSystem!=='undefined' && typeof AtlasDesignSystem.renderThemeSelectorSection==='function'?AtlasDesignSystem.renderThemeSelectorSection('ts'):'')
+        +tabsHtml
       +'</div>'
       +'<div class="ts-studio-preview"><div class="ts-section-title">실시간 미리보기 (652×488)</div><div id="ts-preview"></div>'
         +(typeof TS.renderExportSection==='function'?TS.renderExportSection():'')
