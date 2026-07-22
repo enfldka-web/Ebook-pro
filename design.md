@@ -4,21 +4,10 @@
 
 Atlas AI eBook Studio
 
----
-
-# 핵심 철학
-
-Atlas는 전자책 생성 프로그램이 아니다.
-
-Atlas는
-전자책을 기획하고, 작성하고, 디자인하고, 판매할 수 있도록 도와주는
-AI Publishing SaaS이다.
-
-사용자는 전자책 하나를 만드는 것이 아니라
-하나의 브랜드를 만든다.
-
-모든 기능은
-이 철학을 기준으로 설계한다.
+이 문서는 디자인 명세만 담는다 — Brand Theme, UI, 컴포넌트, 레이아웃, 디자인
+시스템 규칙. Atlas가 왜 존재하는지, 어떤 철학으로 판단하는지는 이 문서의
+역할이 아니다. 그 내용은 `ATLAS_CONSTITUTION.md`, `ATLAS_PRODUCT_VISION.md`,
+`.claude/skills/atlas-business-bible/SKILL.md`를 참고한다.
 
 ---
 
