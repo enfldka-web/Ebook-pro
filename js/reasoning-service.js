@@ -23,4 +23,13 @@ window.AtlasReasoningService = window.AtlasReasoningService || {};
 
   RS.latest = function(){ return RS.log.length ? RS.log[RS.log.length-1] : null; };
   RS.all = function(){ return RS.log.slice(); };
+
+  /* 여러 Engine이 각자 Reason()을 호출하면 RS.latest()는 "가장 최근에 기록된
+     아무 Engine"의 기록을 반환한다. 특정 Engine(source)의 기록만 필요한 화면
+     (예: AI Planner의 "추천 이유" 아코디언)은 이 접근자로 조회한다 — 여기서도
+     새로운 판단은 하지 않고, 이미 기록된 로그를 source로 걸러 찾아줄 뿐이다. */
+  RS.latestBySource = function(source){
+    for(var i=RS.log.length-1; i>=0; i--){ if(RS.log[i].source===source) return RS.log[i]; }
+    return null;
+  };
 })(window.AtlasReasoningService);
