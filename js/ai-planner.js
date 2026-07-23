@@ -1,5 +1,5 @@
 /* ai-planner.js — Milestone 3.2 Phase 1(UI) + Phase 2(Brand Strategy Engine 연결)
-   + Phase 3(Marketing Copy Engine 연결)
+   + Phase 3(Marketing Copy Engine 연결) + Phase 4(Thumbnail Engine 2.0 연결)
    기준 문서: docs/ATLAS_AI_ENGINE_SPECIFICATION.md (Engine Specification v2 FINAL)
 
    Phase 1 범위: AI Planner 화면, Planner Report(JSON) 생성, BrandProfile 생성(Read Only),
@@ -9,12 +9,16 @@
    자동 선택하고, 낮으면 Phase 1처럼 사용자가 직접 선택해야 한다.
    Phase 3 범위: Brand Pack 후보를 선택하면 js/marketing-copy-engine.js가 그 후보의
    BrandProfile로 Marketing Copy Asset Pool을 만들고, Planner의 추천 CTA/Headline·Hook
-   요약/FAQ 전략 요약/주의사항을 그 실제 결과로 채운다. 승인 시 이미 계산된 Asset Pool을
-   APP.marketingCopy로 확정 저장한다(다시 계산하지 않음 — Reasoning Service 중복 기록 방지).
+   요약/FAQ 전략 요약/주의사항을 그 실제 결과로 채운다.
+   Phase 4 범위: 같은 후보 선택 시점에 js/thumbnail-engine.js가 BrandProfile +
+   Marketing Copy Asset Pool로 Thumbnail Blueprint(레이아웃/배치/색상 전략, 이미지 생성
+   아님)를 만들고, Planner의 추천 Thumbnail Pattern을 그 실제 결과로 채운다. 승인 시
+   이미 계산된 Asset Pool/Blueprint를 APP.marketingCopy/APP.thumbnailBlueprint로 확정
+   저장한다(다시 계산하지 않음 — Reasoning Service 중복 기록 방지).
 
-   구현하지 않는 것(Engine Specification의 다른 Engine): Thumbnail/Sales Page Engine의 자동
-   판단, Learning Engine, Session Memory, AI가 스스로 전략/카피를 판단해 생성하는 로직(실제
-   Claude API 호출 없음). Brand Strategy Engine과 Marketing Copy Engine 모두 규칙 기반이다. */
+   구현하지 않는 것(Engine Specification의 다른 Engine): Sales Page Engine의 자동 판단,
+   Learning Engine, Session Memory, AI가 스스로 전략/카피/레이아웃을 판단해 생성하는 로직
+   (실제 Claude API 호출·이미지 생성 없음). 세 Engine 모두 규칙 기반이다. */
 
 window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
@@ -46,7 +50,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
   var BRAND_PACK_ORDER = ['premium','studyNote','handwriting'];
 
-  AIP.state = { report:null, selectedBrandPackId:null, marketingCopy:null };
+  AIP.state = { report:null, selectedBrandPackId:null, marketingCopy:null, thumbnailBlueprint:null };
 
   /* ── BrandProfile 생성(Read Only) ──
      docs/ATLAS_AI_ENGINE_SPECIFICATION.md §5 Immutable Rule: 생성된 이후 절대 수정하지 않는다.
@@ -122,20 +126,22 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
   var NEEDS_SELECTION_TEXT='Brand Pack 후보를 선택하면 표시됩니다.';
 
-  /* 현재 선택된 Brand Pack 후보의 BrandProfile로 Marketing Copy Asset Pool을 계산한다
-     (Phase 3). 후보를 바꿀 때마다 다시 계산되며, 매번 Reasoning Service에 정확히 한 번
-     기록된다 — 이 기록은 승인 전까지 화면에 표시되는 "현재 이 결과가 왜 나왔는지"와
-     항상 일치해야 하므로, 후보가 바뀔 때마다 다시 기록하는 것이 맞다(Brand Strategy
-     Engine처럼 Planner 진입 시 1회만 기록하는 것과는 다른 성격의 결정이다). */
+  /* 현재 선택된 Brand Pack 후보의 BrandProfile로 Marketing Copy Asset Pool(Phase 3)과
+     Thumbnail Blueprint(Phase 4)를 계산한다. 후보를 바꿀 때마다 다시 계산되며, 매번
+     Reasoning Service에 정확히 한 번씩 기록된다 — 이 기록은 승인 전까지 화면에 표시되는
+     "현재 이 결과가 왜 나왔는지"와 항상 일치해야 하므로, 후보가 바뀔 때마다 다시
+     기록하는 것이 맞다(Brand Strategy Engine처럼 Planner 진입 시 1회만 기록하는 것과는
+     다른 성격의 결정이다). Thumbnail Engine은 Marketing Copy Asset Pool을 입력으로
+     받으므로 반드시 이 순서(카피 먼저 → Thumbnail 나중)로 호출한다. */
   function computeMarketingCopyForSelection(){
     var sel=AIP.state.selectedBrandPackId;
-    if(!sel){ AIP.state.marketingCopy=null; return; }
-    var r=AIP.state.report;
+    if(!sel){ AIP.state.marketingCopy=null; AIP.state.thumbnailBlueprint=null; return; }
     var title=APP.lockedTitle||'', subtitle=APP.lockedSubtitle||'';
     var analysis=APP.titleAnalysis||APP.smartAnalysis||{};
     var previewProfile=createBrandProfile(sel);
     var copyInput={ topic:analysis.topic||'', target:analysis.target||'', pain:analysis.pain||'', angle:analysis.angle||'', title:title, subtitle:subtitle };
     AIP.state.marketingCopy = (typeof AtlasMarketingCopyEngine!=='undefined') ? AtlasMarketingCopyEngine.run(previewProfile, copyInput) : null;
+    AIP.state.thumbnailBlueprint = (typeof AtlasThumbnailEngine!=='undefined' && AIP.state.marketingCopy) ? AtlasThumbnailEngine.run(previewProfile, AIP.state.marketingCopy) : null;
   }
 
   /* Planner Report를 카드 UI로 표시한다. 순서: 추천 전략 → Confidence → 추천 Brand →
@@ -151,6 +157,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
     computeMarketingCopyForSelection();
     var copy=AIP.state.marketingCopy;
+    var blueprint=AIP.state.thumbnailBlueprint;
 
     function card(label, value, extraClass, caption){
       return '<div class="aip-card'+(extraClass?' '+extraClass:'')+'">'
@@ -171,11 +178,15 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
       card('추천 전략', engine.strategy===null?x('판단 보류'):x(engine.strategy))
       + card('Confidence', '<div class="aip-confidence"><div class="aip-confidence-bar"><div class="aip-confidence-fill" style="width:'+engine.confidence+'%"></div></div><div class="aip-confidence-pct">'+engine.confidence+'%</div></div>', '', 'Brand Strategy Engine 계산값 (Evidence Strength/Decision Margin 기반)')
       + card('추천 Brand', engine.recommendedBrandPackId?x(brandPackLabel(engine.recommendedBrandPackId)):x('직접 선택 필요'), '', '이유 출처: Reasoning Service (아래 "추천 이유 보기" 참고)')
-      + card('추천 Thumbnail Pattern', d?x(d.thumbnailPattern):x(NEEDS_SELECTION_TEXT))
+      + card('추천 Thumbnail Pattern', blueprint?x(blueprint.pattern):x(NEEDS_SELECTION_TEXT), '', blueprint?'Thumbnail Engine 생성값 (이유 출처: Reasoning Service)':'')
       + card('추천 Sales Page 구조', d?x(d.salesPagePreference):x(NEEDS_SELECTION_TEXT))
       + card('추천 CTA', copy?x(copy.cta):x(NEEDS_SELECTION_TEXT), '', copy?'Marketing Copy Engine 생성값 (동사 고정: '+x(copy.metadata.ctaVerb)+')':'')
       + card('Headline / Hook', copy?(x(copy.headline)+'<br><span style="font-weight:400">'+x(copy.hook)+'</span>'):x(NEEDS_SELECTION_TEXT))
       + card('FAQ 전략', copy?(copy.faqs.length+'개 · '+x(d.faqStyle)):x(NEEDS_SELECTION_TEXT))
+      + card('Thumbnail Blueprint 요약', blueprint?(
+          'Headline '+x(blueprint.headlinePosition)+' · Badge '+x(blueprint.badgePosition)+' · CTA '+x(blueprint.ctaPosition)+'<br>'
+          +'<span style="font-weight:400">Color '+x(blueprint.colorStrategy)+' · Icon '+x(blueprint.iconStyle)+' · Image '+x(blueprint.imageStyle)+'</span>'
+        ):x(NEEDS_SELECTION_TEXT))
       + card('주의사항', '<ul class="aip-cautions">'+cautions.map(function(c){return '<li>'+x(c)+'</li>';}).join('')+'</ul>', 'aip-card-full');
 
     var approveBtn=document.getElementById('aip-approve-btn');
@@ -202,9 +213,11 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     if(typeof AtlasReasoningService==='undefined'){ container.innerHTML=''; return; }
     var strategyRecord=AtlasReasoningService.latestBySource('BrandStrategyEngine');
     var copyRecord=AtlasReasoningService.latestBySource('MarketingCopyEngine');
+    var thumbnailRecord=AtlasReasoningService.latestBySource('ThumbnailEngine');
     container.innerHTML=
       renderReasonSection('Brand Strategy 판단 근거', strategyRecord)
-      + renderReasonSection('Marketing Copy 판단 근거', copyRecord);
+      + renderReasonSection('Marketing Copy 판단 근거', copyRecord)
+      + renderReasonSection('Thumbnail 판단 근거', thumbnailRecord);
   }
 
   AIP.state.reasonOpen = false;
@@ -254,10 +267,11 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     if(!sel){ if(typeof showToast==='function')showToast('error','Brand Pack 후보를 먼저 선택해주세요.'); return; }
     APP.brandProfile=createBrandProfile(sel);
     APP.plannerReport=AIP.state.report;
-    /* AIP.state.marketingCopy는 이 sel로 renderReport()가 이미 계산해 둔 값이다(같은
-       BrandProfile.brandStrategy/badgeTone/... 조합이면 결과가 동일하므로) — 승인 시점에
+    /* AIP.state.marketingCopy/thumbnailBlueprint는 이 sel로 renderReport()가 이미
+       계산해 둔 값이다(같은 BrandProfile 조합이면 결과가 동일하므로) — 승인 시점에
        다시 계산해 Reasoning Service에 중복 기록하지 않고 그대로 확정 저장한다. */
     APP.marketingCopy=AIP.state.marketingCopy;
+    APP.thumbnailBlueprint=AIP.state.thumbnailBlueprint;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
     startGenerate(true);
   };
@@ -266,9 +280,11 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     AIP.state.report=null;
     AIP.state.selectedBrandPackId=null;
     AIP.state.marketingCopy=null;
+    AIP.state.thumbnailBlueprint=null;
     APP.brandProfile=null;
     APP.plannerReport=null;
     APP.marketingCopy=null;
+    APP.thumbnailBlueprint=null;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
   };
 

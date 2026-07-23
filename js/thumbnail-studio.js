@@ -82,6 +82,19 @@ var TS_IMAGE_STYLES = [
     if(typeof APP!=='undefined') APP.thumbnailStudio = TS.state;
   }
 
+  /* Milestone 3.2 Phase 4: Thumbnail Engine 2.0 연결.
+     기존 Thumbnail Studio 코드/템플릿/레이아웃은 전혀 삭제하거나 바꾸지 않는다 — Engine이
+     만든 Blueprint(js/thumbnail-engine.js)를 "새 프로젝트의 기본값"으로만 반영한다.
+     Blueprint의 pattern은 이미 TS_LAYOUTS에 있는 6개 layoutId 중 3개(comparison/
+     icon-focus/left-image — 현재 3개 Brand Pack이 실제로 도달하는 값)에 대응한다.
+     colorStrategy도 기존 TS_COLOR_THEMES 중 하나로 매핑한다. 둘 다 사용자가 이미 고른
+     기존 값(TS.state가 APP.thumbnailStudio에서 복원되는 경우)은 절대 덮어쓰지 않는다. */
+  var LAYOUT_ID_BY_BLUEPRINT_PATTERN = {
+    'Comparison':'comparison', 'Icon Focus':'icon-focus', 'Left Image':'left-image',
+    'Right Image':'right-image', 'Center Text':'center-text', 'Top Banner':'center-text'
+  };
+  var COLOR_ID_BY_BLUEPRINT_STRATEGY = { authority:'black', trust:'blue', relationship:'orange' };
+
   TS.init = function(){
     if(typeof APP!=='undefined' && APP.thumbnailStudio){
       TS.state = APP.thumbnailStudio;
@@ -90,6 +103,11 @@ var TS_IMAGE_STYLES = [
       if(typeof APP!=='undefined' && APP.ebook){
         if(!TS.state.mainTitle) TS.state.mainTitle = APP.ebook.title||'';
         if(!TS.state.subtitle) TS.state.subtitle = APP.ebook.subtitle||'';
+      }
+      if(typeof APP!=='undefined' && APP.thumbnailBlueprint){
+        var bp=APP.thumbnailBlueprint;
+        if(LAYOUT_ID_BY_BLUEPRINT_PATTERN[bp.pattern]) TS.state.layoutId=LAYOUT_ID_BY_BLUEPRINT_PATTERN[bp.pattern];
+        if(COLOR_ID_BY_BLUEPRINT_STRATEGY[bp.colorStrategy]) TS.state.colorId=COLOR_ID_BY_BLUEPRINT_STRATEGY[bp.colorStrategy];
       }
       syncToApp();
     }
