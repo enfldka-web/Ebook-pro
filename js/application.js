@@ -1,19 +1,20 @@
 // ════════════════════════════════════════
 // DATA & STATE
 // ════════════════════════════════════════
-var APP={user:null,ebook:null,editMode:false,salesEditMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'input',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null};
+var APP={user:null,ebook:null,editMode:false,salesEditMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'input',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,plannerReport:null,brandProfile:null};
 
 // ════════════════════════════════════════
 // ATLAS v0.7 SMART PREMIUM ENGINE
 // ════════════════════════════════════════
-var ATLAS_STAGE_ORDER=['input','analysis','title','ebook','sales','publish'];
+var ATLAS_STAGE_ORDER=['input','analysis','title','planner','ebook','sales','publish'];
 var ATLAS_STAGE_INFO={
  input:{pct:8,label:'1단계 · 자료 준비',badge:'기획 시작',coach:'파일, 주제 또는 URL 중 편한 방식을 선택하세요. 입력한 내용은 브라우저에 임시 저장됩니다.'},
- analysis:{pct:25,label:'2단계 · 자료 분석',badge:'분석 중',coach:'Atlas가 핵심 주제, 독자, 문제와 차별화 각도를 정리하고 있습니다.'},
- title:{pct:42,label:'3단계 · 제목과 후킹',badge:'선택 필요',coach:'후킹과 신뢰를 함께 고려해 제목을 고르세요. 선택한 제목은 모든 결과물에 연결됩니다.'},
- ebook:{pct:68,label:'4단계 · 콘텐츠 제작',badge:'전자책 완성',coach:'전자책이 완성되었습니다. 내용과 제목을 검토한 뒤 판매 디자인으로 이동하세요.'},
- sales:{pct:88,label:'5단계 · 판매 디자인',badge:'디자인 작업',coach:'썸네일, 상세페이지와 전자책 판매자료를 확인하고 가장 적합한 시안을 선택하세요.'},
- publish:{pct:100,label:'6단계 · 판매 준비 완료',badge:'출시 가능',coach:'최종 결과물을 저장하고 크몽 등록 전 정책 검사와 문구를 한 번 더 확인하세요.'}
+ analysis:{pct:22,label:'2단계 · 자료 분석',badge:'분석 중',coach:'Atlas가 핵심 주제, 독자, 문제와 차별화 각도를 정리하고 있습니다.'},
+ title:{pct:36,label:'3단계 · 제목과 후킹',badge:'선택 필요',coach:'후킹과 신뢰를 함께 고려해 제목을 고르세요. 선택한 제목은 모든 결과물에 연결됩니다.'},
+ planner:{pct:50,label:'4단계 · AI 기획 승인',badge:'승인 필요',coach:'AI Planner가 정리한 기획안을 확인하고 Brand Pack을 선택한 뒤 승인하세요.'},
+ ebook:{pct:68,label:'5단계 · 콘텐츠 제작',badge:'전자책 완성',coach:'전자책이 완성되었습니다. 내용과 제목을 검토한 뒤 판매 디자인으로 이동하세요.'},
+ sales:{pct:88,label:'6단계 · 판매 디자인',badge:'디자인 작업',coach:'썸네일, 상세페이지와 전자책 판매자료를 확인하고 가장 적합한 시안을 선택하세요.'},
+ publish:{pct:100,label:'7단계 · 판매 준비 완료',badge:'출시 가능',coach:'최종 결과물을 저장하고 크몽 등록 전 정책 검사와 문구를 한 번 더 확인하세요.'}
 };
 function atlasProjectStorageKey(){return 'atlas_project_draft_v07';}
 function atlasGuessProjectName(){
@@ -41,12 +42,12 @@ function atlasSetWorkspaceStage(stage,opts){
 }
 function atlasCollectDraft(){
  function val(id){var e=document.getElementById(id);return e?e.value:'';}
- return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'input',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,thumbnailStudio:APP.thumbnailStudio||null,salesPageStudio:APP.salesPageStudio||null,brandTheme:APP.brandTheme||null};
+ return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'input',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,thumbnailStudio:APP.thumbnailStudio||null,salesPageStudio:APP.salesPageStudio||null,brandTheme:APP.brandTheme||null,plannerReport:APP.plannerReport||null,brandProfile:APP.brandProfile||null};
 }
 function atlasSaveDraft(show){try{localStorage.setItem(atlasProjectStorageKey(),JSON.stringify(atlasCollectDraft()));if(show)showToast('success','현재 프로젝트를 저장했습니다.');}catch(e){if(show)showToast('error','프로젝트 저장에 실패했습니다.');}}
 function atlasLoadDraft(show){
  try{var raw=localStorage.getItem(atlasProjectStorageKey());if(!raw){if(show)showToast('info','저장된 프로젝트가 없습니다.');return;}var d=JSON.parse(raw);
- APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;
+ APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.plannerReport=d.plannerReport||null;APP.brandProfile=d.brandProfile||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;
  if(d.thumbnailStudio){APP.thumbnailStudio=d.thumbnailStudio;}else{delete APP.thumbnailStudio;}
  if(typeof ThumbnailStudio!=='undefined'&&typeof ThumbnailStudio.init==='function')ThumbnailStudio.init();
  if(d.salesPageStudio){APP.salesPageStudio=d.salesPageStudio;}else{delete APP.salesPageStudio;}
@@ -244,7 +245,7 @@ function showApp(section){
 
   // 6. converter 벗어날 때 내부 상태 리셋
   if(section!=='converter'){
-    ['cv-process-state','cv-result-state','cv-sales-state'].forEach(function(id){
+    ['cv-process-state','cv-result-state','cv-sales-state','cv-planner-state'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     var up=document.getElementById('cv-upload-state');
@@ -602,7 +603,7 @@ function checkCvReady(){
   if(warn)warn.style.display='none';
 }
 function resetConverter(){
-  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.salesEditMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.workspaceStage='input';APP.projectName='';
+  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.salesEditMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.plannerReport=null;APP.brandProfile=null;APP.workspaceStage='input';APP.projectName='';
   CV_MODE='file';
   var fi=document.getElementById('cv-fi');if(fi)fi.value='';
   var dz=document.getElementById('cv-dz');if(dz)dz.classList.remove('has-file');
@@ -615,12 +616,14 @@ function resetConverter(){
     var el=document.getElementById(id);if(el)el.value='';
   });
   var up=document.getElementById('url-preview');if(up){up.textContent='';up.classList.remove('show');} renderMultiSources(); var ts=document.getElementById('cv-title-state');if(ts)ts.style.display='none';
+  var ps=document.getElementById('cv-planner-state');if(ps)ps.style.display='none';
   // reset tabs
   switchInputTab('file');
   document.getElementById('cv-upload-state').style.display='';
   document.getElementById('cv-process-state').style.display='none';
   document.getElementById('cv-result-state').style.display='none';
   document.getElementById('cv-sales-state').style.display='none';
+  if(typeof AtlasAIPlanner!=='undefined'&&typeof AtlasAIPlanner.reset==='function')AtlasAIPlanner.reset();
   checkCvReady();
 }
 function setCvStep(n){
@@ -838,7 +841,9 @@ function selectTitleCandidate(i){
 function lockTitleAndGenerate(){
   var title=safeTitleText(document.getElementById('ts-final-title').value);var sub=safeTitleText(document.getElementById('ts-final-subtitle').value);
   if(!title){showToast('error','최종 제목을 입력해주세요.');return;}
-  APP.lockedTitle=title;APP.lockedSubtitle=sub;atlasSetWorkspaceStage('title',{coach:'제목이 잠겼습니다. 이제 전자책을 제작합니다.'});startGenerate(true);
+  APP.lockedTitle=title;APP.lockedSubtitle=sub;atlasSetWorkspaceStage('title',{coach:'제목이 잠겼습니다. AI Planner가 기획안을 정리합니다.'});
+  if(typeof AtlasAIPlanner!=='undefined'&&typeof AtlasAIPlanner.open==='function')AtlasAIPlanner.open();
+  else startGenerate(true);
 }
 
 async function startGenerate(titleLocked){
@@ -862,6 +867,7 @@ async function startGenerate(titleLocked){
 
   document.getElementById('cv-upload-state').style.display='none';
   var _ts=document.getElementById('cv-title-state');if(_ts)_ts.style.display='none';
+  var _ps=document.getElementById('cv-planner-state');if(_ps)_ps.style.display='none';
   document.getElementById('cv-result-state').style.display='none';
   document.getElementById('cv-sales-state').style.display='none';
   var _edoc=document.getElementById('cv-edoc');if(_edoc)_edoc.innerHTML='';

@@ -758,6 +758,40 @@ textarea{resize:vertical}
 .ts-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
 .ts-analysis{font-size:12px;line-height:1.7;color:var(--text2);background:rgba(255,255,255,.025);border:1px solid var(--border);padding:12px;border-radius:10px;margin-bottom:14px}
 @media(max-width:760px){.ms-workspace{grid-template-columns:1fr}.ts-grid{grid-template-columns:1fr}.ts-head{flex-direction:column}.ms-item{grid-template-columns:minmax(0,1fr) 100px 30px}}
+/* M3.2 Phase 1: AI Planner — docs/ATLAS_AI_ENGINE_SPECIFICATION.md 기준. title-studio와 동일한
+   카드/여백 리듬을 재사용해 새 화면이 기존 Studio와 이질감 없이 보이도록 한다. */
+.ai-planner{background:linear-gradient(180deg,rgba(99,102,241,.08),rgba(255,255,255,.015));border:1px solid rgba(99,102,241,.3);border-radius:18px;padding:22px}
+.aip-report{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.aip-card{font-size:12px;line-height:1.7;color:var(--text2);background:rgba(255,255,255,.025);border:1px solid var(--border);padding:14px;border-radius:12px}
+.aip-card-full{grid-column:1/-1}
+.aip-card-label{font-weight:800;color:var(--text);font-size:11px;letter-spacing:.3px;margin-bottom:6px}
+.aip-card-value{color:var(--text2);font-size:13px;font-weight:700}
+.aip-card-caption{color:var(--text3);font-size:10px;margin-top:6px;font-weight:400;line-height:1.6}
+.aip-cautions{margin:0;padding-left:18px}
+.aip-cautions li{margin-bottom:4px;font-weight:400;font-size:12px}
+.aip-confidence{display:flex;align-items:center;gap:8px}
+.aip-confidence-bar{flex:1;height:6px;border-radius:100px;background:rgba(255,255,255,.08);overflow:hidden}
+.aip-confidence-fill{height:100%;background:linear-gradient(90deg,#6366f1,#a855f7);border-radius:100px}
+.aip-confidence-pct{font-size:13px;font-weight:900;color:#c4b5fd;min-width:38px;text-align:right}
+.aip-accordion{margin-bottom:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)}
+.aip-accordion-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;color:var(--text2);font-size:12px;font-weight:800;padding:12px 14px;cursor:pointer}
+.aip-accordion-arrow{display:inline-block;transition:transform .18s ease;font-size:10px}
+.aip-accordion-body{padding:0 14px 14px;font-size:12px;color:var(--text3);line-height:1.7}
+.aip-reason-list{margin:0;padding-left:18px}
+.aip-reason-note{margin-top:6px;font-style:italic;color:var(--text3)}
+.aip-candidates-head{font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px}
+.aip-candidates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.aip-candidate{border:1px solid var(--border);background:rgba(255,255,255,.025);border-radius:13px;padding:14px;cursor:pointer;transition:.18s}
+.aip-candidate:hover{border-color:rgba(99,102,241,.65);transform:translateY(-1px)}
+.aip-candidate.selected{border-color:#818cf8;background:rgba(99,102,241,.12);box-shadow:0 0 0 2px rgba(99,102,241,.12)}
+.aip-candidate-head{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.aip-candidate-name{font-size:14px;font-weight:800;color:var(--text)}
+.aip-candidate-check{font-size:10px;font-weight:800;color:#a5b4fc}
+.aip-candidate-tagline{font-size:11px;color:var(--text3);margin-top:4px}
+.aip-swatches{display:flex;gap:5px;margin-top:10px}
+.aip-swatch{width:16px;height:16px;border-radius:5px;border:1px solid rgba(255,255,255,.25);display:inline-block}
+.aip-candidate-meta{font-size:10px;color:var(--text3);margin-top:6px}
+@media(max-width:760px){.aip-candidates{grid-template-columns:1fr}.aip-report{grid-template-columns:1fr}}
 .smart-premium-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(99,102,241,.2));border:1px solid rgba(167,139,250,.38);font-size:12px;font-weight:800;color:#ddd6fe;margin:0 auto 12px}
 .smart-interview{background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(30,41,59,.96));border:1px solid rgba(129,140,248,.3);border-radius:20px;padding:24px;max-width:900px;margin:0 auto}
 .si-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.si-kicker{font-size:11px;font-weight:900;color:#a5b4fc;letter-spacing:1.2px}.si-title{font-size:25px;font-weight:900;color:#fff;margin-top:5px}.si-desc{font-size:13px;color:#94a3b8;line-height:1.7;margin-top:7px}.si-reason{padding:12px 14px;border-radius:12px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.22);color:#c7d2fe;font-size:13px;line-height:1.65;margin-bottom:16px}.si-list{display:grid;gap:12px}.si-card{padding:16px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08)}.si-q{font-size:14px;font-weight:800;color:#f8fafc;margin-bottom:10px;line-height:1.5}.si-options{display:flex;gap:8px;flex-wrap:wrap}.si-opt{border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.7);color:#cbd5e1;padding:8px 11px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}.si-opt.selected{background:#6366f1;border-color:#818cf8;color:#fff}.si-input{width:100%;box-sizing:border-box;border:1px solid rgba(148,163,184,.24);background:rgba(15,23,42,.7);color:#fff;border-radius:11px;padding:11px 12px;font-size:13px;outline:none}.si-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.smart-progress-note{font-size:12px;color:#c4b5fd;margin-top:8px;line-height:1.6}
