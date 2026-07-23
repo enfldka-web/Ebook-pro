@@ -1,14 +1,15 @@
-/* ai-planner.js — Milestone 3.2 Phase 1: AI Planner UI
+/* ai-planner.js — Milestone 3.2 Phase 1(UI) + Phase 2(Brand Strategy Engine 연결)
    기준 문서: docs/ATLAS_AI_ENGINE_SPECIFICATION.md (Engine Specification v2 FINAL)
 
-   이번 Phase 범위: AI Planner 화면, Planner Report(JSON) 생성, BrandProfile 생성(Read Only),
-   BrandProfile Context 연결, 제목 잠금 → Planner → 승인 → 전자책 생성 흐름 전환까지만 구현한다.
+   Phase 1 범위: AI Planner 화면, Planner Report(JSON) 생성, BrandProfile 생성(Read Only),
+   BrandProfile Context 연결, 제목 잠금 → Planner → 승인 → 전자책 생성 흐름 전환.
+   Phase 2 범위: Planner Report의 추천 전략/추천 Brand/추천 이유를 js/brand-strategy-engine.js의
+   실제 계산 결과로 채운다(Phase 1의 고정 Placeholder 제거). Confidence가 높으면 후보를
+   자동 선택하고, 낮으면 Phase 1처럼 사용자가 직접 선택해야 한다.
 
    구현하지 않는 것(Engine Specification의 다른 Engine): Marketing Copy Engine, Thumbnail/Sales
-   Page Engine의 자동 판단, Learning Engine, Reasoning Service 내부 로직, AI가 스스로 전략을
-   판단해 생성하는 로직. Brand Strategy Engine의 실제 AI 판단은 이번 Phase에 포함되지 않으므로,
-   Planner Report는 항상 사용자가 Brand Pack 후보 중 하나를 직접 선택하는 형태로 동작한다 —
-   선택하지 않은 근거를 꾸며내지 않는다(Never Guess / Never Hide). */
+   Page Engine의 자동 판단, Learning Engine, Session Memory, AI가 스스로 전략을 판단해 콘텐츠를
+   생성하는 로직. Brand Strategy Engine은 규칙 기반이며 새로운 AI 호출을 추가하지 않는다. */
 
 window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
@@ -61,37 +62,35 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
      구현될 Engine들이 참조할 단일 진입점을 지금 만들어 둔다. */
   AIP.getBrandProfile = function(){ return (typeof APP!=='undefined' && APP.brandProfile) || null; };
 
-  /* 화면에 표시되는 Confidence는 고정 Placeholder 값이다. 실제 계산 로직(Brand Strategy Engine의
-     판단 신뢰도 산출)은 이번 개선에서도 구현하지 않는다 — 숫자는 항상 이 상수 하나다. */
-  var PLACEHOLDER_CONFIDENCE_PCT = 85;
-
   /* ── Planner Report(JSON) 생성 ──
      docs/ATLAS_AI_ENGINE_SPECIFICATION.md §4 Planner Report 8개 항목을 그대로 채운다.
-     Brand Strategy Engine의 실제 AI 판단 로직은 이번 Phase 범위가 아니므로, Brand Pack 추천은
-     "AI가 판단한 결과"로 꾸미지 않고 사용자가 선택해야 하는 항목으로 명시한다. */
+     추천 전략/추천 Brand/추천 이유는 js/brand-strategy-engine.js의 실제 계산 결과를 쓴다
+     (Phase 2) — Placeholder 문구는 더 이상 만들지 않는다. 자동 선택 여부(engine.autoRecommended)
+     판단은 이 파일에서 다시 계산하지 않고 Engine이 내린 결론을 그대로 따른다(매직 넘버를
+     여러 파일에 중복시키지 않기 위해 임계치는 brand-strategy-engine.js에만 둔다). */
   function buildPlannerReport(){
     var title=APP.lockedTitle||'', subtitle=APP.lockedSubtitle||'';
     var idx=typeof APP.selectedTitleIndex==='number'?APP.selectedTitleIndex:-1;
     var candidate=(APP.titleCandidates||[])[idx]||{};
     var analysis=APP.titleAnalysis||APP.smartAnalysis||{};
 
+    var engineInput = {
+      topic: analysis.topic||'', target: analysis.target||'', pain: analysis.pain||'',
+      angle: analysis.angle||'', sourceSummary: analysis.sourceSummary||'',
+      titleType: candidate.type||''
+    };
+    var engine = AtlasBrandStrategyEngine.run(engineInput);
+
     return {
       version:1,
       productSummary: (analysis.topic?('주제: '+analysis.topic+'. '):'')+(title?('잠긴 제목: "'+title+'"'+(subtitle?' — '+subtitle:'')):'제목이 아직 잠기지 않았습니다.'),
-      strategy: null,
-      brandPackId: null,
-      brandPackReason: 'Brand Strategy Engine의 자동 판단은 이번 Phase 범위에 포함되지 않습니다. 아래 Brand Pack 후보 중 하나를 직접 선택해주세요.',
-      faqStrategy: '선택한 Brand Pack의 BrandProfile.faqStyle을 따릅니다(아래 후보 카드에서 확인 가능).',
-      ctaStrategy: '선택한 Brand Pack의 BrandProfile.ctaTone을 따릅니다(아래 후보 카드에서 확인 가능).',
-      thumbnailPattern: '선택한 Brand Pack의 BrandProfile.thumbnailPattern을 따릅니다.',
-      salesPageStructure: '선택한 Brand Pack의 BrandProfile.salesPagePreference를 따릅니다.',
+      engine: engine,
       cautions: [
         '이 기획안은 자동으로 확정되지 않습니다 — 승인해야 전자책 생성이 시작됩니다.',
         '승인 후 만들어지는 BrandProfile은 이후 수정할 수 없습니다. 다른 Brand Pack이 필요하면 이 화면으로 돌아와 다시 선택해야 합니다.',
+        engine.strategy===null?'분석 근거가 충분하지 않아 자동 추천하지 않았습니다.':(!engine.autoRecommended?'Brand Pack이 자동 선택 기준을 충족하지 않아 자동 선택되지 않았습니다 — 아래 후보 중 직접 선택해주세요.':''),
         candidate.type?('선택한 제목 유형: '+candidate.type):''
-      ].filter(Boolean),
-      confidence:'manual',
-      confidencePct: PLACEHOLDER_CONFIDENCE_PCT
+      ].filter(Boolean)
     };
   }
   AIP.buildPlannerReport = buildPlannerReport;
@@ -125,6 +124,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var body=document.getElementById('aip-report-body'); if(!body) return;
     var sel=AIP.state.selectedBrandPackId;
     var d=sel?BRAND_PROFILE_DEFAULTS[sel]:null;
+    var engine=r.engine;
 
     function card(label, value, extraClass, caption){
       return '<div class="aip-card'+(extraClass?' '+extraClass:'')+'">'
@@ -135,9 +135,9 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     }
 
     body.innerHTML=
-      card('추천 전략', d?x(d.brandStrategy):x(NEEDS_SELECTION_TEXT))
-      + card('Confidence', '<div class="aip-confidence"><div class="aip-confidence-bar"><div class="aip-confidence-fill" style="width:'+r.confidencePct+'%"></div></div><div class="aip-confidence-pct">'+r.confidencePct+'%</div></div>', '', 'Placeholder 값 — 실제 계산 로직은 아직 구현되지 않았습니다.')
-      + card('추천 Brand', d?x(brandPackLabel(sel)):x(NEEDS_SELECTION_TEXT), '', '이유 출처: Reasoning Service (아래 "추천 이유 보기" 참고)')
+      card('추천 전략', engine.strategy===null?x('판단 보류'):x(engine.strategy))
+      + card('Confidence', '<div class="aip-confidence"><div class="aip-confidence-bar"><div class="aip-confidence-fill" style="width:'+engine.confidence+'%"></div></div><div class="aip-confidence-pct">'+engine.confidence+'%</div></div>', '', 'Brand Strategy Engine 계산값 (Evidence Strength/Decision Margin 기반)')
+      + card('추천 Brand', engine.recommendedBrandPackId?x(brandPackLabel(engine.recommendedBrandPackId)):x('직접 선택 필요'), '', '이유 출처: Reasoning Service (아래 "추천 이유 보기" 참고)')
       + card('추천 Thumbnail Pattern', d?x(d.thumbnailPattern):x(NEEDS_SELECTION_TEXT))
       + card('추천 Sales Page 구조', d?x(d.salesPagePreference):x(NEEDS_SELECTION_TEXT))
       + card('추천 CTA', d?x(d.ctaTone):x(NEEDS_SELECTION_TEXT))
@@ -145,11 +145,23 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
     var approveBtn=document.getElementById('aip-approve-btn');
     if(approveBtn) approveBtn.disabled=!sel;
+
+    renderReasonAccordionContent();
   }
 
   /* ── "추천 이유 보기" 아코디언 ──
-     Reasoning Service는 이번 개선에서도 구현하지 않는다. 실제 상품/시장/타겟 분석 결과를
-     추론으로 연결하지 않고, 향후 Reasoning Service가 채울 자리라는 것만 보여주는 Placeholder다. */
+     Reasoning Service가 실제로 기록한 값(AtlasReasoningService.latest())을 그대로 보여준다 —
+     Reasoning Service는 판단하지 않으므로, 여기 나오는 문장은 전부 Brand Strategy Engine의
+     Reason Generator가 이미 만든 것을 그대로 옮긴 것이다. */
+  function renderReasonAccordionContent(){
+    var container=document.getElementById('aip-reason-content'); if(!container) return;
+    var recorded=(typeof AtlasReasoningService!=='undefined')?AtlasReasoningService.latest():null;
+    if(!recorded){ container.innerHTML=''; return; }
+    container.innerHTML=
+      '<ul class="aip-reason-list">'+recorded.reasons.map(function(reason){return '<li>'+x(reason)+'</li>';}).join('')+'</ul>'
+      +'<div class="aip-reason-note">Reasoning Service 기록 · '+new Date(recorded.recordedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+'</div>';
+  }
+
   AIP.state.reasonOpen = false;
   AIP.toggleReasonAccordion=function(){
     AIP.state.reasonOpen = !AIP.state.reasonOpen;
@@ -170,7 +182,11 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
      변경 후: 제목 잠금 → AIP.open()(Planner Report 확인) → 사용자 승인 → startGenerate(true) */
   AIP.open=function(){
     AIP.state.report=buildPlannerReport();
-    AIP.state.selectedBrandPackId=null;
+    var engine=AIP.state.report.engine;
+    /* engine.autoRecommended === true일 때만 추천 후보를 미리 선택해 둔다(원클릭 승인).
+       신호가 없거나(strategy null) 자동 선택 기준을 채우지 못하면 아무것도 선택하지
+       않아, 사용자가 아래 후보 카드 중 하나를 직접 골라야만 승인 버튼이 활성화된다. */
+    AIP.state.selectedBrandPackId = engine.autoRecommended ? engine.recommendedBrandPackId : null;
     AIP.state.reasonOpen=false;
     var titleState=document.getElementById('cv-title-state'); if(titleState)titleState.style.display='none';
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='';
