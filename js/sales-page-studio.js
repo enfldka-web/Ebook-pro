@@ -58,6 +58,16 @@ var SPS_THEMES = [
   }
   SPS.normalizeOrder = normalizeOrder;
 
+  /* Milestone 3.2 Phase 5: Sales Page Engine 2.0 연결.
+     기존 8종 섹션/레이아웃/테마는 전혀 삭제·변경하지 않는다 — Engine이 만든 Blueprint
+     (js/sales-page-engine.js)를 "새로 빌드된 섹션의 기본 layoutId"로만 반영한다.
+     Engine의 7섹션 모델(Hero/Problem/Authority-Solution/Benefits/Social Proof/FAQ/CTA)과
+     Studio의 8섹션 모델(hero/pain/solution/toc/benefits/beforeAfter/targetAudience/cta)은
+     이름이 1:1로 겹치지 않으므로, 의미가 명확히 대응하고 이미 allowedLayouts 안에 있는
+     값으로만 안전하게 매핑 가능한 hero/benefits 두 타입만 반영한다. */
+  var SPS_HERO_LAYOUT_BY_BLUEPRINT_STRATEGY = { 'text-first':'text-center', 'grid-first':'split', 'mockup-first':'split' };
+  var SPS_BENEFITS_LAYOUT_BY_BLUEPRINT = { 'list':'checklist', 'numbered-grid':'icon-list', 'card-grid':'icon-list' };
+
   SPS.init = function(){
     var ebook = (typeof APP!=='undefined' && APP.ebook) || null;
     var key = (typeof SPS.computeEbookKey==='function') ? SPS.computeEbookKey(ebook) : '';
@@ -65,6 +75,20 @@ var SPS_THEMES = [
       SPS.state = APP.salesPageStudio;
     } else {
       var sections = (typeof SPS.buildSectionsFromEbook==='function') ? SPS.buildSectionsFromEbook(ebook) : [];
+      if(typeof APP!=='undefined' && APP.salesPageBlueprint){
+        var bp=APP.salesPageBlueprint;
+        sections.forEach(function(s){
+          var def=sectionDef(s.type);
+          if(s.type==='hero' && SPS_HERO_LAYOUT_BY_BLUEPRINT_STRATEGY[bp.layoutStrategy]){
+            var heroMapped=SPS_HERO_LAYOUT_BY_BLUEPRINT_STRATEGY[bp.layoutStrategy];
+            if(def.allowedLayouts.indexOf(heroMapped)>-1) s.layoutId=heroMapped;
+          }
+          if(s.type==='benefits' && SPS_BENEFITS_LAYOUT_BY_BLUEPRINT[bp.benefitsLayout]){
+            var benefitsMapped=SPS_BENEFITS_LAYOUT_BY_BLUEPRINT[bp.benefitsLayout];
+            if(def.allowedLayouts.indexOf(benefitsMapped)>-1) s.layoutId=benefitsMapped;
+          }
+        });
+      }
       SPS.state = {
         version: 1,
         sourceEbookKey: key,
