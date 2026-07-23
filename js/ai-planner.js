@@ -1,6 +1,6 @@
 /* ai-planner.js — Milestone 3.2 Phase 1(UI) + Phase 2(Brand Strategy Engine 연결)
    + Phase 3(Marketing Copy Engine 연결) + Phase 4(Thumbnail Engine 2.0 연결)
-   + Phase 5(Sales Page Engine 2.0 연결)
+   + Phase 5(Sales Page Engine 2.0 연결) + Phase 6(Ebook Engine 연결)
    기준 문서: docs/ATLAS_AI_ENGINE_SPECIFICATION.md (Engine Specification v2 FINAL)
 
    Phase 1 범위: AI Planner 화면, Planner Report(JSON) 생성, BrandProfile 생성(Read Only),
@@ -17,13 +17,16 @@
    Phase 5 범위: 같은 후보 선택 시점에 js/sales-page-engine.js가 BrandProfile +
    Marketing Copy Asset Pool로 Sales Page Blueprint(고정 7섹션 순서/강조/레이아웃,
    HTML·렌더링 아님)를 만들고, Planner에 Sales Page Blueprint 요약 카드를 추가한다.
-   승인 시 이미 계산된 Asset Pool/Blueprint 3종을 APP.marketingCopy/
-   APP.thumbnailBlueprint/APP.salesPageBlueprint로 확정 저장한다(다시 계산하지 않음
-   — Reasoning Service 중복 기록 방지).
+   Phase 6 범위: js/ebook-engine.js가 기존 파이프라인의 "Generation" 단계를 구체화해
+   Ebook Blueprint(문체/밀도/CTA/FAQ 통합 가이드라인 — 실제 본문 생성이나 Claude API
+   호출 아님)를 만들고, Planner에 Ebook Blueprint 요약 카드를 추가한다. 승인 시 이미
+   계산된 Asset Pool/Blueprint 4종을 APP.marketingCopy/APP.thumbnailBlueprint/
+   APP.salesPageBlueprint/APP.ebookBlueprint로 확정 저장한다(다시 계산하지 않음 —
+   Reasoning Service 중복 기록 방지).
 
    구현하지 않는 것(Engine Specification의 다른 Engine): Learning Engine, Session
-   Memory, AI가 스스로 전략/카피/레이아웃을 판단해 생성하는 로직(실제 Claude API 호출·
-   이미지·HTML 렌더링 없음). 네 Engine 모두 규칙 기반이다. */
+   Memory, AI가 스스로 전략/카피/레이아웃/본문을 판단해 생성하는 로직(실제 Claude API
+   호출·이미지·HTML 렌더링 없음). 다섯 Engine 모두 규칙 기반이다. */
 
 window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
@@ -55,7 +58,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
   var BRAND_PACK_ORDER = ['premium','studyNote','handwriting'];
 
-  AIP.state = { report:null, selectedBrandPackId:null, marketingCopy:null, thumbnailBlueprint:null, salesPageBlueprint:null };
+  AIP.state = { report:null, selectedBrandPackId:null, marketingCopy:null, thumbnailBlueprint:null, salesPageBlueprint:null, ebookBlueprint:null };
 
   /* ── BrandProfile 생성(Read Only) ──
      docs/ATLAS_AI_ENGINE_SPECIFICATION.md §5 Immutable Rule: 생성된 이후 절대 수정하지 않는다.
@@ -140,7 +143,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
      받으므로 반드시 이 순서(카피 먼저 → Thumbnail 나중)로 호출한다. */
   function computeMarketingCopyForSelection(){
     var sel=AIP.state.selectedBrandPackId;
-    if(!sel){ AIP.state.marketingCopy=null; AIP.state.thumbnailBlueprint=null; AIP.state.salesPageBlueprint=null; return; }
+    if(!sel){ AIP.state.marketingCopy=null; AIP.state.thumbnailBlueprint=null; AIP.state.salesPageBlueprint=null; AIP.state.ebookBlueprint=null; return; }
     var title=APP.lockedTitle||'', subtitle=APP.lockedSubtitle||'';
     var analysis=APP.titleAnalysis||APP.smartAnalysis||{};
     var previewProfile=createBrandProfile(sel);
@@ -148,6 +151,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     AIP.state.marketingCopy = (typeof AtlasMarketingCopyEngine!=='undefined') ? AtlasMarketingCopyEngine.run(previewProfile, copyInput) : null;
     AIP.state.thumbnailBlueprint = (typeof AtlasThumbnailEngine!=='undefined' && AIP.state.marketingCopy) ? AtlasThumbnailEngine.run(previewProfile, AIP.state.marketingCopy) : null;
     AIP.state.salesPageBlueprint = (typeof AtlasSalesPageEngine!=='undefined' && AIP.state.marketingCopy) ? AtlasSalesPageEngine.run(previewProfile, AIP.state.marketingCopy) : null;
+    AIP.state.ebookBlueprint = (typeof AtlasEbookEngine!=='undefined' && AIP.state.marketingCopy) ? AtlasEbookEngine.run(previewProfile, AIP.state.marketingCopy, AIP.state.thumbnailBlueprint, AIP.state.salesPageBlueprint) : null;
   }
 
   /* Planner Report를 카드 UI로 표시한다. 순서: 추천 전략 → Confidence → 추천 Brand →
@@ -165,6 +169,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var copy=AIP.state.marketingCopy;
     var blueprint=AIP.state.thumbnailBlueprint;
     var salesBlueprint=AIP.state.salesPageBlueprint;
+    var ebookBlueprint=AIP.state.ebookBlueprint;
 
     function card(label, value, extraClass, caption){
       return '<div class="aip-card'+(extraClass?' '+extraClass:'')+'">'
@@ -198,6 +203,10 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
           'Layout '+x(salesBlueprint.layoutStrategy)+' · Benefits '+x(salesBlueprint.benefitsLayout)+' · FAQ '+x(salesBlueprint.faqLayout)+'<br>'
           +'<span style="font-weight:400">Social Proof: '+(salesBlueprint.sections.filter(function(s){return s.name==='Social Proof';})[0].hasContent?'포함':'비워둠')+'</span>'
         ):x(NEEDS_SELECTION_TEXT))
+      + card('Ebook Blueprint 요약', ebookBlueprint?(
+          x(ebookBlueprint.toneGuideline)+'<br>'
+          +'<span style="font-weight:400">'+x(ebookBlueprint.densityGuideline)+'</span>'
+        ):x(NEEDS_SELECTION_TEXT), '', ebookBlueprint?'Ebook Engine 생성값 (실제 본문 생성 아님 — 문체/밀도 가이드라인)':'')
       + card('주의사항', '<ul class="aip-cautions">'+cautions.map(function(c){return '<li>'+x(c)+'</li>';}).join('')+'</ul>', 'aip-card-full');
 
     var approveBtn=document.getElementById('aip-approve-btn');
@@ -226,11 +235,13 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var copyRecord=AtlasReasoningService.latestBySource('MarketingCopyEngine');
     var thumbnailRecord=AtlasReasoningService.latestBySource('ThumbnailEngine');
     var salesPageRecord=AtlasReasoningService.latestBySource('SalesPageEngine');
+    var ebookRecord=AtlasReasoningService.latestBySource('EbookEngine');
     container.innerHTML=
       renderReasonSection('Brand Strategy 판단 근거', strategyRecord)
       + renderReasonSection('Marketing Copy 판단 근거', copyRecord)
       + renderReasonSection('Thumbnail 판단 근거', thumbnailRecord)
-      + renderReasonSection('Sales Page 판단 근거', salesPageRecord);
+      + renderReasonSection('Sales Page 판단 근거', salesPageRecord)
+      + renderReasonSection('Ebook 판단 근거', ebookRecord);
   }
 
   AIP.state.reasonOpen = false;
@@ -280,13 +291,14 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     if(!sel){ if(typeof showToast==='function')showToast('error','Brand Pack 후보를 먼저 선택해주세요.'); return; }
     APP.brandProfile=createBrandProfile(sel);
     APP.plannerReport=AIP.state.report;
-    /* AIP.state.marketingCopy/thumbnailBlueprint/salesPageBlueprint는 이 sel로
-       renderReport()가 이미 계산해 둔 값이다(같은 BrandProfile 조합이면 결과가
-       동일하므로) — 승인 시점에 다시 계산해 Reasoning Service에 중복 기록하지 않고
-       그대로 확정 저장한다. */
+    /* AIP.state.marketingCopy/thumbnailBlueprint/salesPageBlueprint/ebookBlueprint는
+       이 sel로 renderReport()가 이미 계산해 둔 값이다(같은 BrandProfile 조합이면
+       결과가 동일하므로) — 승인 시점에 다시 계산해 Reasoning Service에 중복 기록하지
+       않고 그대로 확정 저장한다. */
     APP.marketingCopy=AIP.state.marketingCopy;
     APP.thumbnailBlueprint=AIP.state.thumbnailBlueprint;
     APP.salesPageBlueprint=AIP.state.salesPageBlueprint;
+    APP.ebookBlueprint=AIP.state.ebookBlueprint;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
     startGenerate(true);
   };
@@ -297,11 +309,13 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     AIP.state.marketingCopy=null;
     AIP.state.thumbnailBlueprint=null;
     AIP.state.salesPageBlueprint=null;
+    AIP.state.ebookBlueprint=null;
     APP.brandProfile=null;
     APP.plannerReport=null;
     APP.marketingCopy=null;
     APP.thumbnailBlueprint=null;
     APP.salesPageBlueprint=null;
+    APP.ebookBlueprint=null;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
   };
 
