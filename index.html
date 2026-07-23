@@ -150,6 +150,7 @@
             <div class="aw-step active" data-aw-step="input"><span class="ico">📥</span><div class="lbl">자료 입력</div></div>
             <div class="aw-step" data-aw-step="analysis"><span class="ico">🧠</span><div class="lbl">자료 분석</div></div>
             <div class="aw-step" data-aw-step="title"><span class="ico">✨</span><div class="lbl">제목 선택</div></div>
+            <div class="aw-step" data-aw-step="planner"><span class="ico">🧭</span><div class="lbl">AI 기획</div></div>
             <div class="aw-step" data-aw-step="ebook"><span class="ico">📘</span><div class="lbl">전자책</div></div>
             <div class="aw-step" data-aw-step="sales"><span class="ico">🎨</span><div class="lbl">판매 디자인</div></div>
             <div class="aw-step" data-aw-step="publish"><span class="ico">🚀</span><div class="lbl">판매 준비</div></div>
@@ -291,6 +292,40 @@
           </div>
         </div>
 
+        <!-- AI PLANNER STATE -->
+        <div id="cv-planner-state" style="display:none">
+          <div class="ai-planner">
+            <div class="ts-head">
+              <div>
+                <div style="font-size:12px;color:#a5b4fc;font-weight:800;letter-spacing:1px">ATLAS AI PLANNER</div>
+                <div style="font-size:24px;font-weight:900;color:var(--text);margin-top:5px">기획안을 확인하고 승인하세요</div>
+                <div style="font-size:12px;color:var(--text3);margin-top:5px">Brand Pack을 선택하면 이 상품에 적용될 BrandProfile(판매 전략·CTA·FAQ·Thumbnail/Sales Page 방향)이 확정됩니다. 승인 전까지는 전자책 생성이 시작되지 않습니다.</div>
+              </div>
+              <button class="btn-sec" onclick="AtlasAIPlanner.backToTitle()">← 제목으로</button>
+            </div>
+            <div id="aip-report-body" class="aip-report"></div>
+            <div class="aip-accordion">
+              <button type="button" class="aip-accordion-toggle" onclick="AtlasAIPlanner.toggleReasonAccordion()">
+                <span>추천 이유 보기</span>
+                <span id="aip-reason-arrow" class="aip-accordion-arrow">▼</span>
+              </button>
+              <div id="aip-reason-body" class="aip-accordion-body" style="display:none">
+                <ul class="aip-reason-list">
+                  <li>상품 분석</li>
+                  <li>시장 분석</li>
+                  <li>타겟 분석</li>
+                </ul>
+                <div class="aip-reason-note">(Reasoning Service 연결 예정)</div>
+              </div>
+            </div>
+            <div class="aip-candidates-head">Brand Pack 후보</div>
+            <div id="aip-candidates" class="aip-candidates"></div>
+            <div class="ts-actions">
+              <button class="btn-sec" onclick="AtlasAIPlanner.backToTitle()">제목 다시 선택</button>
+              <button class="btn-save" id="aip-approve-btn" onclick="AtlasAIPlanner.approve()" disabled>✅ 이 기획으로 전자책 생성</button>
+            </div>
+          </div>
+        </div>
         <!-- PROCESS STATE -->
         <div id="cv-process-state" class="cv-process" style="display:none">
           <!-- 진행률 원형 -->
@@ -522,6 +557,7 @@
 <script src="js/application.js"></script>
 <script src="js/bootstrap.js"></script>
 <script src="js/design-system.js"></script>
+<script src="js/ai-planner.js"></script>
 <script src="js/thumbnail-studio.js"></script>
 <script src="js/thumbnail-studio-io.js"></script>
 <script src="js/thumbnail-intelligence.js"></script>
