@@ -1,4 +1,5 @@
 /* ai-planner.js — Milestone 3.2 Phase 1(UI) + Phase 2(Brand Strategy Engine 연결)
+   + Phase 3(Marketing Copy Engine 연결)
    기준 문서: docs/ATLAS_AI_ENGINE_SPECIFICATION.md (Engine Specification v2 FINAL)
 
    Phase 1 범위: AI Planner 화면, Planner Report(JSON) 생성, BrandProfile 생성(Read Only),
@@ -6,10 +7,14 @@
    Phase 2 범위: Planner Report의 추천 전략/추천 Brand/추천 이유를 js/brand-strategy-engine.js의
    실제 계산 결과로 채운다(Phase 1의 고정 Placeholder 제거). Confidence가 높으면 후보를
    자동 선택하고, 낮으면 Phase 1처럼 사용자가 직접 선택해야 한다.
+   Phase 3 범위: Brand Pack 후보를 선택하면 js/marketing-copy-engine.js가 그 후보의
+   BrandProfile로 Marketing Copy Asset Pool을 만들고, Planner의 추천 CTA/Headline·Hook
+   요약/FAQ 전략 요약/주의사항을 그 실제 결과로 채운다. 승인 시 이미 계산된 Asset Pool을
+   APP.marketingCopy로 확정 저장한다(다시 계산하지 않음 — Reasoning Service 중복 기록 방지).
 
-   구현하지 않는 것(Engine Specification의 다른 Engine): Marketing Copy Engine, Thumbnail/Sales
-   Page Engine의 자동 판단, Learning Engine, Session Memory, AI가 스스로 전략을 판단해 콘텐츠를
-   생성하는 로직. Brand Strategy Engine은 규칙 기반이며 새로운 AI 호출을 추가하지 않는다. */
+   구현하지 않는 것(Engine Specification의 다른 Engine): Thumbnail/Sales Page Engine의 자동
+   판단, Learning Engine, Session Memory, AI가 스스로 전략/카피를 판단해 생성하는 로직(실제
+   Claude API 호출 없음). Brand Strategy Engine과 Marketing Copy Engine 모두 규칙 기반이다. */
 
 window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
@@ -41,7 +46,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
   var BRAND_PACK_ORDER = ['premium','studyNote','handwriting'];
 
-  AIP.state = { report:null, selectedBrandPackId:null };
+  AIP.state = { report:null, selectedBrandPackId:null, marketingCopy:null };
 
   /* ── BrandProfile 생성(Read Only) ──
      docs/ATLAS_AI_ENGINE_SPECIFICATION.md §5 Immutable Rule: 생성된 이후 절대 수정하지 않는다.
@@ -117,14 +122,35 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
   var NEEDS_SELECTION_TEXT='Brand Pack 후보를 선택하면 표시됩니다.';
 
-  /* Planner Report를 카드 UI로 표시한다. 요청된 순서 그대로: 추천 전략 → Confidence → 추천
-     Brand → 추천 Thumbnail Pattern → 추천 Sales Page 구조 → 추천 CTA → 주의사항. */
+  /* 현재 선택된 Brand Pack 후보의 BrandProfile로 Marketing Copy Asset Pool을 계산한다
+     (Phase 3). 후보를 바꿀 때마다 다시 계산되며, 매번 Reasoning Service에 정확히 한 번
+     기록된다 — 이 기록은 승인 전까지 화면에 표시되는 "현재 이 결과가 왜 나왔는지"와
+     항상 일치해야 하므로, 후보가 바뀔 때마다 다시 기록하는 것이 맞다(Brand Strategy
+     Engine처럼 Planner 진입 시 1회만 기록하는 것과는 다른 성격의 결정이다). */
+  function computeMarketingCopyForSelection(){
+    var sel=AIP.state.selectedBrandPackId;
+    if(!sel){ AIP.state.marketingCopy=null; return; }
+    var r=AIP.state.report;
+    var title=APP.lockedTitle||'', subtitle=APP.lockedSubtitle||'';
+    var analysis=APP.titleAnalysis||APP.smartAnalysis||{};
+    var previewProfile=createBrandProfile(sel);
+    var copyInput={ topic:analysis.topic||'', target:analysis.target||'', pain:analysis.pain||'', angle:analysis.angle||'', title:title, subtitle:subtitle };
+    AIP.state.marketingCopy = (typeof AtlasMarketingCopyEngine!=='undefined') ? AtlasMarketingCopyEngine.run(previewProfile, copyInput) : null;
+  }
+
+  /* Planner Report를 카드 UI로 표시한다. 순서: 추천 전략 → Confidence → 추천 Brand →
+     추천 Thumbnail Pattern → 추천 Sales Page 구조 → 추천 CTA → Headline/Hook → FAQ 전략
+     → 주의사항. 뒤의 세 카드(추천 CTA/Headline·Hook/FAQ 전략)는 Phase 3부터 BrandProfile
+     기본값이 아니라 Marketing Copy Engine이 실제로 생성한 Asset Pool 값을 보여준다. */
   function renderReport(){
     var r=AIP.state.report; if(!r) return;
     var body=document.getElementById('aip-report-body'); if(!body) return;
     var sel=AIP.state.selectedBrandPackId;
     var d=sel?BRAND_PROFILE_DEFAULTS[sel]:null;
     var engine=r.engine;
+
+    computeMarketingCopyForSelection();
+    var copy=AIP.state.marketingCopy;
 
     function card(label, value, extraClass, caption){
       return '<div class="aip-card'+(extraClass?' '+extraClass:'')+'">'
@@ -134,14 +160,23 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
         +'</div>';
     }
 
+    var cautions=r.cautions.slice();
+    if(copy){
+      if(!copy.trust) cautions.push(copy.metadata.trustWithheldReason);
+      if(!copy.scarcity) cautions.push(copy.metadata.scarcityWithheldReason);
+      if(!copy.urgency) cautions.push(copy.metadata.urgencyWithheldReason);
+    }
+
     body.innerHTML=
       card('추천 전략', engine.strategy===null?x('판단 보류'):x(engine.strategy))
       + card('Confidence', '<div class="aip-confidence"><div class="aip-confidence-bar"><div class="aip-confidence-fill" style="width:'+engine.confidence+'%"></div></div><div class="aip-confidence-pct">'+engine.confidence+'%</div></div>', '', 'Brand Strategy Engine 계산값 (Evidence Strength/Decision Margin 기반)')
       + card('추천 Brand', engine.recommendedBrandPackId?x(brandPackLabel(engine.recommendedBrandPackId)):x('직접 선택 필요'), '', '이유 출처: Reasoning Service (아래 "추천 이유 보기" 참고)')
       + card('추천 Thumbnail Pattern', d?x(d.thumbnailPattern):x(NEEDS_SELECTION_TEXT))
       + card('추천 Sales Page 구조', d?x(d.salesPagePreference):x(NEEDS_SELECTION_TEXT))
-      + card('추천 CTA', d?x(d.ctaTone):x(NEEDS_SELECTION_TEXT))
-      + card('주의사항', '<ul class="aip-cautions">'+r.cautions.map(function(c){return '<li>'+x(c)+'</li>';}).join('')+'</ul>', 'aip-card-full');
+      + card('추천 CTA', copy?x(copy.cta):x(NEEDS_SELECTION_TEXT), '', copy?'Marketing Copy Engine 생성값 (동사 고정: '+x(copy.metadata.ctaVerb)+')':'')
+      + card('Headline / Hook', copy?(x(copy.headline)+'<br><span style="font-weight:400">'+x(copy.hook)+'</span>'):x(NEEDS_SELECTION_TEXT))
+      + card('FAQ 전략', copy?(copy.faqs.length+'개 · '+x(d.faqStyle)):x(NEEDS_SELECTION_TEXT))
+      + card('주의사항', '<ul class="aip-cautions">'+cautions.map(function(c){return '<li>'+x(c)+'</li>';}).join('')+'</ul>', 'aip-card-full');
 
     var approveBtn=document.getElementById('aip-approve-btn');
     if(approveBtn) approveBtn.disabled=!sel;
@@ -150,16 +185,26 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
   }
 
   /* ── "추천 이유 보기" 아코디언 ──
-     Reasoning Service가 실제로 기록한 값(AtlasReasoningService.latest())을 그대로 보여준다 —
-     Reasoning Service는 판단하지 않으므로, 여기 나오는 문장은 전부 Brand Strategy Engine의
-     Reason Generator가 이미 만든 것을 그대로 옮긴 것이다. */
+     Reasoning Service가 실제로 기록한 값을 그대로 보여준다 — Reasoning Service는
+     판단하지 않으므로, 여기 나오는 문장은 전부 각 Engine의 Reason Generator가 이미
+     만든 것을 그대로 옮긴 것이다. Brand Strategy Engine과 Marketing Copy Engine이
+     각각 독립적으로 Reason()을 호출하므로, RS.latest()(가장 최근 아무 기록) 대신
+     source별로 최신 기록을 따로 조회해 두 섹션으로 보여준다 — 그래야 Marketing Copy
+     Engine의 기록이 Brand Strategy Engine의 기존 섹션을 덮어쓰지 않는다. */
+  function renderReasonSection(title, recorded){
+    if(!recorded) return '';
+    return '<div class="aip-reason-section-title">'+x(title)+'</div>'
+      +'<ul class="aip-reason-list">'+recorded.reasons.map(function(reason){return '<li>'+x(reason)+'</li>';}).join('')+'</ul>'
+      +'<div class="aip-reason-note">Reasoning Service 기록 · '+new Date(recorded.recordedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+'</div>';
+  }
   function renderReasonAccordionContent(){
     var container=document.getElementById('aip-reason-content'); if(!container) return;
-    var recorded=(typeof AtlasReasoningService!=='undefined')?AtlasReasoningService.latest():null;
-    if(!recorded){ container.innerHTML=''; return; }
+    if(typeof AtlasReasoningService==='undefined'){ container.innerHTML=''; return; }
+    var strategyRecord=AtlasReasoningService.latestBySource('BrandStrategyEngine');
+    var copyRecord=AtlasReasoningService.latestBySource('MarketingCopyEngine');
     container.innerHTML=
-      '<ul class="aip-reason-list">'+recorded.reasons.map(function(reason){return '<li>'+x(reason)+'</li>';}).join('')+'</ul>'
-      +'<div class="aip-reason-note">Reasoning Service 기록 · '+new Date(recorded.recordedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+'</div>';
+      renderReasonSection('Brand Strategy 판단 근거', strategyRecord)
+      + renderReasonSection('Marketing Copy 판단 근거', copyRecord);
   }
 
   AIP.state.reasonOpen = false;
@@ -209,6 +254,10 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     if(!sel){ if(typeof showToast==='function')showToast('error','Brand Pack 후보를 먼저 선택해주세요.'); return; }
     APP.brandProfile=createBrandProfile(sel);
     APP.plannerReport=AIP.state.report;
+    /* AIP.state.marketingCopy는 이 sel로 renderReport()가 이미 계산해 둔 값이다(같은
+       BrandProfile.brandStrategy/badgeTone/... 조합이면 결과가 동일하므로) — 승인 시점에
+       다시 계산해 Reasoning Service에 중복 기록하지 않고 그대로 확정 저장한다. */
+    APP.marketingCopy=AIP.state.marketingCopy;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
     startGenerate(true);
   };
@@ -216,8 +265,10 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
   AIP.reset=function(){
     AIP.state.report=null;
     AIP.state.selectedBrandPackId=null;
+    AIP.state.marketingCopy=null;
     APP.brandProfile=null;
     APP.plannerReport=null;
+    APP.marketingCopy=null;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
   };
 
