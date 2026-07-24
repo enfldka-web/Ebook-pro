@@ -79,7 +79,12 @@ var TS_IMAGE_STYLES = [
          iconStyle/imageStyle/backgroundStyle). null이면(레거시 저장본, Blueprint 없이
          생성된 프로젝트) 기존 렌더링 그대로 동작한다 — js/thumbnail-blueprint-adapter.js
          참고. Studio 자체는 이 값을 재판단하지 않고 그대로 렌더링에만 사용한다. */
-      blueprintRender: null
+      blueprintRender: null,
+      /* Milestone 3.2 Phase 8: 'fallback'(Phase 7.1 HTML/CSS Renderer, 기본값·항상
+         유지) | 'claude-style'(Phase 8 Claude Style Renderer, js/thumbnail-claude-
+         style-renderer.js). 레거시 저장본에는 이 필드가 없으므로 defaultState()의
+         'fallback'이 안전한 기본값이 된다 — 기존 동작을 절대 바꾸지 않는다. */
+      rendererMode: 'fallback'
     };
   }
 
@@ -99,6 +104,9 @@ var TS_IMAGE_STYLES = [
   TS.init = function(){
     if(typeof APP!=='undefined' && APP.thumbnailStudio){
       TS.state = APP.thumbnailStudio;
+      /* Phase 8: rendererMode 필드가 없는 레거시 저장본(Phase 8 이전에 저장됨)은
+         'fallback'으로 정규화한다 — 기존 렌더링 결과를 절대 바꾸지 않는다. */
+      if(!TS.state.rendererMode) TS.state.rendererMode = 'fallback';
     } else {
       TS.state = defaultState();
       var TBA = (typeof AtlasThumbnailBlueprintAdapter!=='undefined') ? AtlasThumbnailBlueprintAdapter : null;
@@ -228,6 +236,24 @@ var TS_IMAGE_STYLES = [
   }
   TS.selectLayout = function(id){
     TS.state.layoutId = id;
+    syncToApp(); TS.render();
+  };
+
+  /* ── Milestone 3.2 Phase 8: Renderer 모드 선택 (Fallback ↔ Claude Style) ──
+     둘 다 같은 #ts-preview-canvas(652×488)에 그리므로 Preview==Export가 그대로
+     유지된다. 기본값은 항상 'fallback'이며, 이 선택은 사용자 편집처럼 그대로
+     저장/복원된다(APP.thumbnailStudio 전체가 하나의 JSON으로 저장되므로 별도
+     배선 없이 기존 저장 구조에 자연스럽게 포함된다). */
+  function renderRendererModeSection(){
+    var modes = [ {id:'fallback', name:'Fallback (HTML/CSS)'}, {id:'claude-style', name:'Claude Style'} ];
+    var opts = modes.map(function(m){
+      var active = (TS.state.rendererMode||'fallback')===m.id;
+      return '<button class="ts-chip-btn'+(active?' active':'')+'" onclick="tsSelectRendererMode(\''+m.id+'\')">'+x(m.name)+'</button>';
+    }).join('');
+    return '<div class="ts-section"><div class="ts-section-title">렌더러 <span class="ts-section-sub">(둘 다 652×488 Export 동일)</span></div><div class="ts-row ts-wrap">'+opts+'</div></div>';
+  }
+  TS.selectRendererMode = function(mode){
+    TS.state.rendererMode = (mode==='claude-style') ? 'claude-style' : 'fallback';
     syncToApp(); TS.render();
   };
 
@@ -384,25 +410,48 @@ var TS_IMAGE_STYLES = [
     var host = document.getElementById('ts-preview');
     if(!host) return;
     var ct = colorTheme();
-    var hook = activeHookText();
-    var title = TS.state.mainTitle;
-    var sub = TS.state.subtitle;
-    var cta = TS.state.cta;
     var br = TS.state.blueprintRender;
     var themeId = (typeof AtlasDesignSystem!=='undefined') ? AtlasDesignSystem.state.themeId : null;
     var deco = (typeof AtlasDesignSystem!=='undefined' && AtlasDesignSystem.cardDecoration) ? AtlasDesignSystem.cardDecoration(themeId) : '';
-    var TBA = (typeof AtlasThumbnailBlueprintAdapter!=='undefined') ? AtlasThumbnailBlueprintAdapter : null;
-    var bpDeco = (TBA && br) ? TBA.backgroundDecoration(br.backgroundStyle, ct.accent) : '';
-    /* Phase 7.1: 배경 깊이 — Blueprint 유무와 무관하게 항상 절제된 텍스처를 한 겹
-       더해 "넓은 단색 배경"으로 보이지 않게 한다(backgroundStyle 없으면 neutral 텍스처). */
-    var depthDeco = TBA ? TBA.depthTexture(br ? br.backgroundStyle : 'neutral', ct.accent) : '';
+    var inner;
+    var manualShortenNotice = '';
+    /* Milestone 3.2 Phase 8: rendererMode==='claude-style'일 때만 새 Renderer를
+       쓴다. 기본값은 항상 'fallback'이라 Phase 7.1 결과는 손대지 않는다.
+       Phase 8.1: buildCanvasInnerHtml은 {html, needsManualShorten} 객체를
+       반환한다 — needsManualShorten이 true여도 원본 mainTitle은 전혀 바뀌지
+       않으며, 안내는 #ts-preview-canvas "바깥"(형제 요소)에만 그려 Export에는
+       절대 포함되지 않는다. */
+    if(TS.state.rendererMode==='claude-style' && typeof AtlasClaudeStyleRenderer!=='undefined'){
+      var built = AtlasClaudeStyleRenderer.buildCanvasInnerHtml(TS.state, ct, br, styleBadge(), x);
+      inner = built.html;
+      if(built.needsManualShorten){
+        manualShortenNotice = '<div class="ts-title-shorten-notice">⚠ 제목 수동 축약 필요 — 현재 제목이 2줄 안에 자연스럽게 들어가지 않습니다. 원문은 변경되지 않았으니, 아래 제목 입력창에서 직접 더 짧은 표현으로 다듬어 주세요.</div>';
+      }
+    } else {
+      var hook = activeHookText();
+      var title = TS.state.mainTitle;
+      var sub = TS.state.subtitle;
+      var cta = TS.state.cta;
+      var TBA = (typeof AtlasThumbnailBlueprintAdapter!=='undefined') ? AtlasThumbnailBlueprintAdapter : null;
+      var bpDeco = (TBA && br) ? TBA.backgroundDecoration(br.backgroundStyle, ct.accent) : '';
+      /* Phase 7.1: 배경 깊이 — Blueprint 유무와 무관하게 항상 절제된 텍스처를 한 겹
+         더해 "넓은 단색 배경"으로 보이지 않게 한다(backgroundStyle 없으면 neutral 텍스처). */
+      var depthDeco = TBA ? TBA.depthTexture(br ? br.backgroundStyle : 'neutral', ct.accent) : '';
+      inner = depthDeco + bpDeco
+        +'<div style="position:absolute;left:40px;top:24px;font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--ads-primary,'+ct.accent+');z-index:1">'+x(styleBadge())+'</div>'
+        +renderLayoutBody(TS.state.layoutId, ct, hook, title, sub, cta, br);
+    }
+    /* #ts-preview는 display:flex(row)로 캔버스를 가운데 정렬하는 공용 컨테이너다
+       (Fallback Renderer도 공유). 안내 문구를 캔버스의 "형제"로 두되 flex row 안에서
+       나란히 눌리지 않도록, 캔버스+안내를 함께 감싸는 column 래퍼 하나만 새로 만든다
+       — #ts-preview 자체의 공용 CSS는 건드리지 않는다. */
     host.innerHTML =
-      '<div id="ts-preview-canvas" style="width:652px;height:488px;flex-shrink:0;aspect-ratio:4/3;position:relative;overflow:hidden;border-radius:12px;background:var(--ads-bg,'+ct.bg+');font-family:var(--ads-body-font,Pretendard,\'Noto Sans KR\',sans-serif);box-sizing:border-box;box-shadow:var(--ads-shadow,none)">'
+      '<div style="display:flex;flex-direction:column;align-items:stretch;width:652px;max-width:100%">'
+      + '<div id="ts-preview-canvas" style="width:652px;height:488px;flex-shrink:0;aspect-ratio:4/3;position:relative;overflow:hidden;border-radius:12px;background:var(--ads-bg,'+ct.bg+');font-family:var(--ads-body-font,Pretendard,\'Noto Sans KR\',sans-serif);box-sizing:border-box;box-shadow:var(--ads-shadow,none)">'
       + deco
-      + depthDeco
-      + bpDeco
-      +'<div style="position:absolute;left:40px;top:24px;font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--ads-primary,'+ct.accent+');z-index:1">'+x(styleBadge())+'</div>'
-      +renderLayoutBody(TS.state.layoutId, ct, hook, title, sub, cta, br)
+      + inner
+      +'</div>'
+      + manualShortenNotice
       +'</div>';
   };
 
@@ -419,7 +468,7 @@ var TS_IMAGE_STYLES = [
     if(!root) return;
     var tabs = [
       {id:'text',   label:'텍스트',   content: renderTextBuilder() + renderHookSection()},
-      {id:'layout', label:'레이아웃', content: renderTemplateGallery() + renderLayoutSection() + renderStyleSection()},
+      {id:'layout', label:'레이아웃', content: renderRendererModeSection() + renderTemplateGallery() + renderLayoutSection() + renderStyleSection()},
       {id:'color',  label:'색상',     content: renderColorSection()},
       {id:'font',   label:'폰트',     content: (typeof AtlasDesignSystem!=='undefined' && typeof AtlasDesignSystem.renderFontPairComparison==='function')?AtlasDesignSystem.renderFontPairComparison('ts'):''},
       {id:'prompt', label:'Prompt',   content: (typeof TS.renderPromptSection==='function'?TS.renderPromptSection():'')}
@@ -472,4 +521,5 @@ function tsRegenerateHooks(){ ThumbnailStudio.regenerateHooks(); }
 function tsSetField(key,v){ ThumbnailStudio.setField(key,v); }
 function tsSelectColor(id){ ThumbnailStudio.selectColor(id); }
 function tsSelectLayout(id){ ThumbnailStudio.selectLayout(id); }
+function tsSelectRendererMode(mode){ ThumbnailStudio.selectRendererMode(mode); }
 function tsSelectStyle(id){ ThumbnailStudio.selectStyle(id); }

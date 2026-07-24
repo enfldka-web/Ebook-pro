@@ -286,7 +286,11 @@ window.AtlasThumbnailBlueprintAdapter = window.AtlasThumbnailBlueprintAdapter ||
       highlightWords: Array.isArray(blueprint.highlightWords) ? blueprint.highlightWords.slice() : [],
       iconStyle: blueprint.iconStyle || 'line',
       imageStyle: blueprint.imageStyle || 'balanced',
-      backgroundStyle: blueprint.backgroundStyle || 'neutral'
+      backgroundStyle: blueprint.backgroundStyle || 'neutral',
+      /* Phase 7.1 Fallback Renderer는 이 필드를 쓰지 않는다(colorId를 TS.init()에서
+         별도로 이미 결정) — Phase 8 Claude Style Renderer가 mood(분위기) 프리셋을
+         고르는 데 쓴다. 추가만 했을 뿐 기존 동작에는 영향 없음. */
+      colorStrategy: blueprint.colorStrategy || 'neutral'
     };
   };
 

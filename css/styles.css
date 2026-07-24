@@ -873,6 +873,13 @@ textarea{resize:vertical}
    감싸 강조한다(js/thumbnail-blueprint-adapter.js highlightedTitleHtml). 색상 테마와
    무관하게 항상 잘 보이도록 반투명 흰색 배경만 얹고 텍스트 색은 그대로 상속한다. */
 .ts-highlight{background:rgba(255,255,255,.22);border-radius:4px;padding:0 5px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+/* Phase 8: Claude Style Renderer 전용 강조 — 배경 박스 대신 옅은 밑줄로 Headline
+   자체보다 튀지 않게 한다(js/thumbnail-claude-style-renderer.js renderHighlight). */
+.ts-highlight-underline{background:none;padding:0;border-bottom:3px solid rgba(255,255,255,.55);box-decoration-break:clone;-webkit-box-decoration-break:clone}
+/* Phase 8.1: "제목 수동 축약 필요" 안내 — #ts-preview-canvas의 형제 요소로만
+   렌더링되어 652×488 Export 대상에는 절대 포함되지 않는다(js/thumbnail-studio.js
+   TS.renderPreview). 원본 제목은 이 안내와 무관하게 항상 그대로 유지된다. */
+.ts-title-shorten-notice{margin-top:10px;padding:10px 14px;border-radius:10px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);color:#fbbf24;font-size:12px;line-height:1.6;font-weight:600}
 
 /* Phase 3: Hook / Text Builder / Color / Layout / Style / Live Preview */
 .ts-studio-grid{display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:start}
