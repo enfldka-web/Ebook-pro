@@ -173,7 +173,8 @@ window.ThumbnailIntelligence = window.ThumbnailIntelligence || {};
     'center-text':  { good: ['minimal','korean'],  neutral: ['flat'] },
     'icon-focus':   { good: ['minimal','korean'],  neutral: ['flat'] },
     'number-focus': { good: ['business','flat'],   neutral: ['3d'] },
-    'comparison':   { good: ['business','flat'],   neutral: ['3d'] }
+    'comparison':   { good: ['business','flat'],   neutral: ['3d'] },
+    'top-banner':   { good: ['business','korean'], neutral: ['flat'] }
   };
   function scoreStyleConsistency(state){
     var rule = LAYOUT_STYLE_COMPAT[state.layoutId];
