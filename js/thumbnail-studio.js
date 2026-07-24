@@ -489,6 +489,13 @@ var TS_IMAGE_STYLES = [
       +'</div>';
     TS.renderPreview();
     if(typeof TS.renderPromptOnly==='function') TS.renderPromptOnly();
+    /* Milestone 3.2 Phase 9: renderIntelligenceSection()은 root.innerHTML 조립 시점
+       (TS.renderPreview() 이전)에 이미 한 번 호출되어 #ts-preview-canvas가 아직
+       없는 상태로 그려졌을 수 있다. Thumbnail Intelligence 2.0은 실제 Preview DOM을
+       측정해야 하므로, 캔버스가 실제로 그려진 지금 다시 한번 갱신한다(#ti-panel은
+       위 root.innerHTML에 이미 존재하므로 refreshIntelligence()가 그 자리를
+       그대로 갱신할 뿐 — 새 UI 위치를 만들지 않는다). */
+    if(typeof ThumbnailIntelligence!=='undefined' && typeof ThumbnailIntelligence.refreshIntelligence==='function') ThumbnailIntelligence.refreshIntelligence();
   };
 
   TS.open = function(){

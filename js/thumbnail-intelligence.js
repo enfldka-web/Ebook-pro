@@ -460,21 +460,122 @@ window.ThumbnailIntelligence = window.ThumbnailIntelligence || {};
     return { state: state, ebook: ebook };
   }
 
+  /* ── Milestone 3.2 Phase 9: Thumbnail Intelligence 2.0 연결 ──
+     총점/등급/카테고리별 상세/Hard Fail/Top Strengths/Priority Improvements는
+     이제 js/thumbnail-intelligence-2.js(ThumbnailIntelligence2)의 실제 DOM 측정
+     기반 평가 결과를 사용한다. Hook/색상/레이아웃/스타일 "추천" 기능(TI.recommend*,
+     renderRecommendationsHtml)은 이 Phase의 문제 대상이 아니므로 그대로 재사용한다.
+     TI.score()/TI.suggestImprovements() 등 v1 함수 자체는 삭제하지 않는다(다른
+     코드가 참조할 가능성을 막지 않기 위함) — 단, 화면에 보이는 점수는 2.0으로
+     교체한다(이번 Phase의 목적 자체가 "낡은 점수 기준 재설계"이기 때문). */
+  /* Milestone 3.2 Phase 9.1: Score Calibration & Consistency Fix — 5단계 등급으로
+     세분화(95+/85+/70+/50+/그 미만)해 우수·보통·미완성 결과가 실제로 구분되게 한다. */
+  var GRADE_LABELS = {
+    'excellent':'매우 우수', 'good':'좋음, 1~2개 개선점 존재', 'fair':'사용 가능, 개선 필요',
+    'poor':'여러 항목 수정 필요', 'needs-improvement':'수정 필요'
+  };
+  var STATUS_BADGE_LABEL = { 'not-evaluable':'평가 불가', 'not-applicable':'해당 없음' };
+
+  function renderHardFailBanner(result){
+    if(!result.hardFails || !result.hardFails.length) return '';
+    var limitNote = result.hardFailLimited
+      ? ('<div class="ti-hardfail-limit">카테고리 원점수(Raw Score)는 '+result.rawScore+'점이지만, Hard Fail '+result.hardFails.length+'건으로 최종 점수(Final Score)가 '+result.totalScore+'점으로 제한되었습니다.</div>')
+      : '';
+    return '<div class="ti-hardfail-banner"><div class="ti-hardfail-title">⚠ Hard Fail ('+result.hardFails.length+'건) — 먼저 해결해야 합니다</div><ul class="ti-hardfail-list">'
+      + result.hardFails.map(function(f){ return '<li>'+esc(f.message)+'</li>'; }).join('') + '</ul>'
+      + limitNote + '</div>';
+  }
+
+  function renderRawFinalRow(result){
+    if(result.rawScore===result.totalScore) return '';
+    return '<div class="ti-rawfinal-row">Raw Score '+result.rawScore+'점 → Final Score <b>'+result.totalScore+'점</b>'
+      + (result.hardFailLimited ? ' (Hard Fail로 제한됨)' : ' (평가 신뢰도/개선사항 기준 적용)') + '</div>';
+  }
+
+  function renderCoverageRow(result){
+    return '<div class="ti-coverage-row">평가 범위: <b>'+esc(result.evaluationConfidenceLabel)+'</b> (evaluationCoverage '+result.evaluationCoverage+'%)'
+      + (result.evaluationCoverage<100 ? ' — 일부 전략 데이터가 없어 관련 카테고리는 완전히 평가되지 않았습니다.' : '') + '</div>';
+  }
+
+  function renderCategoryDetail(result){
+    return '<div class="ti-breakdown">' + CATEGORY_ORDER_UI.map(function(key){
+      var c = result.categories[key];
+      if(!c) return '';
+      var label = (typeof ThumbnailIntelligence2!=='undefined' && ThumbnailIntelligence2.CATEGORY_LABELS) ? ThumbnailIntelligence2.CATEGORY_LABELS[key] : key;
+      var pct = c.maxScore ? Math.round((c.score/c.maxScore)*100) : 0;
+      var statusBadge = STATUS_BADGE_LABEL[c.status] ? ('<span class="ti-status-badge">'+esc(STATUS_BADGE_LABEL[c.status])+'</span>') : '';
+      var reasonsHtml = c.reasons.length ? ('<ul class="ti-cat-reasons">'+c.reasons.map(function(r){
+        var sevClass = 'ti-sev-'+(r.severity||'info');
+        return '<li class="'+sevClass+'">'+esc(r.message)+'</li>';
+      }).join('')+'</ul>') : '';
+      return '<div class="ti-bd-row"><span class="ti-bd-label">'+esc(label)+statusBadge+'</span>'
+        +'<div class="ti-bd-bar"><div class="ti-bd-bar-fill" style="width:'+pct+'%"></div></div>'
+        +'<span class="ti-bd-val">'+c.score+' / '+c.maxScore+'</span></div>'
+        + reasonsHtml;
+    }).join('') + '</div>';
+  }
+  var CATEGORY_ORDER_UI = ['headlineReadability','visualHierarchy','layoutBalance','contrastColor','patternEffectiveness','ctaVisibility','badgeClarity','visualAnchorQuality','brandConsistency','mobileReadability'];
+
+  function renderStrengthsAndImprovements(result){
+    var html = '';
+    if(result.topStrengths && result.topStrengths.length){
+      html += '<div class="ti-suggest-title">핵심 강점</div><ul class="ti-strengths-list">'
+        + result.topStrengths.map(function(s){ return '<li>'+esc(s)+'</li>'; }).join('') + '</ul>';
+    }
+    if(result.priorityImprovements && result.priorityImprovements.length){
+      html += '<div class="ti-suggest-title">우선 개선사항</div><ul class="ti-suggest-list">'
+        + result.priorityImprovements.map(function(s){ return '<li>'+esc(s.message)+'</li>'; }).join('') + '</ul>';
+    }
+    return html;
+  }
+
+  function evaluateV2(){
+    if(typeof ThumbnailIntelligence2==='undefined' || typeof ThumbnailIntelligence2.evaluate!=='function') return null;
+    var state = (typeof ThumbnailStudio!=='undefined' && ThumbnailStudio.state) ? ThumbnailStudio.state : {};
+    var brandProfile = (typeof APP!=='undefined' && APP.brandProfile) ? APP.brandProfile : null;
+    var blueprint = (typeof APP!=='undefined' && APP.thumbnailBlueprint) ? APP.thumbnailBlueprint : null;
+    return ThumbnailIntelligence2.evaluate({
+      state: state,
+      brandProfile: brandProfile,
+      marketingCopy: (typeof APP!=='undefined' && APP.marketingCopy) ? APP.marketingCopy : null,
+      blueprint: blueprint,
+      blueprintRender: state.blueprintRender,
+      rendererMode: state.rendererMode || 'fallback'
+    });
+  }
+
   function buildPanelInnerHtml(){
     var ctx = currentStateAndEbook();
-    var result = TI.score(ctx.state, ctx.ebook);
+    var v2 = evaluateV2();
     var toggleLabel = detailsOpen ? '▲ 자세히 숨기기' : '▼ 자세히 보기 (항목별 점수·개선 제안·추천)';
+
+    if(!v2){
+      // v2 계산에 필요한 Preview DOM이 아직 없는 극히 드문 순간(레거시 안전장치) —
+      // 화면이 비지 않도록 최소한의 대기 상태만 보여준다. 실제 값은 다음 refreshIntelligence()에서 채워진다.
+      return '<div class="ti-summary-row"><div class="ti-score-circle">–</div><div class="ti-summary-text">'
+        + '<div class="ti-summary-title">Thumbnail Score · 계산 대기 중</div>'
+        + '<div class="ti-disclaimer">Preview가 준비되면 자동으로 계산됩니다.</div></div></div>';
+    }
+
     var detailsHtml = '';
     if(detailsOpen){
-      detailsHtml += renderBreakdown(result.breakdown);
-      detailsHtml += (typeof TI.renderSuggestionsHtml==='function') ? TI.renderSuggestionsHtml(result, ctx.state, ctx.ebook) : '';
+      /* Hard Fail은 항상 Priority Improvements보다 먼저 표시한다(요구사항: 해결해야
+         할 Hard Fail 목록을 우선 개선사항보다 위에). Raw/Final Score와 평가 범위는
+         Hard Fail 배너 바로 아래, 카테고리 상세 위에 둔다. */
+      detailsHtml += renderHardFailBanner(v2);
+      detailsHtml += renderRawFinalRow(v2);
+      detailsHtml += renderCoverageRow(v2);
+      detailsHtml += renderCategoryDetail(v2);
+      detailsHtml += renderStrengthsAndImprovements(v2);
       detailsHtml += (typeof TI.renderRecommendationsHtml==='function') ? TI.renderRecommendationsHtml(ctx.state, ctx.ebook) : '';
     }
+    var gradeLabel = GRADE_LABELS[v2.grade] || v2.grade;
+    var oneLiner = (v2.hardFails.length ? ('Hard Fail '+v2.hardFails.length+'건 발견 — ') : '') + gradeLabel;
     return '<div class="ti-summary-row">'
-      +'<div class="ti-score-circle">'+result.total+'</div>'
+      +'<div class="ti-score-circle ti-grade-'+esc(v2.grade)+'">'+v2.totalScore+'</div>'
       +'<div class="ti-summary-text">'
-      +'<div class="ti-summary-title">Thumbnail Score · '+esc(result.band)+'</div>'
-      +'<div class="ti-disclaimer">Thumbnail Score는 텍스트 길이, 가독성, 대비, 구성 적합성 등을 기준으로 계산한 내부 품질 점수입니다. 실제 클릭률, 판매량 또는 매출을 예측하거나 보장하지 않습니다.</div>'
+      +'<div class="ti-summary-title">Thumbnail Score · '+esc(oneLiner)+'</div>'
+      +'<div class="ti-disclaimer">Thumbnail Score 2.0은 실제 렌더링된 Preview(제목 줄 수·폰트 크기·요소 배치·대비 등)를 측정한 내부 품질 점수입니다. 실제 클릭률, 판매량 또는 매출을 예측하거나 보장하지 않습니다.</div>'
       +'</div></div>'
       +'<button class="ts-btn ti-toggle-btn" id="ti-toggle-btn" onclick="tiToggleDetails()">'+toggleLabel+'</button>'
       +'<div id="ti-details" class="ti-details">'+detailsHtml+'</div>';
