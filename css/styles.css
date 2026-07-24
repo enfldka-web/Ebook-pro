@@ -869,6 +869,10 @@ textarea{resize:vertical}
 .ts-tpl-name{margin-top:7px;font-size:11px;font-weight:700;color:var(--ads-text-primary,#cbd5e1);line-height:1.4}
 .ts-tpl-check{color:#a5b4fc}
 .ts-preview-placeholder{padding:24px;text-align:center;color:var(--ads-text-secondary,#64748b);font-size:12px;border:1px dashed rgba(255,255,255,.12);border-radius:12px}
+/* Phase 7: Thumbnail Blueprint highlightWords — 제목 안에서 실제로 존재하는 단어만
+   감싸 강조한다(js/thumbnail-blueprint-adapter.js highlightedTitleHtml). 색상 테마와
+   무관하게 항상 잘 보이도록 반투명 흰색 배경만 얹고 텍스트 색은 그대로 상속한다. */
+.ts-highlight{background:rgba(255,255,255,.22);border-radius:4px;padding:0 5px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
 
 /* Phase 3: Hook / Text Builder / Color / Layout / Style / Live Preview */
 .ts-studio-grid{display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:start}
