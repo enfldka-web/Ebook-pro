@@ -769,6 +769,7 @@ textarea{resize:vertical}
 .aip-card-caption{color:var(--text3);font-size:10px;margin-top:6px;font-weight:400;line-height:1.6}
 .aip-cautions{margin:0;padding-left:18px}
 .aip-cautions li{margin-bottom:4px;font-weight:400;font-size:12px}
+#aip-visual-generate-btn:disabled{opacity:.45;cursor:not-allowed}
 .aip-confidence{display:flex;align-items:center;gap:8px}
 .aip-confidence-bar{flex:1;height:6px;border-radius:100px;background:rgba(255,255,255,.08);overflow:hidden}
 .aip-confidence-fill{height:100%;background:linear-gradient(90deg,#6366f1,#a855f7);border-radius:100px}

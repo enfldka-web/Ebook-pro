@@ -317,6 +317,7 @@
             <div id="aip-candidates" class="aip-candidates"></div>
             <div class="ts-actions">
               <button class="btn-sec" onclick="AtlasAIPlanner.backToTitle()">제목 다시 선택</button>
+              <button class="btn-sec" id="aip-visual-generate-btn" disabled title="다음 Phase에서 실제 이미지 생성 API가 연결된 뒤에 활성화됩니다. 지금은 프롬프트만 생성되며 실제 이미지는 만들어지지 않습니다.">AI 이미지 생성 — 다음 Phase에서 연결</button>
               <button class="btn-save" id="aip-approve-btn" onclick="AtlasAIPlanner.approve()" disabled>✅ 이 기획으로 전자책 생성</button>
             </div>
           </div>
@@ -558,6 +559,7 @@
 <script src="js/thumbnail-engine.js"></script>
 <script src="js/sales-page-engine.js"></script>
 <script src="js/ebook-engine.js"></script>
+<script src="js/ai-visual-prompt-engine.js"></script>
 <script src="js/ai-planner.js"></script>
 <script src="js/thumbnail-blueprint-adapter.js"></script>
 <script src="js/thumbnail-claude-style-renderer.js"></script>

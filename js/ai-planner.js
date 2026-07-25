@@ -58,7 +58,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
   var BRAND_PACK_ORDER = ['premium','studyNote','handwriting'];
 
-  AIP.state = { report:null, selectedBrandPackId:null, marketingCopy:null, thumbnailBlueprint:null, salesPageBlueprint:null, ebookBlueprint:null };
+  AIP.state = { report:null, selectedBrandPackId:null, marketingCopy:null, thumbnailBlueprint:null, salesPageBlueprint:null, ebookBlueprint:null, visualPromptSet:null };
 
   /* ── BrandProfile 생성(Read Only) ──
      docs/ATLAS_AI_ENGINE_SPECIFICATION.md §5 Immutable Rule: 생성된 이후 절대 수정하지 않는다.
@@ -143,7 +143,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
      받으므로 반드시 이 순서(카피 먼저 → Thumbnail 나중)로 호출한다. */
   function computeMarketingCopyForSelection(){
     var sel=AIP.state.selectedBrandPackId;
-    if(!sel){ AIP.state.marketingCopy=null; AIP.state.thumbnailBlueprint=null; AIP.state.salesPageBlueprint=null; AIP.state.ebookBlueprint=null; return; }
+    if(!sel){ AIP.state.marketingCopy=null; AIP.state.thumbnailBlueprint=null; AIP.state.salesPageBlueprint=null; AIP.state.ebookBlueprint=null; AIP.state.visualPromptSet=null; return; }
     var title=APP.lockedTitle||'', subtitle=APP.lockedSubtitle||'';
     var analysis=APP.titleAnalysis||APP.smartAnalysis||{};
     var previewProfile=createBrandProfile(sel);
@@ -152,12 +152,74 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     AIP.state.thumbnailBlueprint = (typeof AtlasThumbnailEngine!=='undefined' && AIP.state.marketingCopy) ? AtlasThumbnailEngine.run(previewProfile, AIP.state.marketingCopy) : null;
     AIP.state.salesPageBlueprint = (typeof AtlasSalesPageEngine!=='undefined' && AIP.state.marketingCopy) ? AtlasSalesPageEngine.run(previewProfile, AIP.state.marketingCopy) : null;
     AIP.state.ebookBlueprint = (typeof AtlasEbookEngine!=='undefined' && AIP.state.marketingCopy) ? AtlasEbookEngine.run(previewProfile, AIP.state.marketingCopy, AIP.state.thumbnailBlueprint, AIP.state.salesPageBlueprint) : null;
+    /* Phase 11: AI Visual Prompt Engine — 이미지를 생성하지 않고, 위에서 이미 계산된
+       BrandProfile/Marketing Copy/Thumbnail·Sales Page Blueprint(전부 읽기 전용)를
+       입력으로 구조화된 이미지 생성 프롬프트 세트만 만든다. */
+    AIP.state.visualPromptSet = (typeof AtlasAIVisualPromptEngine!=='undefined' && AIP.state.marketingCopy) ? AtlasAIVisualPromptEngine.run({
+      topic: analysis.topic||'', targetAudience: analysis.target||'', sourceSummary: analysis.sourceSummary||'',
+      brandProfile: previewProfile, marketingCopy: AIP.state.marketingCopy,
+      thumbnailBlueprint: AIP.state.thumbnailBlueprint, salesPageBlueprint: AIP.state.salesPageBlueprint,
+      ebookBlueprint: AIP.state.ebookBlueprint, userAssets: []
+    }) : null;
   }
 
   /* Planner Report를 카드 UI로 표시한다. 순서: 추천 전략 → Confidence → 추천 Brand →
      추천 Thumbnail Pattern → 추천 Sales Page 구조 → 추천 CTA → Headline/Hook → FAQ 전략
      → 주의사항. 뒤의 세 카드(추천 CTA/Headline·Hook/FAQ 전략)는 Phase 3부터 BrandProfile
      기본값이 아니라 Marketing Copy Engine이 실제로 생성한 Asset Pool 값을 보여준다. */
+  /* ── Phase 11: AI Visual Prompt Engine 결과 표시 helper ──
+     전부 읽기 전용 표시일 뿐이며, 여기서 어떤 값도 다시 계산하거나 판단하지
+     않는다 — AtlasAIVisualPromptEngine.run()이 이미 만든 결과를 그대로 보여준다. */
+  function renderCategoryClassification(vps){
+    var s = vps.visualStrategy;
+    var sec = s.secondaryCategories && s.secondaryCategories.length ? s.secondaryCategories.join(', ') : '없음';
+    var ev = s.categoryEvidence && s.categoryEvidence.length ? s.categoryEvidence.join(', ') : '없음(neutral)';
+    var sources = s.evidenceSources && s.evidenceSources.length ? s.evidenceSources.join(', ') : '없음';
+    return x(s.primaryCategory)+' <span style="font-weight:400;color:var(--text3)">(confidence '+s.categoryConfidence+')</span><br>'
+      +'<span style="font-weight:400;font-size:12px">2차 후보: '+x(sec)+'<br>매칭 근거: '+x(ev)+'<br>evidenceSources: '+x(sources)+'<br>'+x(s.confidenceNote)+'</span>';
+  }
+  function renderRecommendedThumbnailPrompt(vps){
+    var rec = vps.thumbnailPrompts.filter(function(p){return p.recommended;})[0] || vps.thumbnailPrompts[0];
+    return x(rec.variantLabel)+' <span style="font-weight:400;color:var(--text3)">('+rec.normalizedScore+'/100)</span><br>'
+      +'<span style="font-weight:400;font-size:12px">Base Art Direction: '+x(rec.baseArtDirection)+' → Effective: '+x(rec.effectiveArtDirection)+'</span><br>'
+      +'<span style="font-weight:400;font-size:12px">'+x(rec.prompt)+'</span>';
+  }
+  function renderThumbnailCandidateList(vps){
+    return '<ul class="aip-cautions">'+vps.thumbnailPrompts.slice().sort(function(a,b){return b.normalizedScore-a.normalizedScore;}).map(function(p){
+      return '<li>'+(p.recommended?'✅ ':'')+x(p.variantLabel)+' — '+p.normalizedScore+'/100'
+        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Art Direction: '+x(p.effectiveArtDirection)+(p.effectiveArtDirection!==p.baseArtDirection?' (대표 스타일과 다름)':'')+'</div>'
+        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">'+x(p.reasons[0])+'</div></li>';
+    }).join('')+'</ul>';
+  }
+  function renderStyleRanking(vps){
+    var top3 = vps.visualStrategy.styleCandidates.slice(0,3);
+    return '<div style="font-weight:400;font-size:12px">'+top3.map(function(s,i){
+      return (i===0?'✅ ':(i+1)+'위 ')+x(s.style)+' — '+s.normalizedScore+'/100';
+    }).join('<br>')+'</div>';
+  }
+  function renderSalesPromptSummary(vps){
+    return '<ul class="aip-cautions">'+vps.salesPagePrompts.map(function(p){
+      var safeAreaMatch = p.prompt.match(/Reserve[^.]*\./);
+      var safeAreaLabel = p.safeArea ? (p.safeArea.anchor+' / '+p.safeArea.proportion+' (약 '+p.safeArea.approxPercent+'%)') : (safeAreaMatch?safeAreaMatch[0]:'');
+      return '<li>'+p.pageNumber+'장 · '+x(p.role)+' — '+p.score+'점'
+        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Art Direction: '+x(p.effectiveArtDirection)+(p.effectiveArtDirection!==p.baseArtDirection?' (대표 스타일과 다름)':'')+'</div>'
+        +(safeAreaLabel?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Safe Area: '+x(safeAreaLabel)+'</div>'):'')
+        +(p.consistencyCarryover?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Consistency Carryover: '+x(p.consistencyCarryover.join(', '))+'</div>'):'')
+        +'</li>';
+    }).join('')+'</ul>';
+  }
+  function renderConsistencyRules(vps){
+    var cr = vps.consistencyRules;
+    var dna = cr.visualDNA || {};
+    return '<div style="font-weight:400;font-size:12px">주인공/환경: '+x(cr.recurringSubject)+'<br>팔레트: '+x(cr.recurringPalette)+'<br>조명: '+x(cr.recurringLighting)+'<br>Mockup: '+x(cr.recurringProductMockup)+'</div>'
+      +'<div style="font-weight:600;font-size:12px;margin-top:8px">Visual DNA</div>'
+      +'<div style="font-weight:400;font-size:12px">인물 정체성: '+x(dna.characterIdentity)+'<br>오브젝트 언어: '+x(dna.objectLanguage)+'<br>재질 언어: '+x(dna.materialLanguage)+'<br>형태 언어: '+x(dna.shapeLanguage)+'<br>카메라 언어: '+x(dna.cameraLanguage)+'<br>질감 언어: '+x(dna.textureLanguage)+'<br>무드 연속성: '+x(dna.moodContinuity)+'</div>'
+      +'<div style="font-weight:600;font-size:12px;margin-top:8px">허용되는 변화(allowedArtDirectionChanges)</div>'
+      +'<ul class="aip-cautions">'+(cr.allowedArtDirectionChanges||[]).map(function(c){return '<li>'+x(c)+'</li>';}).join('')+'</ul>'
+      +'<div style="font-weight:600;font-size:12px;margin-top:8px">금지되는 변화(forbiddenChanges)</div>'
+      +'<ul class="aip-cautions">'+cr.forbiddenChanges.map(function(c){return '<li>'+x(c)+'</li>';}).join('')+'</ul>';
+  }
+
   function renderReport(){
     var r=AIP.state.report; if(!r) return;
     var body=document.getElementById('aip-report-body'); if(!body) return;
@@ -170,6 +232,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var blueprint=AIP.state.thumbnailBlueprint;
     var salesBlueprint=AIP.state.salesPageBlueprint;
     var ebookBlueprint=AIP.state.ebookBlueprint;
+    var visualPromptSet=AIP.state.visualPromptSet;
 
     function card(label, value, extraClass, caption){
       return '<div class="aip-card'+(extraClass?' '+extraClass:'')+'">'
@@ -207,6 +270,14 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
           x(ebookBlueprint.toneGuideline)+'<br>'
           +'<span style="font-weight:400">'+x(ebookBlueprint.densityGuideline)+'</span>'
         ):x(NEEDS_SELECTION_TEXT), '', ebookBlueprint?'Ebook Engine 생성값 (실제 본문 생성 아님 — 문체/밀도 가이드라인)':'')
+      + card('분류 결과', visualPromptSet?renderCategoryClassification(visualPromptSet):x(NEEDS_SELECTION_TEXT), '', visualPromptSet?'AI Visual Prompt Engine 생성값 (Evidence 기반 카테고리 분류, 이미지 생성 아님)':'')
+      + card('추천 Visual Style', visualPromptSet?renderStyleRanking(visualPromptSet):x(NEEDS_SELECTION_TEXT), '', visualPromptSet?('감정 목표: '+x(visualPromptSet.visualStrategy.emotionalGoal)):'')
+      + card('추천 Thumbnail Prompt', visualPromptSet?renderRecommendedThumbnailPrompt(visualPromptSet):x(NEEDS_SELECTION_TEXT))
+      + card('Thumbnail Prompt 후보 5개', visualPromptSet?renderThumbnailCandidateList(visualPromptSet):x(NEEDS_SELECTION_TEXT))
+      + card('Sales Page Prompt 9개 요약', visualPromptSet?renderSalesPromptSummary(visualPromptSet):x(NEEDS_SELECTION_TEXT))
+      + card('Negative Prompt', visualPromptSet?('<span style="font-weight:400;font-size:12px">'+x(visualPromptSet.thumbnailPrompts[0].negativePrompt)+'</span>'):x(NEEDS_SELECTION_TEXT))
+      + card('텍스트 안전 영역', visualPromptSet?('<span style="font-weight:400;font-size:12px">'+x(AtlasAIVisualPromptEngine.textSafetyDirector(blueprint, salesBlueprint).thumbnailSafeArea)+'</span>'):x(NEEDS_SELECTION_TEXT), '', 'Headline/Badge/CTA는 이미지에 직접 그리지 않고 이 영역을 비워 Atlas가 이후 오버레이합니다.')
+      + card('일관성 규칙', visualPromptSet?renderConsistencyRules(visualPromptSet):x(NEEDS_SELECTION_TEXT))
       + card('주의사항', '<ul class="aip-cautions">'+cautions.map(function(c){return '<li>'+x(c)+'</li>';}).join('')+'</ul>', 'aip-card-full');
 
     var approveBtn=document.getElementById('aip-approve-btn');
@@ -236,12 +307,14 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var thumbnailRecord=AtlasReasoningService.latestBySource('ThumbnailEngine');
     var salesPageRecord=AtlasReasoningService.latestBySource('SalesPageEngine');
     var ebookRecord=AtlasReasoningService.latestBySource('EbookEngine');
+    var visualPromptRecord=AtlasReasoningService.latestBySource('AIVisualPromptEngine');
     container.innerHTML=
       renderReasonSection('Brand Strategy 판단 근거', strategyRecord)
       + renderReasonSection('Marketing Copy 판단 근거', copyRecord)
       + renderReasonSection('Thumbnail 판단 근거', thumbnailRecord)
       + renderReasonSection('Sales Page 판단 근거', salesPageRecord)
-      + renderReasonSection('Ebook 판단 근거', ebookRecord);
+      + renderReasonSection('Ebook 판단 근거', ebookRecord)
+      + renderReasonSection('AI Visual Prompt 판단 근거', visualPromptRecord);
   }
 
   AIP.state.reasonOpen = false;
@@ -299,6 +372,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     APP.thumbnailBlueprint=AIP.state.thumbnailBlueprint;
     APP.salesPageBlueprint=AIP.state.salesPageBlueprint;
     APP.ebookBlueprint=AIP.state.ebookBlueprint;
+    APP.visualPromptSet=AIP.state.visualPromptSet;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
     startGenerate(true);
   };
@@ -310,12 +384,14 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     AIP.state.thumbnailBlueprint=null;
     AIP.state.salesPageBlueprint=null;
     AIP.state.ebookBlueprint=null;
+    AIP.state.visualPromptSet=null;
     APP.brandProfile=null;
     APP.plannerReport=null;
     APP.marketingCopy=null;
     APP.thumbnailBlueprint=null;
     APP.salesPageBlueprint=null;
     APP.ebookBlueprint=null;
+    APP.visualPromptSet=null;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
   };
 
