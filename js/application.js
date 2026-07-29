@@ -59,7 +59,11 @@ function atlasLoadDraft(show){
  atlasSetWorkspaceStage(d.stage||'input',{noSave:true,coach:'저장된 프로젝트를 불러왔습니다. 파일은 보안상 다시 선택해야 할 수 있습니다.'});if(typeof checkCvReady==='function')checkCvReady();if(typeof restoreEbookProgressFromIndexedDb==='function')restoreEbookProgressFromIndexedDb();if(show)showToast('success','저장된 프로젝트를 불러왔습니다.');
  }catch(e){if(show)showToast('error','프로젝트 불러오기에 실패했습니다.');}
 }
-function atlasClearDraft(){if(!confirm('저장된 임시 프로젝트를 지울까요?'))return;localStorage.removeItem(atlasProjectStorageKey());showToast('success','임시 프로젝트를 지웠습니다.');}
+function atlasClearDraft(){if(!confirm('저장된 임시 프로젝트를 지울까요?'))return;localStorage.removeItem(atlasProjectStorageKey());if(typeof AtlasEbookProgressStore!=='undefined'&&AtlasEbookProgressStore.remove)AtlasEbookProgressStore.remove('current');if(typeof resetConverter==='function')resetConverter();showToast('success','임시 프로젝트를 지웠습니다.');}
+/* 어느 화면/단계에 있든(같은 converter 섹션에 이미 머물러 있어도) 항상 실제로
+   새 프로젝트 상태로 되돌리기 위해 showApp('converter') 전에 반드시 resetConverter()를
+   먼저 호출한다 — showApp()은 section이 이미 'converter'면 내부 상태를 리셋하지 않는다. */
+function startNewEbookProject(){resetConverter();showApp('converter');}
 function atlasBindDraftAutosave(){
  ['topic-main','topic-target','topic-extra','url-input','url-direction','url-extra','ms-notes','ms-direction'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.dataset.atlasBound){e.dataset.atlasBound='1';e.addEventListener('input',function(){atlasSetWorkspaceStage('input',{coach:'입력 내용을 저장했습니다. 자료 분석을 시작하면 제목 후보를 만들 수 있습니다.'});});}});
 }
@@ -614,7 +618,7 @@ function checkCvReady(){
   if(warn)warn.style.display='none';
 }
 function resetConverter(){
-  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.salesEditMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.plannerReport=null;APP.brandProfile=null;APP.marketingCopy=null;APP.thumbnailBlueprint=null;APP.salesPageBlueprint=null;APP.ebookBlueprint=null;APP.creativeCampaign=null;APP.ebookProgress=null;APP.workspaceStage='input';APP.projectName='';
+  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.salesEditMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.plannerReport=null;APP.brandProfile=null;APP.marketingCopy=null;APP.thumbnailBlueprint=null;APP.salesPageBlueprint=null;APP.ebookBlueprint=null;APP.creativeCampaign=null;APP.ebookProgress=null;APP._ebookProgressLightweightHint=null;APP.projectName='';
   /* Phase 13: Creative Feedback UI가 만든 Object URL을 여기서도 정리한다(모듈
      미로드 시에도 안전하도록 방어적으로 호출 — 기존 resetConverter 동작은 그대로 유지). */
   if(typeof AtlasAIPlanner!=='undefined' && AtlasAIPlanner.creativeFeedback && AtlasAIPlanner.creativeFeedback.deleteImage){ try{ AtlasAIPlanner.creativeFeedback.deleteImage(); }catch(e){} }
@@ -641,6 +645,11 @@ function resetConverter(){
   document.getElementById('cv-result-state').style.display='none';
   document.getElementById('cv-sales-state').style.display='none';
   if(typeof AtlasAIPlanner!=='undefined'&&typeof AtlasAIPlanner.reset==='function')AtlasAIPlanner.reset();
+  /* APP.workspaceStage를 직접 대입하는 대신 atlasSetWorkspaceStage()를 호출해야
+     상단 워크스페이스 위젯(단계 배지/진행률 바/코치 문구)도 함께 'input' 단계로
+     되돌아간다 — 그렇지 않으면 이전 단계(예: "2단계 · 자료 분석")가 화면에 그대로
+     남아 마치 초기화가 되지 않은 것처럼 보인다(실제 사용자 버그 리포트로 발견됨). */
+  atlasSetWorkspaceStage('input',{noSave:true});
   checkCvReady();
 }
 
@@ -812,7 +821,14 @@ async function openTitleStudio(isRetry){
     var obj=JSON.parse(clean);APP.smartAnalysis=obj.analysis||{};APP.titleAnalysis=obj.analysis||{};var iv=obj.interview||{};APP.interviewContext=iv.reason||'';APP.interviewQuestions=(iv.questions||[]).slice(0,5).map(normalizeInterviewQuestion);APP.interviewAnswers={};
     if(iv.needed&&APP.interviewQuestions.length){APP.titleCandidates=[];renderSmartInterview(iv.reason);}
     else{APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.selectedTitleIndex=0;document.getElementById('cv-upload-state').style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title',{coach:'자료가 충분해 추가 질문 없이 프리미엄 제목 후보를 완성했습니다.'});window.scrollTo(0,0);}
-  }catch(e){showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);}
+  }catch(e){
+    showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);
+    /* 실패 시 상단 워크스페이스 배지를 'analysis'(분석 중)에 방치하면 버튼은
+       다시 눌러도 실제로 재시도되지만 화면은 계속 "2단계 · 자료 분석"에 멈춰
+       있는 것처럼 보인다(실제 사용자 버그 리포트: 눌러도 반응이 없다). 재시도가
+       아닌 최초 시도가 실패했을 때만 'input'으로 되돌린다. */
+    if(!isRetry)atlasSetWorkspaceStage('input',{noSave:true});
+  }
   finally{if(btn){btn.disabled=false;btn.textContent=old||'↻ 제목 다시 추천';}}
 }
 function renderTitleStudio(){

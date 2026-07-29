@@ -32,7 +32,24 @@ function createApp(opts){
   var usageStore = usageStoreModule.createUsageStore(env);
   var abortControllers = {}; /* jobId -> AbortController (취소용) */
 
+  /* Atlas는 GitHub Pages 같은 정적 호스팅에서도 열릴 수 있다 — 그 페이지의 origin과
+     이 로컬 Gateway(http://localhost:8910)는 서로 다른 origin이므로, 허용 목록에
+     있는 Origin에서 온 요청에는 CORS 헤더를 붙여준다(신규 npm 의존성 없이 직접
+     구현 — 이 프로젝트는 의존성을 최소로 유지한다). */
+  var CORS_ALLOWED_ORIGINS = (env.ATLAS_CORS_ALLOWED_ORIGINS || 'https://enfldka-web.github.io').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+
   var app = express();
+  app.use(function(req, res, next){
+    var origin = req.headers.origin;
+    if(origin && CORS_ALLOWED_ORIGINS.indexOf(origin) !== -1){
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+    if(req.method==='OPTIONS') return res.sendStatus(204);
+    next();
+  });
   app.use(express.json({ limit:'200kb' }));
   app.use(express.static(path.join(__dirname, '..')));
 
@@ -199,18 +216,30 @@ function createApp(opts){
     safeLog('anthropic-generate-start', { callType: callType, model: requestBody.model, max_tokens: requestBody.max_tokens, timeoutMs: timeoutMs });
     anthropicProvider.generateWithRetry(requestBody, { env: env, fetchImpl: fetchImpl, timeoutMs: timeoutMs }).then(function(result){
       if(!result.success){
-        safeLog('anthropic-generate-failed', { callType: callType, status: result.status, errorKind: result.errorKind, retries: result.retries });
+        /* Anthropic이 실제로 반환한 error.type/error.message/response body를 절대
+           숨기지 않는다 — 예전처럼 "요청 내용에 문제가 있습니다" 같은 뭉뚱그린
+           한국어 메시지로 감싸지 않는다(디버깅 불가능했던 원인). API Key 값
+           자체만 여전히 로그/응답 어디에도 남기지 않는다(Anthropic 에러 바디에는
+           애초에 키 값이 포함되지 않는다). */
+        var anthropicError = (result.data && result.data.error) || null;
+        console.error('[image-gateway] anthropic-generate-failed', {
+          callType: callType,
+          status: result.status,
+          type: anthropicError && anthropicError.type,
+          message: anthropicError && anthropicError.message,
+          errorKind: result.errorKind,
+          retries: result.retries,
+          body: result.data || null
+        });
         var httpStatus = result.status || 502;
-        var userMessage;
-        if(result.errorKind==='auth_error') userMessage = '❌ API 키 오류 — AI 서버의 Anthropic API 키를 확인해주세요.';
-        else if(result.errorKind==='permission_error') userMessage = '❌ 권한 오류 — 크레딧이 부족하거나 키가 만료됐을 수 있습니다.';
-        else if(result.errorKind==='retryable' && result.status===429) userMessage = '❌ 요청 한도 초과 — 잠시 후(30초~1분) 다시 시도해주세요.';
-        else if(result.errorKind==='retryable') userMessage = '❌ AI 서버 오류 — 잠시 후 다시 시도해주세요.';
-        else if(result.errorKind==='timeout') userMessage = '응답 시간이 초과되었습니다. 다시 시도해주세요.';
-        else if(result.errorKind==='network_error') userMessage = '네트워크 오류로 요청에 실패했습니다.';
-        else if(result.errorKind==='invalid_request') userMessage = '요청 내용에 문제가 있습니다.';
-        else userMessage = 'AI 응답 생성에 실패했습니다. 잠시 후 다시 시도해주세요.';
-        return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({ error: { message:userMessage, code:result.errorKind } });
+        return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({
+          error: {
+            status: result.status || null,
+            type: (anthropicError && anthropicError.type) || result.errorKind,
+            message: (anthropicError && anthropicError.message) || (result.errorKind==='network_error' ? '네트워크 오류로 Anthropic 서버에 연결하지 못했습니다.' : result.errorKind==='timeout' ? '응답 시간이 초과되었습니다.' : 'AI 응답 생성에 실패했습니다.'),
+            raw: result.data || null
+          }
+        });
       }
       safeLog('anthropic-generate-success', { callType: callType, retries: result.retries });
       res.json(result.data);

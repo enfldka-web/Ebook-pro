@@ -115,7 +115,7 @@
         <div class="topbar-title" id="topbar-title">대시보드</div>
       </div>
       <div class="topbar-right">
-        <button class="topbar-btn" onclick="showApp('converter')">+ 새 전자책</button>
+        <button class="topbar-btn" onclick="startNewEbookProject()">+ 새 전자책</button>
       </div>
     </div>
 
@@ -538,7 +538,7 @@
     <div id="app-history" class="content" style="display:none">
       <div class="sec-head">
         <div><div class="sec-head-title">📚 내 전자책</div><div class="sec-head-sub" id="hist-count"></div></div>
-        <button class="topbar-btn" onclick="showApp('converter')">+ 새 생성</button>
+        <button class="topbar-btn" onclick="startNewEbookProject()">+ 새 생성</button>
       </div>
       <div id="hist-ebooks"></div>
     </div>
@@ -620,6 +620,7 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<script src="js/atlas-gateway-base-url.js"></script>
 <script src="js/anthropic-gateway-client.js"></script>
 <script src="js/incremental-ebook-engine.js"></script>
 <script src="js/ebook-progress-store.js"></script>
