@@ -1,7 +1,7 @@
 // ════════════════════════════════════════
 // DATA & STATE
 // ════════════════════════════════════════
-var APP={user:null,ebook:null,editMode:false,salesEditMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'input',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,plannerReport:null,brandProfile:null,marketingCopy:null,thumbnailBlueprint:null,salesPageBlueprint:null,ebookBlueprint:null};
+var APP={user:null,ebook:null,editMode:false,salesEditMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'input',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,plannerReport:null,brandProfile:null,marketingCopy:null,thumbnailBlueprint:null,salesPageBlueprint:null,ebookBlueprint:null,ebookProgress:null};
 
 // ════════════════════════════════════════
 // ATLAS v0.7 SMART PREMIUM ENGINE
@@ -42,12 +42,12 @@ function atlasSetWorkspaceStage(stage,opts){
 }
 function atlasCollectDraft(){
  function val(id){var e=document.getElementById(id);return e?e.value:'';}
- return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'input',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,thumbnailStudio:APP.thumbnailStudio||null,salesPageStudio:APP.salesPageStudio||null,brandTheme:APP.brandTheme||null,plannerReport:APP.plannerReport||null,brandProfile:APP.brandProfile||null,marketingCopy:APP.marketingCopy||null,thumbnailBlueprint:APP.thumbnailBlueprint||null,salesPageBlueprint:APP.salesPageBlueprint||null,ebookBlueprint:APP.ebookBlueprint||null};
+ return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'input',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,ebookProgress:ebookProgressLightweight(APP.ebookProgress),thumbnailStudio:APP.thumbnailStudio||null,salesPageStudio:APP.salesPageStudio||null,brandTheme:APP.brandTheme||null,plannerReport:APP.plannerReport||null,brandProfile:APP.brandProfile||null,marketingCopy:APP.marketingCopy||null,thumbnailBlueprint:APP.thumbnailBlueprint||null,salesPageBlueprint:APP.salesPageBlueprint||null,ebookBlueprint:APP.ebookBlueprint||null,creativeCampaign:APP.creativeCampaign||null};
 }
 function atlasSaveDraft(show){try{localStorage.setItem(atlasProjectStorageKey(),JSON.stringify(atlasCollectDraft()));if(show)showToast('success','현재 프로젝트를 저장했습니다.');}catch(e){if(show)showToast('error','프로젝트 저장에 실패했습니다.');}}
 function atlasLoadDraft(show){
  try{var raw=localStorage.getItem(atlasProjectStorageKey());if(!raw){if(show)showToast('info','저장된 프로젝트가 없습니다.');return;}var d=JSON.parse(raw);
- APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.plannerReport=d.plannerReport||null;APP.brandProfile=d.brandProfile||null;APP.marketingCopy=d.marketingCopy||null;APP.thumbnailBlueprint=d.thumbnailBlueprint||null;APP.salesPageBlueprint=d.salesPageBlueprint||null;APP.ebookBlueprint=d.ebookBlueprint||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;
+ APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.plannerReport=d.plannerReport||null;APP.brandProfile=d.brandProfile||null;APP.marketingCopy=d.marketingCopy||null;APP.thumbnailBlueprint=d.thumbnailBlueprint||null;APP.salesPageBlueprint=d.salesPageBlueprint||null;APP.ebookBlueprint=d.ebookBlueprint||null;APP.creativeCampaign=d.creativeCampaign||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;APP._ebookProgressLightweightHint=d.ebookProgress||null;APP.ebookProgress=null;
  if(d.thumbnailStudio){APP.thumbnailStudio=d.thumbnailStudio;}else{delete APP.thumbnailStudio;}
  if(typeof ThumbnailStudio!=='undefined'&&typeof ThumbnailStudio.init==='function')ThumbnailStudio.init();
  if(d.salesPageStudio){APP.salesPageStudio=d.salesPageStudio;}else{delete APP.salesPageStudio;}
@@ -56,7 +56,7 @@ function atlasLoadDraft(show){
  function setv(id,v){var e=document.getElementById(id);if(e)e.value=v||'';}
  setv('topic-main',d.topic&&d.topic.main);setv('topic-target',d.topic&&d.topic.target);setv('topic-extra',d.topic&&d.topic.extra);setv('url-input',d.url&&d.url.input);setv('url-direction',d.url&&d.url.direction);setv('url-extra',d.url&&d.url.extra);setv('ms-notes',d.multi&&d.multi.notes);setv('ms-direction',d.multi&&d.multi.direction);
  if(typeof switchInputTab==='function'&&d.mode)switchInputTab(d.mode);if(typeof renderMultiLinks==='function')renderMultiLinks();
- atlasSetWorkspaceStage(d.stage||'input',{noSave:true,coach:'저장된 프로젝트를 불러왔습니다. 파일은 보안상 다시 선택해야 할 수 있습니다.'});if(typeof checkCvReady==='function')checkCvReady();if(show)showToast('success','저장된 프로젝트를 불러왔습니다.');
+ atlasSetWorkspaceStage(d.stage||'input',{noSave:true,coach:'저장된 프로젝트를 불러왔습니다. 파일은 보안상 다시 선택해야 할 수 있습니다.'});if(typeof checkCvReady==='function')checkCvReady();if(typeof restoreEbookProgressFromIndexedDb==='function')restoreEbookProgressFromIndexedDb();if(show)showToast('success','저장된 프로젝트를 불러왔습니다.');
  }catch(e){if(show)showToast('error','프로젝트 불러오기에 실패했습니다.');}
 }
 function atlasClearDraft(){if(!confirm('저장된 임시 프로젝트를 지울까요?'))return;localStorage.removeItem(atlasProjectStorageKey());showToast('success','임시 프로젝트를 지웠습니다.');}
@@ -74,34 +74,34 @@ function getUser(email){return getUsers()[email]||null;}
 function setCurrentUser(u){localStorage.setItem('plrbooks_cu',JSON.stringify(u));APP.user=u;}
 function getCurrentUser(){var u=localStorage.getItem('plrbooks_cu');return u?JSON.parse(u):null;}
 function clearCurrentUser(){localStorage.removeItem('plrbooks_cu');APP.user=null;}
-function getApiKey(){return localStorage.getItem('plrbooks_apikey')||'';}
-function setApiKey(k){localStorage.setItem('plrbooks_apikey',k);}
-function saveApiKey(){
-  var v=document.getElementById('set-apikey').value.trim();
-  if(!v){showToast('error','API 키를 입력해주세요.');return;}
-  setApiKey(v);
-  showToast('success','API 키가 저장되었습니다.');
+/* 브라우저는 Anthropic API Key를 절대 들고 있지 않는다 — 모든 호출은
+   AtlasAnthropicGateway(js/anthropic-gateway-client.js)를 거쳐 서버(localhost:8910)
+   → Anthropic 순서로만 이루어진다. 아래는 그 서버 상태를 읽고 표시하는 헬퍼다. */
+function atlasGatewayStatus(){
+  var g=window.AtlasAnthropicGateway;
+  return g ? g.getStatusCache() : {reachable:false,configured:false,checked:false};
 }
-function clearApiKey(){
-  if(!confirm('API 키를 삭제하시겠습니까?'))return;
-  localStorage.removeItem('plrbooks_apikey');
-  var el=document.getElementById('set-apikey');
-  if(el)el.value='';
-  showToast('success','API 키가 삭제되었습니다.');
+function refreshAtlasGatewayStatus(){
+  var g=window.AtlasAnthropicGateway;
+  if(!g)return Promise.resolve({reachable:false,configured:false,checked:true});
+  return g.refreshStatus().then(function(st){ if(typeof checkCvReady==='function')checkCvReady(); return st; });
 }
-function testApiKey(){
-  var key=getApiKey();
-  if(!key){showToast('error','저장된 API 키가 없습니다. 먼저 저장해주세요.');return;}
-  showToast('info','API 키 테스트 중...');
-  fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
-    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:10,messages:[{role:'user',content:'hi'}]})
-  }).then(function(r){
-    if(r.ok){showToast('success','✅ API 키가 정상입니다!');}
-    else{showToast('error','❌ API 키 오류 ('+r.status+'). 키를 확인해주세요.');}
-  }).catch(function(){
-    showToast('error','네트워크 오류. 인터넷 연결을 확인해주세요.');
+function testGatewayConnection(){
+  var el=document.getElementById('api-test-result');
+  showToast('info','AI 서버 연결 확인 중...');
+  refreshAtlasGatewayStatus().then(function(st){
+    if(!st.reachable){
+      if(el){el.style.display='block';el.style.background='rgba(239,68,68,.12)';el.style.color='#fca5a5';el.textContent='❌ AI 서버가 실행되지 않았습니다.';}
+      showToast('error','AI 서버가 실행되지 않았습니다.');
+      return;
+    }
+    if(!st.configured){
+      if(el){el.style.display='block';el.style.background='rgba(239,68,68,.12)';el.style.color='#fca5a5';el.textContent='⚠️ AI 서버는 실행 중이지만 Anthropic API 키가 설정되지 않았습니다.';}
+      showToast('error','서버에 API 키가 설정되지 않았습니다.');
+      return;
+    }
+    if(el){el.style.display='block';el.style.background='rgba(16,185,129,.12)';el.style.color='#34d399';el.textContent='✅ AI 서버가 정상적으로 연결되어 있습니다.';}
+    showToast('success','✅ AI 서버 연결 정상!');
   });
 }
 function getUserEbooks(email){
@@ -325,6 +325,9 @@ function initApp(){
   if(pb){pb.textContent=PLANS[u.plan]?.name||'FREE';pb.className='plan-badge plan-'+(u.plan||'free');}
   // setup converter
   setupConverter();
+  // AI 서버(Anthropic Gateway) 연결 상태를 미리 한 번 확인해둔다(Loading이 무한정
+  // 걸리는 대신, 서버가 꺼져 있으면 즉시 안내 배너/버튼 상태로 반영된다).
+  refreshAtlasGatewayStatus();
   // render dashboard
   showApp('dashboard');
   // setTimeout(showTrialWelcomePopup, 800); // 구독자용 비활성화
@@ -382,7 +385,7 @@ function renderSettings(){
   var u=APP.user;
   document.getElementById('set-name').value=u.name||'';
   document.getElementById('set-email').value=u.email||'';
-  document.getElementById('set-apikey').value=getApiKey();
+  refreshAtlasGatewayStatus();
   var plan=PLANS[u.plan||'free'];
   var badge=document.getElementById('set-plan-badge');
   if(badge){badge.textContent='구독자';badge.className='plan-badge plan-pro';}
@@ -585,25 +588,39 @@ function cvPick(f){
   checkCvReady();
 }
 function checkCvReady(){
-  var key=getApiKey();
+  var gw=atlasGatewayStatus();
+  var gwReady=gw.checked&&gw.reachable&&gw.configured;
   var btn=document.getElementById('cv-genbtn');
   if(!btn)return;
-  // API 키 경고 배너
+  // AI 서버 연결 경고 배너 — 서버가 아예 안 켜져 있는지, 켜져 있지만 키가 없는지 구분한다.
   var apiwarn=document.getElementById('cv-apikey-warn');
-  if(apiwarn)apiwarn.style.display=(!key||key.length<=10)?'block':'none';
+  var apiwarnDetail=document.getElementById('cv-apikey-warn-detail');
+  if(apiwarn){
+    if(!gw.checked||gwReady){ apiwarn.style.display='none'; }
+    else{
+      apiwarn.style.display='block';
+      if(apiwarnDetail)apiwarnDetail.textContent=!gw.reachable?'AI 서버가 실행되지 않았습니다.':'AI 서버에 Anthropic API 키가 설정되지 않았습니다.';
+    }
+  }
   var ready=false;
-  if(CV_MODE==='file')ready=!!(APP.selFile&&key&&key.length>10);
-  else if(CV_MODE==='topic')ready=!!(document.getElementById('topic-main')&&document.getElementById('topic-main').value.trim()&&key&&key.length>10);
-  else if(CV_MODE==='url'){var u=document.getElementById('url-input');ready=!!(u&&u.value.trim()&&key&&key.length>10);}
-  else if(CV_MODE==='multi')ready=!!((APP.multiFiles.length||APP.multiLinks.length||(document.getElementById('ms-notes')&&document.getElementById('ms-notes').value.trim()))&&key&&key.length>10);
+  if(CV_MODE==='file')ready=!!(APP.selFile&&gwReady);
+  else if(CV_MODE==='topic')ready=!!(document.getElementById('topic-main')&&document.getElementById('topic-main').value.trim()&&gwReady);
+  else if(CV_MODE==='url'){var u=document.getElementById('url-input');ready=!!(u&&u.value.trim()&&gwReady);}
+  else if(CV_MODE==='multi')ready=!!((APP.multiFiles.length||APP.multiLinks.length||(document.getElementById('ms-notes')&&document.getElementById('ms-notes').value.trim()))&&gwReady);
   btn.disabled=!ready;
-  if(!key||key.length<=10){btn.textContent='🔑 API 키를 먼저 설정해주세요';btn.style.opacity='.5';}
+  if(gw.checked&&!gwReady){btn.textContent=!gw.reachable?'⚠️ AI 서버가 실행되지 않았습니다':'⚠️ 서버에 API 키 설정 필요';btn.style.opacity='.5';}
   else{btn.textContent='✨ 자료 분석 & 제목 후보 만들기';btn.style.opacity=ready?'1':'.4';}
   var warn=document.getElementById('cv-limit-warn');
   if(warn)warn.style.display='none';
 }
 function resetConverter(){
-  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.salesEditMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.plannerReport=null;APP.brandProfile=null;APP.marketingCopy=null;APP.thumbnailBlueprint=null;APP.salesPageBlueprint=null;APP.ebookBlueprint=null;APP.workspaceStage='input';APP.projectName='';
+  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.salesEditMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.plannerReport=null;APP.brandProfile=null;APP.marketingCopy=null;APP.thumbnailBlueprint=null;APP.salesPageBlueprint=null;APP.ebookBlueprint=null;APP.creativeCampaign=null;APP.ebookProgress=null;APP.workspaceStage='input';APP.projectName='';
+  /* Phase 13: Creative Feedback UI가 만든 Object URL을 여기서도 정리한다(모듈
+     미로드 시에도 안전하도록 방어적으로 호출 — 기존 resetConverter 동작은 그대로 유지). */
+  if(typeof AtlasAIPlanner!=='undefined' && AtlasAIPlanner.creativeFeedback && AtlasAIPlanner.creativeFeedback.deleteImage){ try{ AtlasAIPlanner.creativeFeedback.deleteImage(); }catch(e){} }
+  /* Phase 14: Image Production 상태(생성 결과 objectUrl 포함)도 여기서 정리한다 —
+     모듈 미로드 시에도 안전하도록 방어적으로 호출(기존 resetConverter 동작은 그대로 유지). */
+  if(typeof AtlasImageProductionState!=='undefined' && AtlasImageProductionState.reset){ try{ AtlasImageProductionState.reset(); }catch(e){} }
   CV_MODE='file';
   var fi=document.getElementById('cv-fi');if(fi)fi.value='';
   var dz=document.getElementById('cv-dz');if(dz)dz.classList.remove('has-file');
@@ -626,45 +643,6 @@ function resetConverter(){
   if(typeof AtlasAIPlanner!=='undefined'&&typeof AtlasAIPlanner.reset==='function')AtlasAIPlanner.reset();
   checkCvReady();
 }
-function setCvStep(n){
-  for(var i=1;i<=5;i++){
-    var e=document.getElementById('cvp'+i);if(!e)continue;
-    e.classList.remove('active','done');
-    if(i<n)e.classList.add('done');
-    else if(i===n)e.classList.add('active');
-  }
-  // 진행률 업데이트
-  var pcts=[0,18,35,60,82,100];
-  var pct=pcts[Math.min(n,5)];
-  var bar=document.getElementById('cv-progress-bar');
-  var ring=document.getElementById('cv-progress-ring');
-  var pctEl=document.getElementById('cv-progress-pct');
-  if(bar)bar.style.width=pct+'%';
-  if(ring){var offset=352-(352*pct/100);ring.style.strokeDashoffset=offset;}
-  if(pctEl)pctEl.textContent=pct+'%';
-  // 재미 메시지
-  var msgs=['📖 원문을 꼼꼼히 읽고 있어요...','🎨 독자를 사로잡을 제목을 구상 중...','✍️ 25,000자 본문을 열심히 쓰고 있어요!','🛒 판매용 상세페이지 작성 중...','✨ 거의 다 됐어요! 조금만 기다려주세요~'];
-  var msg=document.getElementById('cv-fun-msg');
-  if(msg&&msgs[n-1])msg.textContent=msgs[n-1];
-  // 진행 중 애니메이션 (실제 API 응답 전 가짜 진행)
-  if(n===3){
-    // API 호출 중 - 60%~80% 사이를 천천히 채움
-    var fakeStart=60,fakeEnd=80,fakeDuration=90000; // 90초
-    var fakeStep=(fakeEnd-fakeStart)/fakeDuration*500;
-    var fakePct=fakeStart;
-    window._fakeTimer=setInterval(function(){
-      fakePct=Math.min(fakePct+fakeStep,fakeEnd);
-      var o=352-(352*fakePct/100);
-      if(bar)bar.style.width=fakePct+'%';
-      if(ring)ring.style.strokeDashoffset=o;
-      if(pctEl)pctEl.textContent=Math.round(fakePct)+'%';
-      if(fakePct>=fakeEnd)clearInterval(window._fakeTimer);
-    },500);
-  } else {
-    if(window._fakeTimer)clearInterval(window._fakeTimer);
-  }
-}
-function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 
 var ATLAS_SYSTEM_PROMPT = `당신은 한국어 실전 전자책과 전자책 판매자료를 제작하는 전문 편집자입니다.
 모든 응답은 반드시 유효한 JSON 객체 하나만 반환합니다. 마크다운, 코드블록, JSON 앞뒤 설명은 금지합니다.
@@ -778,14 +756,26 @@ function smartInterviewAnswerText(){return (APP.interviewQuestions||[]).map(func
 function skipSmartInterview(){APP.interviewAnswers={};generateTitlesFromSmartAnalysis(true);}
 function submitSmartInterview(){if(!validateSmartInterview())return;generateTitlesFromSmartAnalysis(false);}
 async function generateTitlesFromSmartAnalysis(skipped){
-  var key=getApiKey();var btn=document.getElementById('si-submit-btn');var old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ 제목 설계 중...';}
+  var btn=document.getElementById('si-submit-btn');var old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ 제목 설계 중...';}
   var prompt=`당신은 한국 전자책 상품의 제목과 후킹을 설계하는 편집자입니다. 앞선 자료 분석과 사용자 답변을 반영해 판매용 전자책 제목 후보를 만드세요.\n\n[앞선 분석]\n${JSON.stringify(APP.smartAnalysis||APP.titleAnalysis||{})}\n\n[사용자 답변]\n${skipped?'사용자가 추가 질문을 건너뛰고 자료만으로 진행함':smartInterviewAnswerText()}\n\n[규칙]\n- 과장, 보장, 구체적인 수익 금액, 100%, 무조건 표현 금지\n- 궁금증·문제공감·실전 효용·신뢰·검색 의도를 균형 있게 사용\n- 입력에 없는 판매 실적이나 경험을 창작하지 않음\n- 정확히 12개 후보 생성\n\n유효한 JSON만 반환:\n{"analysis":{"topic":"","target":"","pain":"","angle":"","sourceSummary":""},"titles":[{"title":"","subtitle":"","type":"궁금증형|문제공감형|실전형|검색형|신뢰형|프리미엄형","reason":"","scores":{"hook":0,"trust":0,"search":0,"policy":0,"total":0}}]}`;
-  try{var content=await buildApiContent(prompt);var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:5000,system:'유효한 JSON 객체 하나만 반환하세요.',messages:[{role:'user',content:content}]})});var data=await resp.json();if(!resp.ok)throw new Error(data.error&&data.error.message||'제목 생성 실패');var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');var clean=raw.replace(/```json|```/g,'').trim();clean=clean.substring(clean.indexOf('{'),clean.lastIndexOf('}')+1);var obj=JSON.parse(clean);APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');window.scrollTo(0,0);}catch(e){showToast('error','제목 후보 생성 실패: '+e.message,5000);}finally{if(btn){btn.disabled=false;btn.textContent=old||'답변 반영 & 제목 추천';}}
+  try{
+    var content=await buildApiContent(prompt);
+    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:'유효한 JSON 객체 하나만 반환하세요.',messages:[{role:'user',content:content}]});
+    var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');
+    var clean=raw.replace(/```json|```/g,'').trim();clean=clean.substring(clean.indexOf('{'),clean.lastIndexOf('}')+1);
+    var obj=JSON.parse(clean);APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');window.scrollTo(0,0);
+  }catch(e){
+    showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=old||'답변 반영 & 제목 추천';}
+  }
 }
 
 async function openTitleStudio(isRetry){
   atlasSetWorkspaceStage('analysis');
-  var key=getApiKey();if(!key||key.length<=10){showApp('settings');showToast('error','API 키를 먼저 입력해주세요.');return;}
+  var gw=atlasGatewayStatus();
+  if(gw.checked&&!gw.reachable){showToast('error','AI 서버가 실행되지 않았습니다.');return;}
+  if(gw.checked&&gw.reachable&&!gw.configured){showApp('settings');showToast('error','서버에 API 키가 설정되지 않았습니다.');return;}
   var btn=isRetry?document.getElementById('ts-retry-btn'):document.getElementById('cv-genbtn');
   var old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ 자료 분석 중...';}
   var prompt=`당신은 한국 전자책 상품을 기획하는 시니어 편집자입니다. 제공된 자료를 분석하고, 추가 질문이 필요한지 스스로 판단한 뒤 제목 후보까지 설계하세요.
@@ -816,14 +806,13 @@ async function openTitleStudio(isRetry){
 - total은 다른 점수를 종합해 100점 만점으로 현실적으로 평가합니다.`;
   try{
     var content=await buildApiContent(prompt);
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:5000,system:'반드시 유효한 JSON 객체 하나만 반환하세요. 입력 자료의 저작권을 존중하고 검증되지 않은 성과를 창작하지 마세요.',messages:[{role:'user',content:content}]})});
-    var data=await resp.json();if(!resp.ok)throw new Error(data.error&&data.error.message||'제목 생성 실패');
+    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:'반드시 유효한 JSON 객체 하나만 반환하세요. 입력 자료의 저작권을 존중하고 검증되지 않은 성과를 창작하지 마세요.',messages:[{role:'user',content:content}]});
     var raw=(data.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');
     var clean=raw.replace(/```json|```/g,'').trim();clean=clean.substring(clean.indexOf('{'),clean.lastIndexOf('}')+1);
     var obj=JSON.parse(clean);APP.smartAnalysis=obj.analysis||{};APP.titleAnalysis=obj.analysis||{};var iv=obj.interview||{};APP.interviewContext=iv.reason||'';APP.interviewQuestions=(iv.questions||[]).slice(0,5).map(normalizeInterviewQuestion);APP.interviewAnswers={};
     if(iv.needed&&APP.interviewQuestions.length){APP.titleCandidates=[];renderSmartInterview(iv.reason);}
     else{APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.selectedTitleIndex=0;document.getElementById('cv-upload-state').style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title',{coach:'자료가 충분해 추가 질문 없이 프리미엄 제목 후보를 완성했습니다.'});window.scrollTo(0,0);}
-  }catch(e){showToast('error','제목 후보 생성 실패: '+e.message,5000);}
+  }catch(e){showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);}
   finally{if(btn){btn.disabled=false;btn.textContent=old||'↻ 제목 다시 추천';}}
 }
 function renderTitleStudio(){
@@ -846,12 +835,313 @@ function lockTitleAndGenerate(){
   else startGenerate(true);
 }
 
+/* 전자책을 한 번의 거대한 Anthropic 호출로 만드는 구조를 제거하고, 목차 → 챕터별
+   생성(7개) → 부록 생성 → 최종 병합 순서의 Incremental 구조로 바꾼다(js/incremental-
+   ebook-engine.js). Prompt의 실제 지시문/스키마/품질 기준은 그대로 유지하고
+   "생성 방식"만 바뀐다. 이미 완료된 챕터는 다시 생성하지 않고, 실패한 챕터만
+   재생성한다. 진행률은 완료 유닛 수(목차1+챕터7+부록1=9유닛) 기준 실시간 계산이며,
+   사용자는 언제든 중지할 수 있고 다시 시작하면 완료된 부분부터 이어서 진행한다. */
+function ebookModeWrapperPrefix(){
+  if(CV_MODE==='file'){
+    if(!APP.selFile)throw new Error('파일을 선택해주세요.');
+    return '업로드한 문서를 단순 번역하지 말고 핵심 개념을 재구성하여 한국 독자용 새 전자책으로 집필하세요. 사용자는 해당 문서를 활용할 권한이 있다고 전제하되, 원문 문장과 목차를 그대로 복제하지 마세요.\n\n';
+  } else if(CV_MODE==='topic'){
+    var topic=document.getElementById('topic-main').value.trim();
+    var target=document.getElementById('topic-target').value.trim();
+    var extra=document.getElementById('topic-extra').value.trim();
+    var topicPrompt='주제: '+topic+(target?'\n대상 독자: '+target:'')+(extra?'\n추가 요구사항: '+extra:'');
+    return '아래 주제로 한국 베스트셀러 전자책을 처음부터 완전히 새로 창작해주세요.\n\n'+topicPrompt+'\n\n위 주제를 기반으로 실전 전문 지식과 구체적 예시를 풍부하게 담아 창작하세요.\n\n';
+  } else if(CV_MODE==='url'){
+    var urlVal=document.getElementById('url-input').value.trim();
+    var urlDir=document.getElementById('url-direction').value.trim();
+    var urlExtra=document.getElementById('url-extra').value.trim();
+    var urlFetched=APP.urlContent||'';
+    var urlContext='참고 URL: '+urlVal+(urlExtra?'\n추가 URL:\n'+urlExtra:'')+(urlDir?'\n전자책 방향: '+urlDir:'')+(urlFetched?'\n\nURL에서 불러온 내용 (참고용):\n'+urlFetched.substring(0,8000):'');
+    return '아래 URL의 내용을 분석하여 한국 독자용 전자책을 새롭게 창작해주세요.\n\n'+urlContext+'\n\nURL의 핵심 내용을 살리되 원문의 표현과 구조를 복제하지 말고, 실전 예시와 한국 실정에 맞는 내용으로 재구성하세요.\n\n';
+  } else if(CV_MODE==='multi'){
+    return '여러 자료를 종합하여 하나의 독창적인 한국어 전자책을 만드세요.\n- 핵심 자료는 중심 근거로 사용합니다.\n- 참고 자료는 보충에만 사용합니다.\n- 자료 간 중복은 통합하고 충돌하는 주장은 단정하지 않습니다.\n- 유튜브 링크에 자막이 없으면 제목과 사용자 메모 이상을 추측하지 않습니다.\n- 원문 문장과 목차를 그대로 복제하지 말고 새로운 구조와 표현으로 집필합니다.\n- 최신성이 필요한 정보는 확인 필요를 표시합니다.\n\n';
+  }
+  return '';
+}
+
+var EBOOK_PROGRESS_STORE_KEY='current';
+
+function newEbookProgressState(){
+  return {
+    status:'idle', stopRequested:false,
+    outline:null, chapters:new Array(7).fill(null), chapterStatus:new Array(7).fill('pending'),
+    appendices:null, appendicesStatus:'pending', errorMessage:null,
+    failedUnitId:null, mergedEbook:null,
+    unitTimestamps:{}, // unitId -> 완료 시각(ms epoch)
+    unitRetryCount:{ outline:0, chapter1:0, chapter2:0, chapter3:0, chapter4:0, chapter5:0, chapter6:0, chapter7:0, appendices:0 }
+  };
+}
+
+function ebookProgressPct(p){
+  var units=0, total=9; // outline(1) + chapters(7) + appendices(1)
+  if(p.outline)units+=1;
+  units+=p.chapterStatus.filter(function(s){return s==='completed';}).length;
+  if(p.appendicesStatus==='completed')units+=1;
+  return Math.round(units/total*100);
+}
+
+/* localStorage Draft에는 이 가벼운 값만 남긴다 — outline/챕터 본문/부록/최종
+   병합본 같은 대용량 텍스트는 IndexedDB(js/ebook-progress-store.js)에만 저장한다. */
+function ebookProgressLightweight(p){
+  if(!p) return null;
+  return {
+    status:p.status, chapterStatus:p.chapterStatus.slice(), appendicesStatus:p.appendicesStatus,
+    hasOutline:!!p.outline, failedUnitId:p.failedUnitId, progressPct:ebookProgressPct(p),
+    unitTimestamps:Object.assign({},p.unitTimestamps), unitRetryCount:Object.assign({},p.unitRetryCount),
+    hasMergedEbook:!!p.mergedEbook
+  };
+}
+
+var _ebookProgressSaveIndicatorTimer=null;
+function persistEbookProgress(){
+  var p=APP.ebookProgress; if(!p)return;
+  atlasSaveDraft(false); // 가벼운 상태(ebookProgressLightweight로 축약됨)는 기존 Draft 메커니즘 재사용
+  if(window.AtlasEbookProgressStore){
+    window.AtlasEbookProgressStore.save(EBOOK_PROGRESS_STORE_KEY, p); // 무거운 본문은 IndexedDB에
+  }
+  var ind=document.getElementById('cv-save-indicator');
+  if(ind){
+    ind.textContent='💾 생성 상태가 저장되었습니다.';
+    ind.style.opacity='1';
+    if(_ebookProgressSaveIndicatorTimer)clearTimeout(_ebookProgressSaveIndicatorTimer);
+    _ebookProgressSaveIndicatorTimer=setTimeout(function(){ind.style.opacity='0';},2500);
+  }
+}
+
+/* 새로고침/재방문 후 IndexedDB에서 무거운 진행 상태를 복원한다(§ 새로고침 후 이어서
+   생성 가능). atlasLoadDraft()가 가벼운 상태를 먼저 복원해 두면, 이 함수가 그
+   상태가 idle/completed가 아닐 때만 IndexedDB에서 본문을 마저 불러온다. */
+function restoreEbookProgressFromIndexedDb(){
+  if(!window.AtlasEbookProgressStore)return;
+  var light=APP._ebookProgressLightweightHint;
+  if(!light || light.status==='idle' || light.status==='completed')return;
+  window.AtlasEbookProgressStore.load(EBOOK_PROGRESS_STORE_KEY).then(function(heavy){
+    if(!heavy)return; // IndexedDB에 없으면(다른 브라우저/프로필 등) 복원 불가 — 처음부터 다시 시작해야 함
+    APP.ebookProgress=heavy;
+    var procEl=document.getElementById('cv-process-state');
+    if(procEl && (heavy.status==='stopped'||heavy.status==='failed')){
+      document.getElementById('cv-upload-state').style.display='none';
+      var _ts=document.getElementById('cv-title-state');if(_ts)_ts.style.display='none';
+      procEl.style.display='';
+    }
+    renderEbookProgressUI();
+  });
+}
+
+function renderEbookProgressUI(){
+  var p=APP.ebookProgress; if(!p)return;
+  var pct=ebookProgressPct(p);
+  var bar=document.getElementById('cv-progress-bar');
+  var ring=document.getElementById('cv-progress-ring');
+  var pctEl=document.getElementById('cv-progress-pct');
+  if(bar)bar.style.width=pct+'%';
+  if(ring){var offset=352-(352*pct/100);ring.style.strokeDashoffset=offset;}
+  if(pctEl)pctEl.textContent=pct+'%';
+
+  var list=document.getElementById('cv-chapter-steps');
+  if(list){
+    var rows=[];
+    var outlineDone=!!p.outline;
+    rows.push('<div class="cv-pstep '+(outlineDone?'done':(p.status==='outline'?'active':''))+'"><span>'+(outlineDone?'✅':'📋')+'</span>&nbsp;목차/개요'+(outlineDone?' 완료':(p.status==='outline'?' 생성 중...':' 대기'))+'</div>');
+    for(var i=0;i<7;i++){
+      var st=p.chapterStatus[i];
+      var icon=st==='completed'?'✅':st==='processing'?'✍️':st==='failed'?'⚠️':'⏳';
+      var label=(i+1)+'장'+(st==='completed'?' 완료':st==='processing'?' 생성 중...':st==='failed'?' 실패':' 대기');
+      var retryBtn=(st==='failed')?' <button class="btn-sec" style="padding:2px 8px;font-size:11px" onclick="retryFailedChapter('+i+')">이 장만 다시 생성</button>':'';
+      rows.push('<div class="cv-pstep '+(st==='completed'?'done':st==='processing'?'active':'')+'"><span>'+icon+'</span>&nbsp;'+label+retryBtn+'</div>');
+    }
+    var aIcon=p.appendicesStatus==='completed'?'✅':p.appendicesStatus==='processing'?'✍️':p.appendicesStatus==='failed'?'⚠️':'⏳';
+    var aLabel='부록'+(p.appendicesStatus==='completed'?' 완료':p.appendicesStatus==='processing'?' 생성 중...':p.appendicesStatus==='failed'?' 실패':' 대기');
+    rows.push('<div class="cv-pstep '+(p.appendicesStatus==='completed'?'done':p.appendicesStatus==='processing'?'active':'')+'"><span>'+aIcon+'</span>&nbsp;'+aLabel+'</div>');
+    list.innerHTML=rows.join('');
+  }
+
+  var stopBtn=document.getElementById('cv-ebook-stop-btn');
+  var resumeBtn=document.getElementById('cv-ebook-resume-btn');
+  var cancelBtn=document.getElementById('cv-ebook-cancel-btn');
+  var running=(p.status==='outline'||p.status==='chapters'||p.status==='appendices'||p.status==='merging');
+  if(stopBtn)stopBtn.style.display=running?'':'none';
+  if(resumeBtn)resumeBtn.style.display=(!running&&p.status!=='completed'&&p.status!=='idle')?'':'none';
+  if(cancelBtn)cancelBtn.style.display=(p.status!=='completed'&&p.status!=='idle')?'':'none';
+
+  var msg=document.getElementById('cv-fun-msg');
+  if(msg){
+    if(p.status==='stopped')msg.innerHTML='<span style="color:#fbbf24">⏸ 사용자 요청으로 중지되었습니다. 완료된 부분은 저장되어 있습니다 — "이어서 생성"을 누르면 계속됩니다.</span>';
+    else if(p.status==='failed')msg.innerHTML='<span style="color:#f87171">⚠️ '+x(p.errorMessage||'생성 중 오류가 발생했습니다.')+' — "이어서 생성"을 누르면 실패한 부분만 다시 시도합니다.</span>';
+    else msg.textContent='';
+  }
+}
+
+/* 이미 완료된 챕터는 절대 다시 생성하지 않는다(§1) — 실패한 챕터만 재생성한다(§2).
+   진행률은 이 상태 기준 실시간 계산(§3)이며, stopRequested가 켜지면 "다음 유닛을
+   시작하기 전에" 멈춘다(§4, 진행 중인 네트워크 호출 자체를 강제 종료하지는 않음 —
+   이미 시작된 응답은 끝까지 받아 저장한다). 다시 진입하면 이 함수가 상태를 보고
+   완료되지 않은 지점부터 이어서 진행한다(§5). */
+async function continueEbookPipeline(){
+  var p=APP.ebookProgress;
+  var E=window.AtlasIncrementalEbookEngine;
+
+  try{
+    if(!p.outline){
+      p.status='outline';renderEbookProgressUI();
+      var prefix=ebookModeWrapperPrefix();
+      var outline=await E.generateOutline(prefix);
+      p.outline=outline;
+      p.chapterStatus=new Array(7).fill('pending');
+      p.unitTimestamps.outline=Date.now();
+      persistEbookProgress();
+      renderEbookProgressUI();
+    }
+    if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
+
+    p.status='chapters';
+    for(var i=0;i<7;i++){
+      if(p.chapterStatus[i]==='completed')continue; // §1: 완료된 챕터는 다시 생성하지 않음
+      if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
+      p.chapterStatus[i]='processing';renderEbookProgressUI();
+      var brief=p.outline.chapterBriefs[i];
+      var chapter=await E.generateChapter(p.outline, brief);
+      p.chapters[i]=chapter;
+      p.chapterStatus[i]='completed';
+      p.unitTimestamps['chapter'+(i+1)]=Date.now();
+      persistEbookProgress();
+      renderEbookProgressUI();
+    }
+    if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
+
+    if(p.appendicesStatus!=='completed'){
+      p.status='appendices';p.appendicesStatus='processing';renderEbookProgressUI();
+      var appendices=await E.generateAppendices(p.outline);
+      p.appendices=appendices;
+      p.appendicesStatus='completed';
+      p.unitTimestamps.appendices=Date.now();
+      persistEbookProgress();
+      renderEbookProgressUI();
+    }
+    if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
+
+    p.status='merging';renderEbookProgressUI();
+    await finalizeIncrementalEbook(p);
+  }catch(e){
+    p.status='failed';
+    p.errorMessage=e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':(e.message||'알 수 없는 오류가 발생했습니다.');
+    if(!p.outline){
+      p.failedUnitId='outline';
+    }else{
+      var procIdx=p.chapterStatus.indexOf('processing');
+      if(procIdx!==-1){ p.chapterStatus[procIdx]='failed'; p.failedUnitId='chapter'+(procIdx+1); }
+      else if(p.appendicesStatus==='processing'){ p.appendicesStatus='failed'; p.failedUnitId='appendices'; }
+    }
+    persistEbookProgress();
+    renderEbookProgressUI();
+    showToast('error','전자책 생성 중 오류: '+p.errorMessage,5000);
+  }
+}
+
+async function finalizeIncrementalEbook(p){
+  var E=window.AtlasIncrementalEbookEngine;
+  var u=APP.user;
+  var ebook=E.mergeFinalEbook(p);
+  ebook.title=APP.lockedTitle;
+  if(APP.lockedSubtitle)ebook.subtitle=APP.lockedSubtitle;
+  ebook=sanitizeKmongSalesClaims(ebook);
+  APP.ebook=ebook;
+  p.mergedEbook=ebook;
+  addEbook(u.email,ebook);
+  addTrialCount(CV_MODE);
+  var users=getUsers();u.plan=u.plan||'free';users[u.email]=u;saveUsers(users);
+  p.status='completed';
+  persistEbookProgress();
+  document.getElementById('cv-process-state').style.display='none';
+  document.getElementById('cv-result-state').style.display='';
+  renderCvEbook(ebook);
+  atlasSetWorkspaceStage('ebook');
+  showToast('success','🎉 전자책이 생성되었습니다!');
+}
+
+function stopIncrementalEbookGeneration(){
+  if(!APP.ebookProgress)return;
+  APP.ebookProgress.stopRequested=true;
+  showToast('info','다음 챕터를 시작하기 전에 중지합니다(현재 진행 중인 요청은 끝까지 받습니다).');
+}
+function resumeIncrementalEbookGeneration(){
+  if(!APP.ebookProgress)return;
+  var p=APP.ebookProgress;
+  p.stopRequested=false;
+  p.errorMessage=null;
+  // §2: 실패로 표시된 챕터/부록만 pending으로 되돌려 재생성 대상으로 삼는다(완료된 것은 그대로 유지)
+  // 재시도 횟수도 함께 기록한다.
+  p.chapterStatus=p.chapterStatus.map(function(s,i){
+    if(s==='failed'){ p.unitRetryCount['chapter'+(i+1)]=(p.unitRetryCount['chapter'+(i+1)]||0)+1; return 'pending'; }
+    return s;
+  });
+  if(p.appendicesStatus==='failed'){ p.unitRetryCount.appendices=(p.unitRetryCount.appendices||0)+1; p.appendicesStatus='pending'; }
+  if(p.failedUnitId==='outline'){ p.unitRetryCount.outline=(p.unitRetryCount.outline||0)+1; }
+  p.failedUnitId=null;
+  document.getElementById('cv-process-state').style.display='';
+  renderEbookProgressUI();
+  continueEbookPipeline();
+}
+/* 실패한 "특정" 챕터 하나만 다시 생성 — 전체 재개(resumeIncrementalEbookGeneration)와
+   달리, 파이프라인이 failed/stopped 상태가 아니어도(예: 완료된 뒤 품질이 마음에
+   들지 않아 그 장만 다시 만들고 싶을 때도) 그 챕터 하나만 재시도할 수 있게 한다. */
+async function retryFailedChapter(i){
+  var p=APP.ebookProgress; if(!p||!p.outline)return;
+  p.unitRetryCount['chapter'+(i+1)]=(p.unitRetryCount['chapter'+(i+1)]||0)+1;
+  p.chapterStatus[i]='processing';
+  p.status='chapters';p.stopRequested=false;p.errorMessage=null;p.failedUnitId=null;
+  document.getElementById('cv-process-state').style.display='';
+  renderEbookProgressUI();
+  try{
+    var E=window.AtlasIncrementalEbookEngine;
+    var brief=p.outline.chapterBriefs[i];
+    var chapter=await E.generateChapter(p.outline, brief);
+    p.chapters[i]=chapter;
+    p.chapterStatus[i]='completed';
+    p.unitTimestamps['chapter'+(i+1)]=Date.now();
+    persistEbookProgress();
+    renderEbookProgressUI();
+    // 이 장만 재생성한 뒤에도 나머지가 이미 모두 끝나 있었다면 이어서 최종 병합까지 진행한다.
+    continueEbookPipeline();
+  }catch(e){
+    p.chapterStatus[i]='failed';
+    p.failedUnitId='chapter'+(i+1);
+    p.status='failed';
+    p.errorMessage=e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':(e.message||'알 수 없는 오류가 발생했습니다.');
+    persistEbookProgress();
+    renderEbookProgressUI();
+    showToast('error','챕터 재생성 실패: '+p.errorMessage,5000);
+  }
+}
+/* 전체 취소 — 진행 중이던 모든 상태를 버리고 처음(자료 준비 화면)으로 되돌린다.
+   §1 정책과 무관하게 사용자가 명시적으로 전부 버리기를 선택한 경우에만 쓰인다. */
+function cancelIncrementalEbookGeneration(){
+  if(!confirm('지금까지 생성된 목차/챕터/부록을 모두 버리고 처음부터 다시 시작하시겠습니까?'))return;
+  APP.ebookProgress=null;
+  APP.ebook=null;
+  if(window.AtlasEbookProgressStore)window.AtlasEbookProgressStore.remove(EBOOK_PROGRESS_STORE_KEY);
+  atlasSaveDraft(false);
+  document.getElementById('cv-process-state').style.display='none';
+  document.getElementById('cv-upload-state').style.display='';
+  checkCvReady();
+  showToast('info','전자책 생성을 취소했습니다.');
+}
+
 async function startGenerate(titleLocked){
   if(!titleLocked||!APP.lockedTitle){openTitleStudio();return;}
-  var key=getApiKey();
-  if(!key||key.trim().length<=10){
+  var gw=atlasGatewayStatus();
+  if(gw.checked&&!gw.reachable){
+    showToast('error','AI 서버가 실행되지 않았습니다.');
+    return;
+  }
+  if(gw.checked&&gw.reachable&&!gw.configured){
     showApp('settings');
-    showToast('error','⚠️ 설정에서 API 키를 먼저 입력해주세요.');
+    showToast('error','⚠️ 서버에 API 키가 설정되지 않았습니다.');
     return;
   }
   // 무료 체험 모드별 생성 횟수 체크
@@ -859,7 +1149,6 @@ async function startGenerate(titleLocked){
     showTrialLimitPopup(CV_MODE);
     return;
   }
-  var u=APP.user;
 
   // 에러박스 초기화
   var warn=document.getElementById('cv-limit-warn');
@@ -873,232 +1162,22 @@ async function startGenerate(titleLocked){
   var _edoc=document.getElementById('cv-edoc');if(_edoc)_edoc.innerHTML='';
   var _spb=document.getElementById('cv-sp-body');if(_spb)_spb.innerHTML='';
   document.getElementById('cv-process-state').style.display='';
-  atlasSetWorkspaceStage('analysis',{coach:'자료와 선택한 제목을 바탕으로 콘텐츠 제작 계획을 정리하고 있습니다.'});
-  setCvStep(1);
+  atlasSetWorkspaceStage('analysis',{coach:'목차 → 챕터별 → 부록 순서로 전자책을 나눠서 만듭니다. 언제든 중지했다가 이어서 진행할 수 있습니다.'});
 
-  function showGenError(msg){
-    document.getElementById('cv-process-state').style.display='none';
-    document.getElementById('cv-upload-state').style.display='';
-    var w=document.getElementById('cv-limit-warn');
-    w.style.display='block';
-    w.style.background='rgba(239,68,68,.12)';
-    w.style.border='1px solid rgba(239,68,68,.35)';
-    w.style.color='#fca5a5';
-    w.style.borderRadius='12px';
-    w.style.padding='16px 20px';
-    w.style.lineHeight='1.8';
-    w.style.whiteSpace='pre-line';
-    w.innerHTML=msg;
-    checkCvReady();
+  // 이미 진행 중이던 상태가 있으면(§5: 재시작 시 완료 지점부터 이어서) 그대로 이어가고,
+  // 없으면(또는 이전에 완료/실패 없이 새로 시작하는 경우) 새 상태를 만든다.
+  if(!APP.ebookProgress || APP.ebookProgress.status==='completed'){
+    APP.ebookProgress=newEbookProgressState();
   }
+  APP.ebookProgress.stopRequested=false;
+  renderEbookProgressUI();
 
-  var PROMPT = `위 입력을 바탕으로 한국어 전자책과 크몽 판매용 카피 데이터를 작성하세요.
+  // 실제 호출 전 예상 호출 횟수/max_tokens만 콘솔에 남긴다(API Key/Prompt 전문은 절대 출력하지 않음).
+  var remainingChapters=APP.ebookProgress.chapterStatus.filter(function(s){return s!=='completed';}).length;
+  var remainingUnits=(APP.ebookProgress.outline?0:1)+remainingChapters+(APP.ebookProgress.appendicesStatus==='completed'?0:1);
+  console.log('[incremental-ebook] 시작 — 예상 실제 Anthropic 호출 횟수: '+remainingUnits+'회 (목차 max_tokens=6000, 챕터별 max_tokens=9000, 부록 max_tokens=5000)');
 
-[잠긴 제목 — 변경 금지]
-제목: ${APP.lockedTitle}
-부제목: ${APP.lockedSubtitle||''}
-반환 JSON의 title과 subtitle은 위 문구를 정확히 사용하세요.
-반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
-
-[분량과 구성]
-- preface: 600자 이상
-- intro: 800자 이상
-- chapters: 정확히 7개, 각 content 3500자 이상
-- conclusion: 1200자 이상
-- appendices: 정확히 3개
-- 각 챕터는 문제 해부형, 사례 분석형, 단계별 실행형, 개념 전환형, 도구·자원형, 심화 전략형, 종합 실행형을 한 번씩 사용합니다.
-- actionBox는 오늘 바로 할 수 있는 행동 하나입니다.
-- keyPoints는 새로운 인사이트 3개입니다.
-- actionItems는 구체적인 실행 단계 3개 이상입니다.
-
-[사실성과 안전]
-- 사용자가 제공하지 않은 저자의 실제 경험, 판매 실적, 구매후기, 통계는 창작하지 않습니다.
-- 특정 인물의 사례가 필요하면 가상 사례임을 본문 안에서 명시합니다.
-- 최신 정보가 필요한 도구·정책은 확실하지 않으면 확인 필요라고 씁니다.
-
-[크몽 판매 카피]
-- 구체적인 수익 금액, 매출 금액, 성장률, 달성 기간을 후킹과 상세페이지 문구에 사용하지 않습니다.
-- 보장·무조건·100%·누구나 성공·자동수익 등의 표현을 사용하지 않습니다.
-- testimonials는 반드시 빈 배열입니다.
-- 가격·정가·할인액 필드는 생성하지 않습니다.
-- hook은 핵심 불편을 찌르는 짧은 문장으로 작성합니다.
-- pains, solution, learnings, benefits, before, after는 각각 구체적인 문장 배열로 작성합니다.
-
-아래 스키마를 정확히 따르세요.
-{
-  "title":"전자책 제목",
-  "subtitle":"부제목",
-  "author":"저자명",
-  "category":"카테고리",
-  "description":"책 소개",
-  "targetReader":"구체적인 추천 독자 상황",
-  "preface":"저자 서문. 사용자 입력에 실제 경험이 없으면 경험을 꾸며내지 말고 집필 배경과 문제의식 중심으로 작성",
-  "intro":"서론",
-  "authorBio":"저자 소개. 정보가 없으면 전문성을 과장하지 않는 일반 소개",
-  "chapters":[
-    {"number":1,"title":"챕터 제목","content":"문제 해부형 본문","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"]},
-    {"number":2,"title":"챕터 제목","content":"사례 분석형 본문. 가상 사례는 가상임을 명시","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"]},
-    {"number":3,"title":"챕터 제목","content":"단계별 실행형 본문","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"]},
-    {"number":4,"title":"챕터 제목","content":"개념 전환형 본문","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"]},
-    {"number":5,"title":"챕터 제목","content":"도구·자원형 본문","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"]},
-    {"number":6,"title":"챕터 제목","content":"심화 전략형 본문","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"]},
-    {"number":7,"title":"챕터 제목","content":"종합 실행형 본문","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"]}
-  ],
-  "conclusion":"핵심 정리와 실행 순서, 현실적인 응원",
-  "appendices":[
-    {"title":"핵심 실천 체크리스트","content":"구체적 체크리스트"},
-    {"title":"추천 도구와 참고 자료","content":"도구별 특징, 사용법, 확인 시점"},
-    {"title":"실전 실행 플랜","content":"단계별 실행 계획"}
-  ],
-  "copyright":{"year":"2026","publisher":"독립 출판","notice":"","disclaimer":"","contact":""},
-  "sales":{
-    "hook":"수치 없는 강력한 후킹 문장",
-    "subhook":"구체적인 상황을 묘사한 서브 후킹",
-    "pains":["고통1","고통2","고통3","고통4"],
-    "solution":"이 책이 제공하는 해결 구조",
-    "learnings":["배울 내용1","배울 내용2","배울 내용3","배울 내용4"],
-    "benefits":["혜택1","혜택2","혜택3","혜택4"],
-    "before":["변화 전1","변화 전2","변화 전3"],
-    "after":["변화 후1","변화 후2","변화 후3"],
-    "testimonials":[],
-    "faqs":[{"q":"질문1","a":"답변1"},{"q":"질문2","a":"답변2"},{"q":"질문3","a":"답변3"}],
-    "finalPush":"과장 없는 최종 행동 유도 문장"
-  }
-}`;
-
-  // Ebook Blueprint(Phase 6, AI Planner에서 사용자가 승인한 결과)가 있을 때만
-  // 생성 프롬프트에 가이드라인 구획을 추가로 주입한다. Blueprint 내용을 본문으로
-  // 복사하지 않고, AI가 지켜야 할 가이드라인으로만 전달한다. 없으면(null/레거시
-  // 저장본) 기존 프롬프트를 100% 그대로 사용한다 — BrandProfile/Blueprint는
-  // 읽기 전용이며 여기서 재계산하지 않는다.
-  if(APP.ebookBlueprint){
-    var ebp=APP.ebookBlueprint;
-    var guideLines=['[승인된 전자책 생성 가이드라인]','','- 문체: '+ebp.toneGuideline,'- 정보 밀도: '+ebp.densityGuideline,'- CTA 적용 방식: '+ebp.ctaGuideline,'- FAQ 통합 방식: '+ebp.faqIntegrationGuideline,'- 핵심 Promise 일관성: '+ebp.crossConsistency.promise];
-    if(ebp.crossConsistency.thumbnailPattern)guideLines.push('- Thumbnail Pattern과의 일관성: '+ebp.crossConsistency.thumbnailPattern);
-    if(ebp.crossConsistency.salesPageLayoutStrategy)guideLines.push('- Sales Page 전략과의 일관성: '+ebp.crossConsistency.salesPageLayoutStrategy);
-    guideLines.push('','[중요 규칙]','','- 위 가이드는 기존 전자책 구조를 변경하지 않는다.','- 원문에 없는 후기, 수치, 자격, 매출 보장을 생성하지 않는다.','- 기존 사용자 입력과 원천자료가 최우선 사실 근거다.');
-    PROMPT=PROMPT.replace('[분량과 구성]', guideLines.join('\n')+'\n\n[분량과 구성]');
-  }
-
-  try{
-    // ── 모드별 메시지 구성
-    var messages=[];
-    if(CV_MODE==='file'){
-      if(!APP.selFile)throw new Error('파일을 선택해주세요.');
-      messages=[{role:'user',content:await buildApiContent('업로드한 문서를 단순 번역하지 말고 핵심 개념을 재구성하여 한국 독자용 새 전자책으로 집필하세요. 사용자는 해당 문서를 활용할 권한이 있다고 전제하되, 원문 문장과 목차를 그대로 복제하지 마세요.\n\n'+PROMPT)}];
-    } else if(CV_MODE==='topic'){
-      var topic=document.getElementById('topic-main').value.trim();
-      var target=document.getElementById('topic-target').value.trim();
-      var extra=document.getElementById('topic-extra').value.trim();
-      var topicPrompt='주제: '+topic+(target?'\n대상 독자: '+target:'')+(extra?'\n추가 요구사항: '+extra:'');
-      messages=[{role:'user',content:[{type:'text',text:'아래 주제로 한국 베스트셀러 전자책을 처음부터 완전히 새로 창작해주세요.\n\n'+topicPrompt+'\n\n위 주제를 기반으로 실전 전문 지식과 구체적 예시를 풍부하게 담아 창작하세요.\n\n'+PROMPT}]}];
-    } else if(CV_MODE==='url'){
-      var urlVal=document.getElementById('url-input').value.trim();
-      var urlDir=document.getElementById('url-direction').value.trim();
-      var urlExtra=document.getElementById('url-extra').value.trim();
-      var urlFetched=APP.urlContent||'';
-      var urlContext='참고 URL: '+urlVal+(urlExtra?'\n추가 URL:\n'+urlExtra:'')+(urlDir?'\n전자책 방향: '+urlDir:'')+(urlFetched?'\n\nURL에서 불러온 내용 (참고용):\n'+urlFetched.substring(0,8000):'');
-      messages=[{role:'user',content:[{type:'text',text:'아래 URL의 내용을 분석하여 한국 독자용 전자책을 새롭게 창작해주세요.\n\n'+urlContext+'\n\nURL의 핵심 내용을 살리되 원문의 표현과 구조를 복제하지 말고, 실전 예시와 한국 실정에 맞는 내용으로 재구성하세요.\n\n'+PROMPT}]}];
-    } else if(CV_MODE==='multi'){
-      var multiPrompt='여러 자료를 종합하여 하나의 독창적인 한국어 전자책을 만드세요.\n- 핵심 자료는 중심 근거로 사용합니다.\n- 참고 자료는 보충에만 사용합니다.\n- 자료 간 중복은 통합하고 충돌하는 주장은 단정하지 않습니다.\n- 유튜브 링크에 자막이 없으면 제목과 사용자 메모 이상을 추측하지 않습니다.\n- 원문 문장과 목차를 그대로 복제하지 말고 새로운 구조와 표현으로 집필합니다.\n- 최신성이 필요한 정보는 확인 필요를 표시합니다.\n\n'+PROMPT;
-      messages=[{role:'user',content:await buildApiContent(multiPrompt)}];
-    }
-    setCvStep(2);await sleep(600);setCvStep(3);
-
-    // 오래 걸릴 때 안내
-    var slowTimer=setTimeout(function(){
-      var msg=document.getElementById('cv-fun-msg');
-      if(msg)msg.innerHTML='<span style="color:#fbbf24">⏳ 응답이 오래 걸리고 있어요. 조금만 더 기다려주세요...</span>';
-    },60000);
-
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-6',
-        max_tokens:32000,
-        system:ATLAS_SYSTEM_PROMPT,
-        messages:messages
-      })
-    });
-    clearTimeout(slowTimer);
-    if(window._fakeTimer)clearInterval(window._fakeTimer);
-
-    setCvStep(4);
-    var data=await resp.json();
-    if(!resp.ok){
-      var errMsg=data.error?.message||'';
-      var errType=data.error?.type||'';
-      var koreanErr='';
-      if(errType==='authentication_error'||errMsg.includes('API key')||errMsg.includes('api_key')||resp.status===401)
-        koreanErr='❌ API 키 오류\nAPI 키가 잘못되었습니다. 설정 메뉴에서 API 키를 다시 확인해주세요.\n\n원인: '+errMsg;
-      else if(errType==='permission_error'||resp.status===403)
-        koreanErr='❌ 권한 오류\n크레딧이 부족하거나 키가 만료됐을 수 있습니다.\nconsole.anthropic.com에서 확인해주세요.\n\n원인: '+errMsg;
-      else if(errType==='rate_limit_error'||resp.status===429)
-        koreanErr='❌ 요청 한도 초과\n잠시 후 (30초~1분) 다시 시도해주세요.\n\n원인: '+errMsg;
-      else if(resp.status===500||resp.status===529)
-        koreanErr='❌ Anthropic 서버 오류\n잠시 후 다시 시도해주세요.\n\n원인: '+errMsg;
-      else if(errMsg.includes('credit')||errMsg.includes('billing')||errMsg.includes('balance'))
-        koreanErr='❌ API 크레딧 부족\nconsole.anthropic.com에서 크레딧을 충전해주세요.\n\n원인: '+errMsg;
-      else
-        koreanErr='❌ API 오류 ('+resp.status+')\n'+errMsg;
-      throw new Error(koreanErr);
-    }
-    // max_tokens 도달해도 생성된 내용으로 파싱 시도 (에러 안 냄)
-    var raw='';if(data.content)for(var i=0;i<data.content.length;i++)if(data.content[i].type==='text'){raw=data.content[i].text;break;}
-    var clean=raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
-    var js=clean.indexOf('{'),je=clean.lastIndexOf('}');
-    if(js===-1)throw new Error('JSON을 찾을 수 없습니다. 다시 시도해주세요.');
-    clean=clean.substring(js,je+1);
-    var ebook;
-    try{ebook=JSON.parse(clean);}catch(e2){
-      // 1차: 후행 쉼표 제거
-      var fix=clean.replace(/,\s*([}\]])/g,'$1');
-      try{ebook=JSON.parse(fix);}catch(e3){
-        // 2차: 열린 괄호 닫기
-        fix=fix.replace(/,\s*$/,'');
-        var oa=(fix.match(/\[/g)||[]).length-(fix.match(/\]/g)||[]).length;
-        var ob=(fix.match(/\{/g)||[]).length-(fix.match(/\}/g)||[]).length;
-        for(var kk=0;kk<oa;kk++)fix+=']';for(var kk=0;kk<ob;kk++)fix+='}';
-        try{ebook=JSON.parse(fix);}catch(e4){
-          // 3차: 마지막 완전한 챕터까지만 파싱 시도
-          var chIdx=clean.lastIndexOf('"content"');
-          if(chIdx>0){
-            var partial=clean.substring(0,chIdx);
-            var li=partial.lastIndexOf('{');
-            if(li>0){
-              partial=partial.substring(0,li).replace(/,\s*$/,'')+'],"conclusion":"[반드시 1000자 이상 작성. 절대 짧게 쓰지 말 것] 핵심 요약 + 독자 액션플랜 + 응원 메시지","appendices":[{"title":"핵심 체크리스트","content":"[반드시 500자 이상] 실천 항목 체크리스트"},{"title":"참고 자료 및 추천 도구","content":"[반드시 500자 이상] 관련 사이트, 도구, 추천 자료"},{"title":"실전 워크시트","content":"[반드시 500자 이상] 독자 실전 연습 시트"}],"copyright":{"year":"2026","publisher":"독립 출판","notice":"","disclaimer":"","contact":""},"sales":{"hook":"","subhook":"","pains":[],"solution":"","learnings":[],"benefits":[],"before":[],"after":[],"testimonials":[],"faqs":[],"finalPush":""}}';
-              try{ebook=JSON.parse(partial);}catch(e5){
-                throw new Error('❌ JSON 파싱 오류\n다시 시도해주세요. 계속 실패 시 더 짧은 내용으로 시도해보세요.');
-              }
-            } else throw new Error('❌ JSON 파싱 오류\n다시 시도해주세요.');
-          } else throw new Error('❌ JSON 파싱 오류\n다시 시도해주세요.');
-        }
-      }
-    }
-    setCvStep(5);await sleep(400);
-    ebook.title=APP.lockedTitle;
-    if(APP.lockedSubtitle)ebook.subtitle=APP.lockedSubtitle;
-    ebook=sanitizeKmongSalesClaims(ebook);
-    APP.ebook=ebook;
-    addEbook(u.email,ebook);
-    addTrialCount(CV_MODE); // 모드별 체험 횟수 기록
-    // update user in storage
-    var users=getUsers();u.plan=u.plan||'free';users[u.email]=u;saveUsers(users);
-    document.getElementById('cv-process-state').style.display='none';
-    document.getElementById('cv-result-state').style.display='';
-    renderCvEbook(ebook);
-    atlasSetWorkspaceStage('ebook');
-    showToast('success','🎉 전자책이 생성되었습니다!');
-  }catch(e){
-    console.error('생성 오류:', e);
-    var msg=e.message||'알 수 없는 오류가 발생했습니다.';
-    // 네트워크 오류 처리
-    if(msg.includes('fetch')||msg.includes('network')||msg.includes('Failed to fetch')||msg.includes('NetworkError')){
-      msg='❌ 네트워크 연결 오류\n인터넷 연결을 확인하거나 잠시 후 다시 시도해주세요.\n\nCORS 오류일 경우: 브라우저가 API 직접 호출을 막을 수 있습니다.\nChrome에서 접속해주세요.';
-    }
-    showErrorPopup(msg);
-  }
+  await continueEbookPipeline();
 }
 
 function checkAndShowSales(){
