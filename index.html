@@ -163,11 +163,9 @@
           </div>
         </section>
         <div id="cv-apikey-warn" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px 18px;margin-bottom:14px;font-size:13px;color:#fca5a5;line-height:1.7">
-          <strong>⚠️ API 키가 설정되지 않았습니다</strong><br>
-          전자책을 생성하려면 Anthropic API 키가 필요합니다.<br>
-          <span style="color:#f87171;cursor:pointer;font-weight:700;text-decoration:underline" onclick="showApp('settings')">→ 설정 메뉴에서 API 키 입력하기</span>
-          &nbsp;|&nbsp;
-          <a href="https://console.anthropic.com/" target="_blank" style="color:#f87171;font-weight:700">발급받기 (무료) →</a>
+          <strong>⚠️ AI 서버에 연결할 수 없습니다</strong><br>
+          <span id="cv-apikey-warn-detail">서버 상태를 확인해주세요.</span><br>
+          <span style="color:#f87171;cursor:pointer;font-weight:700;text-decoration:underline" onclick="showApp('settings')">→ 설정 메뉴에서 서버 상태 확인하기</span>
         </div>
         <div id="cv-limit-warn" class="cv-limit-warn"></div>
         <!-- UPLOAD STATE -->
@@ -317,8 +315,85 @@
             <div id="aip-candidates" class="aip-candidates"></div>
             <div class="ts-actions">
               <button class="btn-sec" onclick="AtlasAIPlanner.backToTitle()">제목 다시 선택</button>
-              <button class="btn-sec" id="aip-visual-generate-btn" disabled title="다음 Phase에서 실제 이미지 생성 API가 연결된 뒤에 활성화됩니다. 지금은 프롬프트만 생성되며 실제 이미지는 만들어지지 않습니다.">AI 이미지 생성 — 다음 Phase에서 연결</button>
+              <button class="btn-sec" id="aip-visual-generate-btn" onclick="document.getElementById('ipe-section').scrollIntoView({behavior:'smooth'})" title="아래 '이미지 제작' 섹션에서 Mock 생성 또는 외부 이미지 가져오기로 썸네일/상세페이지 이미지를 만들 수 있습니다.">↓ 이미지 제작으로 이동</button>
               <button class="btn-save" id="aip-approve-btn" onclick="AtlasAIPlanner.approve()" disabled>✅ 이 기획으로 전자책 생성</button>
+            </div>
+
+            <!-- Phase 13: Claude Design Creative Feedback Engine — Prompt가 아니라
+                 Claude Design이 실제 생성한 이미지를 업로드해 품질을 진단한다. -->
+            <div class="aip-cfe-section" id="aip-cfe-section" style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+              <div style="font-size:16px;font-weight:800;color:var(--text)">Claude Design Creative Feedback</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:4px">Claude Design에서 실제로 생성한 이미지를 업로드해야 분석할 수 있습니다(Prompt만으로는 평가하지 않습니다). Mock/Placeholder 이미지는 지원하지 않습니다.</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
+                <select id="cfe-asset-type" class="cv-topic-input" style="max-width:180px" onchange="AtlasAIPlanner.creativeFeedback.onContextChange()">
+                  <option value="thumbnail">Thumbnail</option>
+                  <option value="sales-page-hero">Sales Page Hero</option>
+                </select>
+                <select id="cfe-concept-select" class="cv-topic-input" style="max-width:280px" onchange="AtlasAIPlanner.creativeFeedback.onContextChange()"></select>
+                <span id="cfe-version-label" style="font-size:12px;color:var(--text3)">다음 Version: 1</span>
+              </div>
+              <div style="margin-top:10px">
+                <input type="file" id="cfe-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="AtlasAIPlanner.creativeFeedback.onFileSelected(this)"/>
+                <button class="btn-sec" onclick="document.getElementById('cfe-file-input').click()">Claude Design 결과 이미지 업로드</button>
+                <span id="cfe-source-badge" style="display:none;font-size:11px;font-weight:700;color:#22c55e;margin-left:8px">● source: Claude Design</span>
+              </div>
+              <div id="cfe-preview-wrap" style="margin-top:10px;display:none">
+                <img id="cfe-preview-img" style="max-width:320px;border-radius:8px;display:block;border:1px solid var(--border)"/>
+                <canvas id="cfe-canvas" style="display:none"></canvas>
+              </div>
+              <div id="cfe-waiting-message" style="margin-top:10px;font-size:12px;color:var(--text3);font-weight:600">waiting-for-real-image — 아직 실제 Claude Design 이미지가 업로드되지 않았습니다.</div>
+              <details style="margin-top:10px">
+                <summary style="font-size:12px;color:var(--text3);cursor:pointer">Claude Code 구조화 시각 평가 붙여넣기(선택, JSON) — 손/얼굴/아티팩트 등 의미적 판단 항목용</summary>
+                <textarea id="cfe-visual-assessment-json" class="cv-topic-input" style="width:100%;min-height:60px;margin-top:6px;font-family:monospace;font-size:11px" placeholder='{"productFrameRatio":0.4,"subjectVisible":true,"artifacts":[]}'></textarea>
+              </details>
+              <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn-save" id="cfe-analyze-btn" disabled onclick="AtlasAIPlanner.creativeFeedback.analyze()">실제 이미지 분석</button>
+                <button class="btn-sec" id="cfe-cancel-btn" onclick="AtlasAIPlanner.creativeFeedback.cancel()">분석 취소</button>
+                <button class="btn-sec" id="cfe-delete-btn" onclick="AtlasAIPlanner.creativeFeedback.deleteImage()">이미지 삭제</button>
+              </div>
+              <div id="cfe-results-body" style="margin-top:16px"></div>
+              <div id="cfe-user-review-body" style="margin-top:16px"></div>
+              <div id="cfe-history-body" style="margin-top:16px"></div>
+            </div>
+
+            <!-- Phase 14/15: Provider-Neutral Image Engine + 실제 OpenAI GPT Image Provider.
+                 사용자는 Provider 이름을 몰라도 되게 한다 — 기본 화면은 [썸네일 생성]/
+                 [상세페이지 전체 생성] 버튼만 보여주고, GPT Image가 준비되지 않았으면
+                 버튼은 비활성 + 안내 문구만 보여준다(Mock으로 조용히 대체하지 않음).
+                 Provider 선택/Prompt/Scene/사용량 등 개발용 정보는 "고급 설정"에서만 노출한다. -->
+            <div class="ipe-section" id="ipe-section" style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+              <div style="font-size:16px;font-weight:800;color:var(--text)">이미지 제작 (썸네일 → 상세페이지 → 다운로드)</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:4px">전자책 표지·상세페이지 배경 이미지를 실제로 생성하고, Atlas가 한글 텍스트를 자동으로 입혀 완성본을 만듭니다.</div>
+              <div id="ipe-provider-status-banner" style="margin-top:10px"></div>
+
+              <details style="margin-top:10px">
+                <summary style="font-size:12px;color:var(--text3);cursor:pointer">고급 설정</summary>
+                <div id="ipe-advanced-info" style="margin-top:8px"></div>
+                <div style="margin-top:8px;font-size:11px;color:var(--text3)">이미지 생성 방식(Provider) — 문제 해결/테스트용:</div>
+                <div id="ipe-provider-select-wrap" style="margin-top:4px"></div>
+              </details>
+
+              <div style="font-size:14px;font-weight:800;margin-top:18px">2. 썸네일 기획 → 3. 썸네일 생성 (652×488, Concept 5개)</div>
+              <div style="margin-top:6px">
+                <button class="btn-sec" onclick="AtlasImageProductionUI.planThumbnailConcepts()">썸네일 크리에이티브 5개 기획</button>
+                <button class="btn-save" id="ipe-thumb-generate-btn" disabled onclick="AtlasImageProductionUI.generateThumbnails()">전체 이미지 생성</button>
+                <button class="btn-sec" onclick="AtlasImageProductionUI.generateAllThumbnailsMock()">(테스트) Mock으로 생성</button>
+              </div>
+              <div id="ipe-thumb-progress"></div>
+              <div id="ipe-thumb-list"></div>
+              <div style="font-size:13px;font-weight:700;margin-top:12px">선택한 썸네일 후보에 한글 Overlay 적용</div>
+              <div id="ipe-thumb-overlay-actions" style="margin-top:6px"></div>
+
+              <div style="font-size:14px;font-weight:800;margin-top:22px">4. 상세페이지 기획 → 5. 상세페이지 생성 (1080×1350, 9장)</div>
+              <div style="margin-top:6px">
+                <button class="btn-sec" onclick="AtlasImageProductionUI.planSalesPageScenes()">상세페이지 9장 기획</button>
+                <button class="btn-save" id="ipe-sp-generate-btn" disabled onclick="AtlasImageProductionUI.generateSalesPages()">전체 이미지 생성</button>
+                <button class="btn-sec" onclick="AtlasImageProductionUI.generateAllSalesPagesMock()">(테스트) Mock으로 생성</button>
+                <button class="btn-sec" id="ipe-sp-zip-btn" disabled onclick="AtlasImageProductionUI.downloadAllSalesPagesZip()">전체 ZIP 다운로드</button>
+              </div>
+              <div id="ipe-sp-progress"></div>
+              <div id="ipe-sp-list"></div>
+              <div style="font-size:13px;font-weight:700;margin-top:16px">6. 결과 선택 및 다운로드는 각 카드에서 진행하세요.</div>
             </div>
           </div>
         </div>
@@ -352,16 +427,18 @@
               <div id="cv-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#a855f7);border-radius:100px;transition:width .6s ease"></div>
             </div>
           </div>
-          <!-- 단계 -->
-          <div class="cv-psteps">
-            <div class="cv-pstep" id="cvp1"><span>📄</span>&nbsp;원문 분석 중...</div>
-            <div class="cv-pstep" id="cvp2"><span>🎯</span>&nbsp;후킹 제목 생성 중...</div>
-            <div class="cv-pstep" id="cvp3"><span>✍️</span>&nbsp;본문 집필 중 (25,000자+)...</div>
-            <div class="cv-pstep" id="cvp4"><span>🛒</span>&nbsp;판매 상세페이지 작성 중...</div>
-            <div class="cv-pstep" id="cvp5"><span>✨</span>&nbsp;마무리 중...</div>
-          </div>
+          <!-- 목차/챕터별/부록 진행 목록(실시간, Incremental 생성) -->
+          <div class="cv-psteps" id="cv-chapter-steps"></div>
           <!-- 재미 메시지 -->
           <div id="cv-fun-msg" style="margin-top:18px;font-size:12px;color:#6366f1;font-weight:600;min-height:20px"></div>
+          <!-- 중지 / 이어서 생성 / 전체 취소 -->
+          <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button id="cv-ebook-stop-btn" class="btn-sec" style="display:none" onclick="stopIncrementalEbookGeneration()">⏸ 생성 중지</button>
+            <button id="cv-ebook-resume-btn" class="btn-save" style="display:none" onclick="resumeIncrementalEbookGeneration()">▶ 이어서 생성</button>
+            <button id="cv-ebook-cancel-btn" class="btn-danger" style="display:none" onclick="cancelIncrementalEbookGeneration()">✕ 전체 취소</button>
+          </div>
+          <!-- 저장 상태 표시 -->
+          <div id="cv-save-indicator" style="margin-top:10px;font-size:11px;color:#34d399;opacity:0;transition:opacity .4s ease">💾 생성 상태가 저장되었습니다.</div>
         </div>
         <!-- RESULT STATE -->
         <div id="cv-result-state" style="display:none">
@@ -470,19 +547,12 @@
     <div id="app-settings" class="content" style="display:none">
       <div class="card">
         <div class="settings-section">
-          <div class="settings-title">🔑 API 키 설정</div>
+          <div class="settings-title">🖥️ AI 서버 연결 상태</div>
           <div class="settings-row">
-            <div><div class="settings-label">Anthropic API 키</div><div class="settings-desc">전자책 생성에 사용됩니다. 브라우저에만 저장되며 서버로 전송되지 않습니다.</div></div>
-            <div style="display:flex;gap:8px;flex:1;min-width:200px">
-              <input id="set-apikey" class="settings-input" type="password" placeholder="sk-ant-..."/>
-              <button style="padding:0 12px;background:var(--card);border:1px solid var(--card-border);border-radius:9px;color:var(--text2);font-size:15px" onclick="toggleSetKey()">👁️</button>
-            </div>
+            <div><div class="settings-label">Anthropic (자료 분석·제목·전자책 생성)</div><div class="settings-desc">API 키는 서버에서만 관리됩니다. 브라우저에는 어떤 API 키도 저장되지 않습니다.</div></div>
           </div>
           <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn-save" onclick="saveApiKey()">저장</button>
-            <button style="padding:9px 18px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:9px;font-size:13px;font-weight:700;color:#34d399;cursor:pointer" onclick="testApiKey()">🧪 API 키 테스트</button>
-            <button class="btn-danger" onclick="clearApiKey()">🗑️ 삭제</button>
-            <a href="https://console.anthropic.com/" target="_blank" style="padding:9px 16px;font-size:13px;color:var(--indigo);display:flex;align-items:center">발급받기 →</a>
+            <button style="padding:9px 18px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:9px;font-size:13px;font-weight:700;color:#34d399;cursor:pointer" onclick="testGatewayConnection()">🧪 서버 연결 테스트</button>
           </div>
           <div id="api-test-result" style="display:none;margin-top:12px;padding:12px 16px;border-radius:10px;font-size:13px;line-height:1.7"></div>
         </div>
@@ -550,6 +620,9 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<script src="js/anthropic-gateway-client.js"></script>
+<script src="js/incremental-ebook-engine.js"></script>
+<script src="js/ebook-progress-store.js"></script>
 <script src="js/application.js"></script>
 <script src="js/bootstrap.js"></script>
 <script src="js/design-system.js"></script>
@@ -560,7 +633,21 @@
 <script src="js/sales-page-engine.js"></script>
 <script src="js/ebook-engine.js"></script>
 <script src="js/ai-visual-prompt-engine.js"></script>
+<script src="js/creative-campaign-engine.js"></script>
+<script src="js/creative-feedback-engine.js"></script>
+<script src="shared/image-generation-contract.js"></script>
+<script src="shared/image-provider-registry.js"></script>
+<script src="js/image-provider-mock.js"></script>
+<script src="js/image-provider-manual-import.js"></script>
+<script src="js/image-provider-openai.js"></script>
+<script src="js/provider-neutral-prompt-composer.js"></script>
+<script src="js/atlas-overlay-engine.js"></script>
+<script src="js/image-engine.js"></script>
+<script src="js/creative-director-adapter.js"></script>
+<script src="js/image-generation-queue.js"></script>
+<script src="js/image-generation-state.js"></script>
 <script src="js/ai-planner.js"></script>
+<script src="js/image-generation-ui.js"></script>
 <script src="js/thumbnail-blueprint-adapter.js"></script>
 <script src="js/thumbnail-claude-style-renderer.js"></script>
 <script src="js/thumbnail-studio.js"></script>
