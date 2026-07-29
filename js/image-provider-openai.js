@@ -24,7 +24,11 @@ window.AtlasOpenAIImageProvider = window.AtlasOpenAIImageProvider || {};
     supportsTransparentBackground: true
   };
 
-  var GATEWAY_BASE = '/api/image-gateway';
+  var GATEWAY_PATH = '/api/image-gateway';
+  /* GitHub Pages 같은 정적 호스팅에는 Node 서버가 없다 — 상대경로를 쓰면 요청이
+     그 페이지의 도메인 자신에게 나가버려 항상 실패한다(실제로 발견된 버그).
+     js/atlas-gateway-base-url.js의 resolve()로 실제 Gateway origin을 구한다. */
+  function gatewayUrl(path){ return new URL(GATEWAY_PATH+path, window.AtlasGatewayBaseUrl.resolve()).href; }
   var inFlightControllers = {};
   var jobCounter = 0;
 
@@ -34,7 +38,7 @@ window.AtlasOpenAIImageProvider = window.AtlasOpenAIImageProvider || {};
   var statusCache = { configured:false, model:null, quality:null, dailyUsed:null, dailyLimit:null, monthlyUsed:null, monthlyLimit:null, checked:false };
 
   P.refreshStatus = function(){
-    return fetch(GATEWAY_BASE+'/status').then(function(res){ return res.json(); }).then(function(body){
+    return fetch(gatewayUrl('/status')).then(function(res){ return res.json(); }).then(function(body){
       statusCache = Object.assign({ checked:true }, body);
       return statusCache;
     }).catch(function(){
@@ -60,7 +64,7 @@ window.AtlasOpenAIImageProvider = window.AtlasOpenAIImageProvider || {};
     var controller = (typeof AbortController!=='undefined') ? new AbortController() : null;
     if(controller) inFlightControllers[jobId] = controller;
 
-    var promise = fetch(GATEWAY_BASE+'/generate', {
+    var promise = fetch(gatewayUrl('/generate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId: jobId, request: request }),
@@ -84,7 +88,7 @@ window.AtlasOpenAIImageProvider = window.AtlasOpenAIImageProvider || {};
     if(!controller) return false;
     controller.abort();
     delete inFlightControllers[jobId];
-    fetch(GATEWAY_BASE+'/cancel', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ jobId: jobId }) }).catch(function(){});
+    fetch(gatewayUrl('/cancel'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ jobId: jobId }) }).catch(function(){});
     return true;
   };
 

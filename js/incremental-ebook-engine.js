@@ -165,14 +165,102 @@ ${FACTUALITY_RULES}
 ]`;
   };
 
-  function extractJsonText(raw, openChar, closeChar){
-    var clean = raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
-    var s = clean.indexOf(openChar), e = clean.lastIndexOf(closeChar);
-    if(s===-1||e===-1) throw new Error('JSON을 찾을 수 없습니다.');
-    return clean.substring(s, e+1);
-  }
   function extractResponseText(data){
     return (data.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+  }
+
+  function stripBOM(s){ return s.length && s.charCodeAt(0)===0xFEFF ? s.slice(1) : s; }
+
+  function contextAroundPosition(text, pos, radius){
+    var start = Math.max(0, pos-radius);
+    var end = Math.min(text.length, pos+radius);
+    return text.slice(start, end);
+  }
+
+  /* Claude가 JSON 문자열 값 안에 이스케이프 없이 실제 줄바꿈/탭을 그대로 반환하는
+     경우(실제로 확인된 원인 — "Expected ',' or ']'" 류 오류의 전형적인 원인)를
+     고치기 위한 최소한의 상태기계형 sanitizer다. 문자열( " ~ " ) 내부에 있을 때만
+     raw \n/\r/\t를 \\n/\\r/\\t로 이스케이프한다 — 문자열 밖의 JSON 구조는 건드리지
+     않는다. */
+  function escapeRawControlCharsInStrings(text){
+    var out = '';
+    var inString = false;
+    var escapeNext = false;
+    for(var i=0;i<text.length;i++){
+      var ch = text[i];
+      if(inString){
+        if(escapeNext){ out += ch; escapeNext = false; continue; }
+        if(ch === '\\'){ out += ch; escapeNext = true; continue; }
+        if(ch === '"'){ out += ch; inString = false; continue; }
+        if(ch === '\n'){ out += '\\n'; continue; }
+        if(ch === '\r'){ out += '\\r'; continue; }
+        if(ch === '\t'){ out += '\\t'; continue; }
+        out += ch; continue;
+      }
+      if(ch === '"'){ inString = true; }
+      out += ch;
+    }
+    return out;
+  }
+
+  /* §1/§2/§3/§4/§5/§6(사용자 요청) — 실제 Windows 실행에서 "Expected ',' or ']'..."
+     파싱 오류가 재현되어 만든 견고화 로직이다.
+     - 파싱 전 원문(raw)을 window.__atlasLastRawResponse[unitLabel]에 항상 보관한다
+       (개발자 콘솔에서 언제든 실제 원문을 확인할 수 있다 — §1).
+     - ```json/``` 코드펜스, BOM, 앞뒤 설명 문장을 제거하고 첫 여는 문자~마지막 닫는
+       문자 사이만 후보로 삼는다(§4/§5).
+     - 1차 파싱이 실패하면 실패 위치 주변 원문을 콘솔에 출력한다(§3).
+     - 문자열 내부의 raw 개행/탭을 이스케이프하고 trailing comma를 제거해 2차
+       파싱을 시도한다(§4) — 실제 Anthropic 응답이 이 패턴으로 깨지는 경우가 있다.
+     - 그래도 실패하면 원문 전체/실패 위치 주변을 로그로 남기고, 에러 객체에도
+       원문을 실어(err.rawResponseText) 위쪽 catch에서 그대로 보여줄 수 있게 한다(§6). */
+  function robustJsonParse(rawResponseText, openChar, closeChar, unitLabel){
+    var raw = stripBOM(rawResponseText);
+    window.__atlasLastRawResponse = window.__atlasLastRawResponse || {};
+    window.__atlasLastRawResponse[unitLabel] = raw;
+
+    var clean = raw.replace(/```json\s*/gi,'').replace(/```/g,'').trim();
+    var s = clean.indexOf(openChar), e = clean.lastIndexOf(closeChar);
+    if(s===-1||e===-1){
+      console.error('[incremental-ebook] ['+unitLabel+'] JSON 시작/끝 문자를 찾을 수 없습니다. 원문 전체:', raw);
+      var eNotFound = new Error(unitLabel+': 응답에서 JSON을 찾을 수 없습니다.');
+      eNotFound.rawResponseText = raw;
+      throw eNotFound;
+    }
+    var candidate = clean.substring(s, e+1);
+
+    function tryParse(text){
+      try{ return { ok:true, value: JSON.parse(text) }; }
+      catch(err){ return { ok:false, err: err }; }
+    }
+
+    var attempt1 = tryParse(candidate);
+    if(attempt1.ok) return attempt1.value;
+
+    console.error('[incremental-ebook] ['+unitLabel+'] 1차 JSON.parse 실패: '+attempt1.err.message);
+    console.error('[incremental-ebook] ['+unitLabel+'] 원문 전체(파싱 전, response.text() 그대로):', raw);
+    var posMatch1 = /position (\d+)/.exec(attempt1.err.message);
+    if(posMatch1){
+      console.error('[incremental-ebook] ['+unitLabel+'] 실패 위치 주변 문자열(원문 기준):', contextAroundPosition(candidate, parseInt(posMatch1[1],10), 200));
+    }
+
+    var sanitized = escapeRawControlCharsInStrings(candidate).replace(/,(\s*[}\]])/g, '$1');
+    var attempt2 = tryParse(sanitized);
+    if(attempt2.ok){
+      console.warn('[incremental-ebook] ['+unitLabel+'] 문자열 내부 제어문자 이스케이프 후 2차 파싱 성공(모델이 JSON 문자열 안에 실제 줄바꿈을 이스케이프 없이 반환했을 가능성이 높습니다).');
+      return attempt2.value;
+    }
+
+    console.error('[incremental-ebook] ['+unitLabel+'] 2차(정제 후) JSON.parse도 실패: '+attempt2.err.message);
+    var posMatch2 = /position (\d+)/.exec(attempt2.err.message);
+    if(posMatch2){
+      console.error('[incremental-ebook] ['+unitLabel+'] 실패 위치 주변 문자열(정제 후 기준):', contextAroundPosition(sanitized, parseInt(posMatch2[1],10), 200));
+    }
+
+    var eFinal = new Error(unitLabel+': JSON 파싱 실패 — '+attempt2.err.message+' (개발자 콘솔의 window.__atlasLastRawResponse.'+unitLabel+' 에서 원문 전체를 확인할 수 있습니다)');
+    eFinal.rawResponseText = raw;
+    eFinal.parseErrorMessage = attempt2.err.message;
+    throw eFinal;
   }
 
   /* callGateway는 window.AtlasAnthropicGateway.generate()를 그대로 쓴다 — 새 Provider나
@@ -194,22 +282,21 @@ ${FACTUALITY_RULES}
   E.generateOutline = function(modeWrapperPrefix){
     return callGateway(E.buildOutlinePrompt(modeWrapperPrefix), 6000, 'outline').then(function(data){
       var text = extractResponseText(data);
-      var outline = JSON.parse(extractJsonText(text, '{', '}'));
-      return outline;
+      return robustJsonParse(text, '{', '}', 'outline');
     });
   };
 
   E.generateChapter = function(outline, brief){
     return callGateway(E.buildChapterPrompt(outline, brief), 9000, 'chapter').then(function(data){
       var text = extractResponseText(data);
-      return JSON.parse(extractJsonText(text, '{', '}'));
+      return robustJsonParse(text, '{', '}', 'chapter'+brief.number);
     });
   };
 
   E.generateAppendices = function(outline){
     return callGateway(E.buildAppendicesPrompt(outline), 5000, 'appendices').then(function(data){
       var text = extractResponseText(data);
-      return JSON.parse(extractJsonText(text, '[', ']'));
+      return robustJsonParse(text, '[', ']', 'appendices');
     });
   };
 
