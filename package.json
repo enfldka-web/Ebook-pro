@@ -4,8 +4,8 @@
   "private": true,
   "description": "Atlas AI eBook Studio — static frontend + minimal image-generation gateway server (Phase 15).",
   "scripts": {
-    "start": "node server/image-gateway.js",
-    "dev": "node server/image-gateway.js"
+    "start": "node --env-file-if-exists=.env server/image-gateway.js",
+    "dev": "node --env-file-if-exists=.env server/image-gateway.js"
   },
   "dependencies": {
     "express": "^4.19.2"

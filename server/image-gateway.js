@@ -212,7 +212,12 @@ function createApp(opts){
        Prompt 전문/API Key는 여기서도 절대 로그에 남기지 않는다. */
     var callType = body.callType || 'general';
     var acfg = anthropicProvider.config(env);
-    var timeoutMs = callType==='chapter' ? acfg.chapterTimeoutMs : acfg.timeoutMs;
+    /* outline(목차/서문/서론/결론/7개 챕터 브리핑/부록 제목/저작권/판매 카피)과
+       appendices(체크리스트/도구 비교표/실행 플랜 3개)는 모두 max_tokens가
+       chapter 못지않게 크다(실제 Windows에서 각각 6000/5000으로는 부족해
+       응답이 중간에 잘려 JSON이 깨지는 문제가 재현됨) — 같은 넉넉한 타임아웃을
+       적용한다. */
+    var timeoutMs = (callType==='chapter'||callType==='outline'||callType==='appendices') ? acfg.chapterTimeoutMs : acfg.timeoutMs;
     safeLog('anthropic-generate-start', { callType: callType, model: requestBody.model, max_tokens: requestBody.max_tokens, timeoutMs: timeoutMs });
     anthropicProvider.generateWithRetry(requestBody, { env: env, fetchImpl: fetchImpl, timeoutMs: timeoutMs }).then(function(result){
       if(!result.success){
