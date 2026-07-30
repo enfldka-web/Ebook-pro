@@ -203,6 +203,78 @@ ${FACTUALITY_RULES}
     return out;
   }
 
+  /* 실제 Windows 실행에서 두 번째로 재현된 파싱 오류: 배열의 객체 요소 사이에서
+     모델이 콤마를 빠뜨리는 경우("...}  {...]" 처럼 "}"뒤에 바로 "{"가 옴) —
+     "Expected ',' or ']' after array element"가 문자열 밖(구조 경계)에서 발생하며,
+     escapeRawControlCharsInStrings()는 문자열 내부만 다루므로 이 패턴은 고치지
+     못한다. 유효한 JSON 문법상 닫는 토큰(}/]/닫는 문자열) 바로 뒤에 공백만 두고
+     여는 토큰({/[/문자열)이 오는 경우는 항상 콤마 누락이다 — key 뒤에는 반드시
+     ":"가 먼저 오므로 오탐하지 않는다.
+     문자열 값 안에 우연히 "} {" 같은 텍스트가 그대로 들어있는 경우까지 건드리면
+     안 되므로, 정규식이 아니라 escapeRawControlCharsInStrings()와 동일하게
+     "지금 문자열 안인지"를 추적하는 상태기계로 구현한다 — 구조 토큰 사이에서만
+     콤마를 삽입하고 문자열 내부 텍스트는 절대 건드리지 않는다. */
+  function insertMissingCommasBetweenElements(text){
+    var out = '';
+    var inString = false;
+    var escapeNext = false;
+    var lastWasClosing = false;
+    for(var i=0;i<text.length;i++){
+      var ch = text[i];
+      if(inString){
+        out += ch;
+        if(escapeNext){ escapeNext = false; }
+        else if(ch === '\\'){ escapeNext = true; }
+        else if(ch === '"'){ inString = false; lastWasClosing = true; }
+        continue;
+      }
+      if(ch === '"'){ if(lastWasClosing) out += ','; out += ch; inString = true; lastWasClosing = false; continue; }
+      if(ch === '{' || ch === '['){ if(lastWasClosing) out += ','; out += ch; lastWasClosing = false; continue; }
+      if(ch === '}' || ch === ']'){ out += ch; lastWasClosing = true; continue; }
+      if(ch === ',' || ch === ':'){ out += ch; lastWasClosing = false; continue; }
+      if(/\s/.test(ch)){ out += ch; continue; }
+      out += ch; lastWasClosing = false;
+    }
+    return out;
+  }
+
+  /* 실제 Windows 실행에서 세 번째로 재현된 파싱 오류: 챕터 본문(content) 안에서
+     모델이 한국어 인용문("...?")을 JSON 문자열 안에 이스케이프 없이 그대로
+     반환하는 경우. 예: "content":"...질문은 하나다. "수익이 ... 있는가?" 이것이..."
+     — 안쪽의 raw "가 문자열을 조기 종료시켜 버려서 그 뒤에 오는 일반 텍스트가
+     "Expected ',' or '}' after property value"를 유발한다.
+     이런 raw "가 정말 문자열의 끝인지, 아니면 이스케이프를 빠뜨린 내부 인용
+     부호인지는 그 다음에 오는 문자로 판별한다 — 유효한 JSON에서 문자열이 끝나면
+     공백을 건너뛰고 반드시 ",", ":", "}", "]" 중 하나이거나 텍스트의 끝이어야
+     한다. 그렇지 않다면(예: 바로 뒤에 다른 한글 텍스트가 이어짐) 그 "는 진짜
+     종료가 아니라 이스케이프를 빠뜨린 것으로 보고 \"로 보정한다. */
+  function escapeStrayQuotesInsideStrings(text){
+    var out = '';
+    var inString = false;
+    var escapeNext = false;
+    for(var i=0;i<text.length;i++){
+      var ch = text[i];
+      if(!inString){
+        out += ch;
+        if(ch === '"') inString = true;
+        continue;
+      }
+      if(escapeNext){ out += ch; escapeNext = false; continue; }
+      if(ch === '\\'){ out += ch; escapeNext = true; continue; }
+      if(ch === '"'){
+        var j = i+1;
+        while(j < text.length && /\s/.test(text[j])) j++;
+        var nextCh = j < text.length ? text[j] : '';
+        var isRealClose = nextCh==='' || nextCh===','||nextCh===':'||nextCh==='}'||nextCh===']';
+        if(isRealClose){ out += ch; inString = false; }
+        else{ out += '\\"'; }
+        continue;
+      }
+      out += ch;
+    }
+    return out;
+  }
+
   /* §1/§2/§3/§4/§5/§6(사용자 요청) — 실제 Windows 실행에서 "Expected ',' or ']'..."
      파싱 오류가 재현되어 만든 견고화 로직이다.
      - 파싱 전 원문(raw)을 window.__atlasLastRawResponse[unitLabel]에 항상 보관한다
@@ -212,6 +284,13 @@ ${FACTUALITY_RULES}
      - 1차 파싱이 실패하면 실패 위치 주변 원문을 콘솔에 출력한다(§3).
      - 문자열 내부의 raw 개행/탭을 이스케이프하고 trailing comma를 제거해 2차
        파싱을 시도한다(§4) — 실제 Anthropic 응답이 이 패턴으로 깨지는 경우가 있다.
+     - 그래도 실패하면 배열/객체 요소 사이의 누락된 콤마를 보정해 3차 파싱을
+       시도한다(실제 Windows에서 두 번째로 재현된 원인).
+     - 그래도 실패하면 문자열 내부의 이스케이프 안 된 인용부호를 보정해 4차
+       파싱을 시도한다(실제 Windows에서 세 번째로 재현된 원인 — 챕터 본문 안의
+       한국어 인용문).
+     - 그래도 실패하면 콤마 보정 + 인용부호 보정을 함께 적용해 5차 파싱을
+       시도한다(두 문제가 함께 발생하는 경우 대비).
      - 그래도 실패하면 원문 전체/실패 위치 주변을 로그로 남기고, 에러 객체에도
        원문을 실어(err.rawResponseText) 위쪽 catch에서 그대로 보여줄 수 있게 한다(§6). */
   function robustJsonParse(rawResponseText, openChar, closeChar, unitLabel){
@@ -257,9 +336,44 @@ ${FACTUALITY_RULES}
       console.error('[incremental-ebook] ['+unitLabel+'] 실패 위치 주변 문자열(정제 후 기준):', contextAroundPosition(sanitized, parseInt(posMatch2[1],10), 200));
     }
 
-    var eFinal = new Error(unitLabel+': JSON 파싱 실패 — '+attempt2.err.message+' (개발자 콘솔의 window.__atlasLastRawResponse.'+unitLabel+' 에서 원문 전체를 확인할 수 있습니다)');
+    var commaFixed = insertMissingCommasBetweenElements(sanitized);
+    var attempt3 = tryParse(commaFixed);
+    if(attempt3.ok){
+      console.warn('[incremental-ebook] ['+unitLabel+'] 배열/객체 요소 사이 누락된 콤마 보정 후 3차 파싱 성공(모델이 배열 요소 사이에 콤마를 빠뜨렸을 가능성이 높습니다).');
+      return attempt3.value;
+    }
+
+    console.error('[incremental-ebook] ['+unitLabel+'] 3차(콤마 보정 후) JSON.parse도 실패: '+attempt3.err.message);
+    var posMatch3 = /position (\d+)/.exec(attempt3.err.message);
+    if(posMatch3){
+      console.error('[incremental-ebook] ['+unitLabel+'] 실패 위치 주변 문자열(콤마 보정 후 기준):', contextAroundPosition(commaFixed, parseInt(posMatch3[1],10), 200));
+    }
+
+    var quoteFixed = escapeStrayQuotesInsideStrings(sanitized);
+    var attempt4 = tryParse(quoteFixed);
+    if(attempt4.ok){
+      console.warn('[incremental-ebook] ['+unitLabel+'] 문자열 내부 이스케이프 안 된 인용부호 보정 후 4차 파싱 성공(모델이 본문 안에서 인용문의 "를 이스케이프 없이 반환했을 가능성이 높습니다).');
+      return attempt4.value;
+    }
+
+    console.error('[incremental-ebook] ['+unitLabel+'] 4차(인용부호 보정 후) JSON.parse도 실패: '+attempt4.err.message);
+    var posMatch4 = /position (\d+)/.exec(attempt4.err.message);
+    if(posMatch4){
+      console.error('[incremental-ebook] ['+unitLabel+'] 실패 위치 주변 문자열(인용부호 보정 후 기준):', contextAroundPosition(quoteFixed, parseInt(posMatch4[1],10), 200));
+    }
+
+    var quoteAndCommaFixed = insertMissingCommasBetweenElements(quoteFixed);
+    var attempt5 = tryParse(quoteAndCommaFixed);
+    if(attempt5.ok){
+      console.warn('[incremental-ebook] ['+unitLabel+'] 인용부호+콤마 보정을 함께 적용한 5차 파싱 성공.');
+      return attempt5.value;
+    }
+
+    console.error('[incremental-ebook] ['+unitLabel+'] 5차(인용부호+콤마 보정 후) JSON.parse도 실패: '+attempt5.err.message);
+
+    var eFinal = new Error(unitLabel+': JSON 파싱 실패 — '+attempt5.err.message+' (개발자 콘솔의 window.__atlasLastRawResponse.'+unitLabel+' 에서 원문 전체를 확인할 수 있습니다)');
     eFinal.rawResponseText = raw;
-    eFinal.parseErrorMessage = attempt2.err.message;
+    eFinal.parseErrorMessage = attempt5.err.message;
     throw eFinal;
   }
 
@@ -279,8 +393,13 @@ ${FACTUALITY_RULES}
     });
   }
 
+  /* outline은 제목/서문(600자+)/서론(800자+)/결론(1200자+)/7개 챕터 브리핑/부록
+     제목/저작권/판매 카피(hook·pains·learnings·benefits·faqs 등)까지 한 번에
+     담아야 해서 6000 max_tokens로는 부족했다 — 실제 Windows에서 응답이 배열
+     중간에서 잘려 "Expected ',' or '}'" 파싱 오류로 재현된 원인. 16000으로
+     늘려 잘리지 않게 한다(claude-sonnet-4-6 최대 출력 128K 대비 충분히 여유). */
   E.generateOutline = function(modeWrapperPrefix){
-    return callGateway(E.buildOutlinePrompt(modeWrapperPrefix), 6000, 'outline').then(function(data){
+    return callGateway(E.buildOutlinePrompt(modeWrapperPrefix), 16000, 'outline').then(function(data){
       var text = extractResponseText(data);
       return robustJsonParse(text, '{', '}', 'outline');
     });
@@ -293,8 +412,13 @@ ${FACTUALITY_RULES}
     });
   };
 
+  /* 실제 Windows 실행에서 재현된 세 번째 종류의 실패: 부록 3개 각각이 실전
+     체크리스트/도구 비교표/실행 플랜만큼 풍부한 분량이라 5000 max_tokens로는
+     3개를 다 담기 전에 응답이 중간(두 번째 부록 도중)에서 잘렸다 — "Unterminated
+     string"은 그 어떤 후처리 보정으로도 고칠 수 없는 진짜 truncation 신호다.
+     목차와 동일하게 16000으로 늘려 잘리지 않게 한다. */
   E.generateAppendices = function(outline){
-    return callGateway(E.buildAppendicesPrompt(outline), 5000, 'appendices').then(function(data){
+    return callGateway(E.buildAppendicesPrompt(outline), 16000, 'appendices').then(function(data){
       var text = extractResponseText(data);
       return robustJsonParse(text, '[', ']', 'appendices');
     });

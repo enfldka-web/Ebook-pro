@@ -15,9 +15,10 @@ function config(env){
   return {
     apiKey: env.ANTHROPIC_API_KEY || '',
     timeoutMs: parseInt(env.ANTHROPIC_TEXT_TIMEOUT_MS, 10) || 120000,
-    /* 챕터별 생성은 목차/전체 병합보다 훨씬 작은 단위이므로 별도의(보통 더 짧은)
-       타임아웃을 쓸 수 있게 한다 — 지정하지 않으면 120초 기본값을 쓴다. */
-    chapterTimeoutMs: parseInt(env.ANTHROPIC_CHAPTER_TIMEOUT_MS, 10) || 120000
+    /* 챕터(max_tokens=9000)와 목차(max_tokens=16000, 판매 카피까지 포함해 챕터
+       못지않게 큼)는 일반 호출보다 응답 생성이 오래 걸릴 수 있어 더 넉넉한
+       타임아웃을 쓴다 — 지정하지 않으면 180초 기본값을 쓴다. */
+    chapterTimeoutMs: parseInt(env.ANTHROPIC_CHAPTER_TIMEOUT_MS, 10) || 180000
   };
 }
 
