@@ -17,7 +17,221 @@
   --glow:0 0 30px rgba(99,102,241,.2);
   --sidebar:240px;
   --r:14px;--rlg:20px;--rsm:9px;
+  /* Design Bible §21/§26 Foundation-Alignment: named motion tokens — durations
+     unchanged from existing usage (150-220ms range), consolidated here so future
+     rules reference one source instead of repeating literal values. No bounce/
+     spring easing exists anywhere in this file (verified) and none should be added. */
+  --motion-fast:150ms ease;
+  --motion-standard:220ms ease;
+  /* Atlas Redesign Phase 1 — Component System Foundation. Additive only: no
+     existing literal values were mass-replaced, these are named tokens for
+     new/redesigned rules going forward (Design Bible Typography Philosophy;
+     UI Intelligence §2 "type carries hierarchy through role, not many sizes"). */
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;
+  --fs-caption:11px;--fs-body:13px;--fs-heading:17px;
+  /* Two legitimate, deliberate button-geometry families coexist by design
+     (UI Intelligence §2 "geometry as a deliberate signal, not a default") —
+     do not unify them into one shape:
+     1) App-chrome actions (.btn-save, .btn-sec, .r-btn-*, .btn-danger, Settings/
+        Dashboard/History buttons) use the --r/--rsm radius family.
+     2) Hero-moment CTAs (.btn-hero-primary, .btn-price, .cv-gen-btn) and all
+        Brand-Pack-scoped Studio buttons (.ts-btn, .sps-btn, .al-btn) use a
+        100px pill — reserved for a single prominent action or the user's own
+        brand content, never app chrome. */
+
+  /* ══════════════════════════════════════════════════════════════════════
+     Atlas Visual Redesign v2 — Phase R0: Design System Foundation.
+     Namespaced "--a2-*" so it coexists with every existing --bg/--text/etc.
+     token above without touching any screen that hasn't been re-skinned
+     yet (Phases R1-R8 migrate one screen at a time). Light-mode-first, per
+     the reference image — a deliberate reversal of the earlier dark-mode
+     concept artifact, since the reference is unambiguously light. Neutrals
+     carry a faint cool-slate bias toward the accent rather than pure grey;
+     accent is a calm indigo-violet, same family as the existing --p but
+     independently chosen, not inherited from it. Semantic color (success/
+     warning/danger) is kept separate from the accent, per house convention.
+     ══════════════════════════════════════════════════════════════════════ */
+  --a2-bg:#f7f7f9;
+  --a2-surface:#ffffff;
+  --a2-surface-hover:#f2f2f6;
+  --a2-border:rgba(20,22,30,.07);
+  --a2-shadow-sm:0 1px 2px rgba(20,22,30,.04),0 1px 3px rgba(20,22,30,.05);
+  --a2-shadow-md:0 6px 20px rgba(20,22,30,.07),0 2px 6px rgba(20,22,30,.04);
+  --a2-shadow-lg:0 16px 40px rgba(20,22,30,.11);
+  --a2-text:#16171c;
+  --a2-text-muted:#6b6d78;
+  --a2-text-faint:#9a9ca6;
+  --a2-accent:#5b56e8;
+  --a2-accent-hover:#4d47dd;
+  --a2-accent-soft:rgba(91,86,232,.09);
+  --a2-accent-contrast:#ffffff;
+  --a2-success:#1a9d6c;--a2-success-soft:rgba(26,157,108,.1);
+  --a2-warning:#b8790a;--a2-warning-soft:rgba(184,121,10,.1);
+  --a2-danger:#d84559;--a2-danger-soft:rgba(216,69,89,.1);
+  --a2-r-sm:10px;--a2-r:14px;--a2-r-lg:20px;
+  --a2-fs-display:28px;
+  /* Quick-action icon-chip palette — wayfinding color, distinct from the
+     accent so the accent stays reserved for the single primary action per
+     screen (Design Bible accent-scarcity; UI Intelligence §2). */
+  --a2-chip-violet-bg:#efeafd;--a2-chip-violet-fg:#7c5cf0;
+  --a2-chip-blue-bg:#e8f1fd;--a2-chip-blue-fg:#2f78bd;
+  --a2-chip-green-bg:#e6f7ef;--a2-chip-green-fg:#1f9d6c;
+  --a2-chip-amber-bg:#fdf3e2;--a2-chip-amber-fg:#b8790a;
 }
+
+/* Atlas Visual Redesign v2 — component primitives (additive, unused by any
+   existing screen until its own re-skin phase lands). */
+.a2-card{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r);box-shadow:var(--a2-shadow-sm);transition:box-shadow var(--motion-standard)}
+.a2-card:hover{box-shadow:var(--a2-shadow-md)}
+.a2-icon-chip{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.a2-icon-chip.violet{background:var(--a2-chip-violet-bg);color:var(--a2-chip-violet-fg)}
+.a2-icon-chip.blue{background:var(--a2-chip-blue-bg);color:var(--a2-chip-blue-fg)}
+.a2-icon-chip.green{background:var(--a2-chip-green-bg);color:var(--a2-chip-green-fg)}
+.a2-icon-chip.amber{background:var(--a2-chip-amber-bg);color:var(--a2-chip-amber-fg)}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ATLAS UI KIT v2 — the single reusable component library every Phase
+   R1-R8 screen must consume (not invent screen-specific styles from).
+   Still fully additive/inert: no existing selector is modified, and none
+   of these classes are referenced by any live screen until that screen's
+   own re-skin phase applies them. Namespaced "a2-" throughout.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ---- z-index scale (new — nothing used a shared scale before) ---- */
+:root{--a2-z-dropdown:60;--a2-z-overlay:200;--a2-z-modal:210;--a2-z-toast:300}
+
+/* ---- Buttons ---- */
+.a2-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:var(--fs-body);font-weight:600;padding:9px 16px;border-radius:var(--a2-r-sm);border:1px solid transparent;cursor:pointer;transition:background var(--motion-fast),border-color var(--motion-fast),box-shadow var(--motion-fast),opacity var(--motion-fast);white-space:nowrap}
+.a2-btn:focus-visible{outline:2px solid var(--a2-accent);outline-offset:2px}
+.a2-btn-sm{padding:6px 12px;font-size:var(--fs-caption)}
+.a2-btn-primary{background:var(--a2-accent);color:var(--a2-accent-contrast)}
+.a2-btn-primary:hover{background:var(--a2-accent-hover)}
+.a2-btn-secondary{background:var(--a2-surface);color:var(--a2-text);border-color:var(--a2-border);box-shadow:var(--a2-shadow-sm)}
+.a2-btn-secondary:hover{background:var(--a2-surface-hover)}
+.a2-btn-ghost{background:transparent;color:var(--a2-text-muted)}
+.a2-btn-ghost:hover{background:var(--a2-surface-hover);color:var(--a2-text)}
+.a2-btn-danger{background:var(--a2-danger-soft);color:var(--a2-danger)}
+.a2-btn-danger:hover{background:var(--a2-danger);color:#fff}
+.a2-btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.a2-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:var(--a2-r-sm);border:1px solid transparent;background:transparent;color:var(--a2-text-muted);cursor:pointer;transition:background var(--motion-fast),color var(--motion-fast)}
+.a2-icon-btn:hover{background:var(--a2-surface-hover);color:var(--a2-text)}
+
+/* ---- Cards ---- */
+.a2-card-header{padding:18px 20px;border-bottom:1px solid var(--a2-border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.a2-card-body{padding:20px}
+.a2-card-footer{padding:14px 20px;border-top:1px solid var(--a2-border)}
+.a2-card.interactive{cursor:pointer}
+.a2-card.interactive:hover{box-shadow:var(--a2-shadow-md);transform:translateY(-1px)}
+.a2-card.selected{border-color:var(--a2-accent);box-shadow:0 0 0 1px var(--a2-accent)}
+
+/* ---- Forms / Inputs ---- */
+.a2-field{display:flex;flex-direction:column;gap:6px}
+.a2-label{font-size:var(--fs-caption);font-weight:600;color:var(--a2-text-muted)}
+.a2-input,.a2-textarea,.a2-select{font-family:inherit;font-size:var(--fs-body);color:var(--a2-text);background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);padding:10px 12px;transition:border-color var(--motion-fast),box-shadow var(--motion-fast)}
+.a2-textarea{resize:vertical;min-height:96px;line-height:1.6}
+.a2-input:focus,.a2-textarea:focus,.a2-select:focus{outline:none;border-color:var(--a2-accent);box-shadow:0 0 0 3px var(--a2-accent-soft)}
+.a2-input::placeholder,.a2-textarea::placeholder{color:var(--a2-text-faint)}
+.a2-hint{font-size:var(--fs-caption);color:var(--a2-text-faint)}
+.a2-field.error .a2-input,.a2-field.error .a2-textarea,.a2-field.error .a2-select{border-color:var(--a2-danger)}
+.a2-field.error .a2-hint{color:var(--a2-danger)}
+
+/* ---- Dropdowns ---- */
+.a2-dropdown{position:relative;display:inline-block}
+.a2-dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:200px;background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);box-shadow:var(--a2-shadow-lg);padding:6px;z-index:var(--a2-z-dropdown)}
+.a2-dropdown-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;font-size:var(--fs-body);color:var(--a2-text);cursor:pointer;background:transparent;border:none;width:100%;text-align:left}
+.a2-dropdown-item:hover{background:var(--a2-surface-hover)}
+.a2-dropdown-item.danger{color:var(--a2-danger)}
+
+/* ---- Tabs ---- */
+.a2-tabs{display:flex;gap:4px;border-bottom:1px solid var(--a2-border)}
+.a2-tab{padding:10px 4px;margin-right:20px;font-size:var(--fs-body);font-weight:600;color:var(--a2-text-faint);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:color var(--motion-fast),border-color var(--motion-fast)}
+.a2-tab:hover{color:var(--a2-text-muted)}
+.a2-tab.active{color:var(--a2-accent);border-color:var(--a2-accent)}
+
+/* ---- Modals / Dialogs ---- */
+.a2-overlay{position:fixed;inset:0;background:rgba(20,22,30,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:var(--a2-z-overlay);padding:20px}
+.a2-modal{background:var(--a2-surface);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-lg);max-width:440px;width:100%;z-index:var(--a2-z-modal)}
+.a2-modal-header{padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.a2-modal-header h3{font-size:var(--fs-heading);font-weight:700;color:var(--a2-text)}
+.a2-modal-body{padding:14px 24px 20px;font-size:var(--fs-body);color:var(--a2-text-muted);line-height:1.6}
+.a2-modal-footer{padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end}
+
+/* ---- Chips (small tag pills — distinct from the 40px icon-chip above) ---- */
+.a2-chip{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-caption);font-weight:600;padding:4px 11px;border-radius:100px;background:var(--a2-surface-hover);color:var(--a2-text-muted)}
+.a2-chip.accent{background:var(--a2-accent-soft);color:var(--a2-accent)}
+
+/* ---- Badges ---- */
+.a2-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:6px}
+.a2-badge-neutral{background:var(--a2-surface-hover);color:var(--a2-text-muted)}
+.a2-badge-accent{background:var(--a2-accent-soft);color:var(--a2-accent)}
+.a2-badge-success{background:var(--a2-success-soft);color:var(--a2-success)}
+.a2-badge-warning{background:var(--a2-warning-soft);color:var(--a2-warning)}
+.a2-badge-danger{background:var(--a2-danger-soft);color:var(--a2-danger)}
+
+/* ---- Empty states (reuses the same information shape as the existing
+   .empty-state component — Empty stays ONE canonical pattern app-wide,
+   just re-skinned here for the new visual system) ---- */
+.a2-empty{text-align:center;padding:56px 20px;color:var(--a2-text-muted)}
+.a2-empty-icon{width:44px;height:44px;margin:0 auto 16px;color:var(--a2-text-faint)}
+.a2-empty-title{font-size:var(--fs-heading);font-weight:700;color:var(--a2-text);margin-bottom:6px}
+.a2-empty-sub{font-size:var(--fs-body);margin-bottom:20px}
+
+/* ---- Loading states ---- */
+.a2-spinner{width:16px;height:16px;border:2px solid var(--a2-border);border-top-color:var(--a2-accent);border-radius:50%;animation:a2-spin .7s linear infinite;flex-shrink:0}
+@keyframes a2-spin{to{transform:rotate(360deg)}}
+.a2-loading-inline{display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-body);color:var(--a2-text-muted)}
+.a2-skeleton{background:linear-gradient(90deg,var(--a2-surface-hover) 25%,var(--a2-border) 37%,var(--a2-surface-hover) 63%);background-size:400% 100%;border-radius:6px;animation:a2-shimmer 1.4s ease infinite}
+@keyframes a2-shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+@media(prefers-reduced-motion:reduce){.a2-spinner,.a2-skeleton{animation:none}}
+
+/* ---- Error / Success states ---- */
+.a2-error-text{font-size:var(--fs-caption);color:var(--a2-danger)}
+.a2-banner{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--a2-r-sm);font-size:var(--fs-body)}
+.a2-banner svg{flex-shrink:0;margin-top:1px}
+.a2-banner-error{background:var(--a2-danger-soft);color:var(--a2-danger)}
+.a2-banner-success{background:var(--a2-success-soft);color:var(--a2-success)}
+.a2-banner-warning{background:var(--a2-warning-soft);color:var(--a2-warning)}
+.a2-banner-info{background:var(--a2-accent-soft);color:var(--a2-accent)}
+
+/* ---- Toasts ---- */
+.a2-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);display:flex;align-items:center;gap:9px;padding:12px 18px;border-radius:var(--a2-r-sm);background:var(--a2-text);color:#fff;font-size:var(--fs-body);font-weight:600;box-shadow:var(--a2-shadow-lg);opacity:0;pointer-events:none;transition:opacity var(--motion-standard),transform var(--motion-standard);z-index:var(--a2-z-toast)}
+.a2-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.a2-toast-success{background:var(--a2-success)}
+.a2-toast-error{background:var(--a2-danger)}
+
+/* ---- Progress ---- */
+.a2-progress{height:4px;background:var(--a2-border);border-radius:100px;overflow:hidden}
+.a2-progress-fill{height:100%;background:var(--a2-accent);border-radius:100px;transition:width var(--motion-standard)}
+.a2-progress-circle{transform:rotate(-90deg)}
+.a2-progress-circle .track{stroke:var(--a2-border)}
+.a2-progress-circle .fill{stroke:var(--a2-accent);stroke-linecap:round;transition:stroke-dashoffset var(--motion-standard)}
+.a2-steps{display:flex;align-items:center;gap:6px}
+.a2-step-dot{width:8px;height:8px;border-radius:50%;background:var(--a2-border);transition:background var(--motion-fast)}
+.a2-step-dot.done,.a2-step-dot.active{background:var(--a2-accent)}
+.a2-step-dot.active{box-shadow:0 0 0 3px var(--a2-accent-soft)}
+
+/* ---- Tables ---- */
+.a2-table{width:100%;border-collapse:collapse;font-size:var(--fs-body)}
+.a2-table th{text-align:left;font-size:var(--fs-caption);font-weight:700;color:var(--a2-text-faint);text-transform:uppercase;letter-spacing:.04em;padding:0 12px 10px;border-bottom:1px solid var(--a2-border)}
+.a2-table td{padding:13px 12px;border-bottom:1px solid var(--a2-border);color:var(--a2-text)}
+.a2-table tbody tr{transition:background var(--motion-fast)}
+.a2-table tbody tr:hover{background:var(--a2-surface-hover)}
+.a2-table tbody tr:last-child td{border-bottom:none}
+
+/* ---- Navigation components ---- */
+.a2-nav-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--a2-r-sm);font-size:var(--fs-body);font-weight:600;color:var(--a2-text-muted);cursor:pointer;border:none;background:transparent;width:100%;text-align:left;transition:background var(--motion-fast),color var(--motion-fast)}
+.a2-nav-item svg{flex-shrink:0}
+.a2-nav-item:hover{background:var(--a2-surface-hover);color:var(--a2-text)}
+.a2-nav-item.active{background:var(--a2-accent-soft);color:var(--a2-accent)}
+.a2-nav-item:focus-visible{outline:2px solid var(--a2-accent);outline-offset:-2px}
+.a2-tabbar{display:flex;align-items:center;justify-content:space-around;background:var(--a2-surface);border-top:1px solid var(--a2-border);padding:8px 4px calc(8px + env(safe-area-inset-bottom))}
+.a2-tabbar-item{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--a2-text-faint);background:none;border:none;padding:6px 10px;border-radius:10px;min-width:56px}
+.a2-tabbar-item.active{color:var(--a2-accent)}
+/* #mobile-tabbar: the live App Shell's bottom nav. Fixed + hidden by default;
+   only becomes visible (and the .main-content bottom padding it needs) inside
+   the ≤768px mobile media query below (Phase R1 mobile correction #8). */
+#mobile-tabbar{position:fixed;left:0;right:0;bottom:0;z-index:150;display:none}
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
 a{text-decoration:none;color:inherit}
@@ -323,251 +537,319 @@ textarea{resize:vertical}
 .app-layout{display:flex;width:100%;min-height:100vh;overflow:hidden}
 .app-page{display:none}.app-page.active{display:block;min-height:100vh}
 
-/* SIDEBAR */
+/* SIDEBAR — Atlas Visual Redesign v2, Phase R1: App Shell now consumes the
+   .a2-* UI Kit (nav items = .a2-nav-item, icon buttons = .a2-icon-btn,
+   primary CTA = .a2-btn/.a2-btn-primary) and the new light-mode-first
+   tokens. .sb-item/.sb-icon retired below — no other file referenced them
+   (confirmed) once index.html was switched to .a2-nav-item + data-icon
+   spans (js/atlas-icons.js). .main-content's own background intentionally
+   stays on the OLD dark tokens for now — that's every not-yet-re-skinned
+   screen's ground, re-skinned one phase at a time (Phase R2 onward), so a
+   light Shell next to dark content is an expected transitional state, not
+   a bug (see Phase R1 report). */
 .sidebar{
   width:var(--sidebar);
-  background:var(--bg2);
-  border-right:1px solid var(--border);
+  background:var(--a2-surface);
+  border-right:1px solid var(--a2-border);
   display:flex;flex-direction:column;
   position:fixed;top:0;left:0;height:100vh;
-  z-index:100;transition:transform .3s;
+  z-index:100;transition:transform var(--motion-standard);
 }
 .sb-logo{
   padding:22px 20px 18px;
   display:flex;align-items:center;gap:12px;
-  border-bottom:1px solid var(--border);
+  border-bottom:1px solid var(--a2-border);
   text-decoration:none;
 }
 .sb-logo-icon{
-  width:36px;height:36px;background:var(--grad);border-radius:10px;
-  display:flex;align-items:center;justify-content:center;font-size:16px;
-  flex-shrink:0;box-shadow:0 3px 12px rgba(99,102,241,.4);
+  width:32px;height:32px;background:var(--a2-accent);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  flex-shrink:0;
 }
-.sb-logo-text{font-size:11px;font-weight:800;color:var(--text);line-height:1.4;letter-spacing:-.1px}
-.sb-logo-text em{font-style:normal;color:var(--p2)}
+.sb-logo-text{font-size:var(--fs-caption);font-weight:800;color:var(--a2-text);line-height:1.4;letter-spacing:-.1px}
 .sb-nav{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:3px;overflow-y:auto}
-.sb-item{
-  display:flex;align-items:center;gap:11px;
-  padding:11px 14px;border-radius:11px;
-  font-size:13px;font-weight:600;color:var(--text2);
-  border:none;background:transparent;width:100%;text-align:left;
-  transition:all .2s;letter-spacing:-.1px;
-}
-.sb-item:hover{background:var(--glass2);color:var(--text)}
-.sb-item.active{background:rgba(99,102,241,.13);color:var(--p2);border:1px solid rgba(99,102,241,.2)}
-.sb-icon{font-size:16px;flex-shrink:0;opacity:.85}
-.sb-divider{height:1px;background:var(--border);margin:8px 2px}
+.sb-divider{height:1px;background:var(--a2-border);margin:8px 2px}
 .sb-bottom{padding:14px 12px}
 .sb-user{
   display:flex;align-items:center;gap:10px;
-  padding:11px 13px;background:var(--glass);
-  border:1px solid var(--border);border-radius:12px;
-  transition:all .2s;
+  padding:10px 12px;background:transparent;
+  border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);
+  transition:background var(--motion-fast);
 }
-.sb-user:hover{border-color:var(--border2);background:var(--glass2)}
+.sb-user:hover{background:var(--a2-surface-hover)}
 .sb-av{
-  width:34px;height:34px;border-radius:9px;
-  background:var(--grad);display:flex;align-items:center;justify-content:center;
-  font-size:14px;flex-shrink:0;box-shadow:0 2px 8px rgba(99,102,241,.3);
+  width:32px;height:32px;border-radius:9px;
+  background:var(--a2-accent-soft);color:var(--a2-accent);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
 }
-.sb-user-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.1px;flex:1}
-.sb-user-plan{font-size:10px;color:var(--text3);margin-top:2px}
+.sb-user-name{font-size:var(--fs-body);font-weight:700;color:var(--a2-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.1px;flex:1}
+.sb-user-plan{font-size:10px;color:var(--a2-text-faint);margin-top:2px}
 .plan-badge{display:inline-block;font-size:9px;font-weight:800;padding:2px 8px;border-radius:100px;letter-spacing:.5px;text-transform:uppercase}
-.plan-free{background:var(--glass2);color:var(--text2)}
-.plan-starter{background:var(--p3);color:var(--p2)}
-.plan-pro{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(236,72,153,.2));color:#e9d5ff}
+.plan-free{background:var(--a2-surface-hover);color:var(--a2-text-muted)}
+.plan-starter{background:var(--a2-accent-soft);color:var(--a2-accent)}
+.plan-pro{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(236,72,153,.14));color:#8b3fa8}
 
 /* MAIN CONTENT */
 .main-content{margin-left:var(--sidebar);display:block;min-height:100vh;background:var(--bg);overflow-x:hidden;box-sizing:border-box}
 
 /* TOPBAR */
 .topbar{
-  height:60px;background:rgba(6,6,9,.92);
+  height:60px;background:rgba(255,255,255,.85);
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--border);
+  border-bottom:1px solid var(--a2-border);
   display:flex;align-items:center;justify-content:space-between;
   padding:0 28px;position:sticky;top:0;z-index:50;
 }
-.topbar-title{font-size:15px;font-weight:800;letter-spacing:-.3px}
+.topbar-title{font-size:15px;font-weight:800;letter-spacing:-.3px;color:var(--a2-text)}
 .topbar-right{display:flex;align-items:center;gap:10px}
-.topbar-btn{
-  padding:8px 18px;background:var(--grad);border:none;border-radius:9px;
-  font-size:12px;font-weight:700;color:#fff;
-  box-shadow:0 3px 12px rgba(99,102,241,.3);
-  transition:all .2s;letter-spacing:-.1px;
-}
-.topbar-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
-.menu-btn{
-  width:36px;height:36px;background:var(--glass);border:1px solid var(--border);
-  border-radius:9px;display:none;align-items:center;justify-content:center;font-size:16px;color:var(--text2);
-  transition:all .2s;
-}
-.menu-btn:hover{background:var(--glass2);color:var(--text)}
+.topbar-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 
 /* CONTENT */
 .content{padding:28px 32px;box-sizing:border-box;width:100%;overflow-x:hidden}
+/* Atlas Visual Redesign v2: every primary screen has now flipped to the
+   light a2-* ground (Dashboard R2, Converter R3/R4, History/Settings R6) —
+   the transitional-seam pattern Phase R1 used for the shell is retired,
+   all four destinations are unified. Container-level color reset is
+   critical on each: body's default color:var(--text) (#eeeef4, near-white,
+   meant for the old dark ground) would otherwise be inherited by any bare/
+   unstyled text inside these now-light screens, rendering it invisible.
+   This is the safety net; specific elements still set their own
+   a2-text-muted/faint tones for hierarchy. */
+#app-dashboard{background:var(--a2-bg);color:var(--a2-text);min-height:calc(100vh - 60px)}
+#app-dashboard .sec-head-title{color:var(--a2-text)}
+#app-dashboard .sec-head-sub{color:var(--a2-text-muted)}
+#app-dashboard .link-btn{color:var(--a2-accent)}
+#app-dashboard .link-btn:hover{color:var(--a2-accent-hover)}
+#app-converter{background:var(--a2-bg);color:var(--a2-text);min-height:calc(100vh - 60px)}
+#app-history,#app-settings{background:var(--a2-bg);color:var(--a2-text);min-height:calc(100vh - 60px)}
+#app-history .sec-head-title{color:var(--a2-text)}
+#app-history .sec-head-sub{color:var(--a2-text-muted)}
 
-/* CARDS */
-.card{background:var(--grad-card);border:1px solid var(--border);border-radius:var(--r);padding:28px}
-.card-sm{background:var(--grad-card);border:1px solid var(--border);border-radius:var(--rsm);padding:18px 20px}
+/* CARDS — Atlas Visual Redesign v2, Phase R6: light soft-shadow surface,
+   same language as .dash-workcenter/.stat-card. Settings-exclusive now
+   (confirmed via grep: the only remaining consumer). */
+.card{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:28px}
+
+/* Atlas Visual Redesign v2, Phase R2 — Dashboard work-center card: the
+   primary "what am I working on / what should I do next" answer, built
+   entirely from real draft state (atlasGetDraftSummary in application.js).
+   Light soft-shadow surface, the dominant/first element on the screen (the
+   subscription status line moved below it — see .dash-status-row). Now
+   consumes the UI Kit's .a2-progress for the progress bar instead of the
+   old .usage-bar-wrap (that stays reserved for Settings, unchanged). */
+.dash-workcenter{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:28px;margin-bottom:20px}
+.dash-workcenter-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.dash-workcenter-eyebrow{font-size:var(--fs-caption);font-weight:700;color:var(--a2-accent);letter-spacing:.5px;text-transform:uppercase}
+.dash-workcenter-saved{font-size:var(--fs-caption);color:var(--a2-text-faint)}
+.dash-workcenter-title{font-size:22px;font-weight:800;letter-spacing:-.4px;color:var(--a2-text);margin-bottom:6px;word-break:keep-all}
+.dash-workcenter-stage{font-size:var(--fs-body);color:var(--a2-text-muted);margin-bottom:18px}
+.dash-workcenter-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.dash-workcenter-empty .dash-workcenter-title{font-size:20px;margin-bottom:8px}
+
+/* Quiet secondary account/status row (Phase R2 correction #8) — plain text
+   row, deliberately not a card/banner, sits below the work-center. */
+.dash-status-row{display:flex;align-items:center;gap:8px;font-size:var(--fs-caption);color:var(--a2-text-muted);margin-bottom:22px;padding:0 2px;flex-wrap:wrap}
+.dash-status-row svg{color:var(--a2-text-faint);flex-shrink:0}
+
+/* Quick Actions — icon-chip cards using the UI Kit's .a2-icon-chip color
+   variants as a wayfinding device (each real destination gets a distinct,
+   consistent color), not a decorative accent. */
+.dash-quickactions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:24px}
+.dash-qa-card{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r);box-shadow:var(--a2-shadow-sm);cursor:pointer;transition:box-shadow var(--motion-standard),transform var(--motion-standard);text-align:left;font-family:inherit}
+.dash-qa-card:hover{box-shadow:var(--a2-shadow-md);transform:translateY(-1px)}
+.dash-qa-label{font-size:var(--fs-body);font-weight:700;color:var(--a2-text);word-break:keep-all}
 
 /* STAT CARDS */
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:32px}
-.stat-card{
-  background:var(--grad-card);border:1px solid var(--border);
-  border-radius:var(--r);padding:24px;
-  transition:all .3s;position:relative;overflow:hidden;
-}
-.stat-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow)}
-.stat-icon{font-size:28px;margin-bottom:14px;display:block}
-.stat-val{font-size:32px;font-weight:900;line-height:1;letter-spacing:-1px}
-.stat-label{font-size:12px;color:var(--text2);margin-top:6px;font-weight:500}
-.stat-change{font-size:11px;margin-top:10px;font-weight:600}
-.stat-change.up{color:var(--green)}.stat-change.neu{color:var(--text3)}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:28px}
+.stat-card{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r);box-shadow:var(--a2-shadow-sm);padding:20px;display:flex;flex-direction:column;gap:10px;transition:box-shadow var(--motion-standard)}
+.stat-card:hover{box-shadow:var(--a2-shadow-md)}
+.stat-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stat-val{font-size:30px;font-weight:800;color:var(--a2-text);letter-spacing:-.5px;line-height:1}
+.stat-label{font-size:var(--fs-caption);color:var(--a2-text-muted);font-weight:600}
+.stat-caption{font-size:11px;color:var(--a2-text-faint)}
+.stat-spark{display:block;color:var(--a2-accent);flex-shrink:0}
+.stat-spark-fill{fill:var(--a2-accent-soft)}
 
-/* EBOOK CARDS */
-.ebook-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-.ebook-card{
-  background:var(--grad-card);border:1px solid var(--border);
-  border-radius:var(--r);overflow:hidden;transition:all .3s;cursor:pointer;
-}
-.ebook-card:hover{border-color:rgba(99,102,241,.3);transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.35)}
+/* RECENT PROJECTS — Dashboard-only card (dashProjectCard() in
+   application.js), distinct from History's .ebook-card (Phase R6 scope,
+   still dark/unmigrated). Cover is the visual focus; a single primary
+   "열기" action plus delete, matching Phase R2 correction #7. */
+.dash-projgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.dash-projcard{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r);overflow:hidden;box-shadow:var(--a2-shadow-sm);cursor:pointer;transition:box-shadow var(--motion-standard),transform var(--motion-standard)}
+.dash-projcard:hover{box-shadow:var(--a2-shadow-md);transform:translateY(-2px)}
+.dash-projcover{height:120px;display:flex;align-items:flex-end;padding:12px;color:#fff}
+.dash-projcover-title{font-family:'Noto Serif KR',serif;font-size:13px;font-weight:700;line-height:1.4;word-break:keep-all}
+.dash-projbody{padding:12px 14px 14px}
+.dash-projmeta{font-size:11px;color:var(--a2-text-faint);margin-bottom:4px}
+.dash-projtitle{font-size:13px;font-weight:700;color:var(--a2-text);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dash-projactions{display:flex;gap:6px;align-items:center}
+.dash-projactions .a2-btn{flex:1}
+/* "새 전자책 만들기" ghost tile — a peer of real project cards, same
+   shape/grid slot, calling the exact same startNewEbookProject() action
+   used everywhere else (no new capability). */
+.dash-proj-new{border:1.5px dashed var(--a2-border);background:transparent;border-radius:var(--a2-r);box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:190px;color:var(--a2-text-muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:border-color var(--motion-standard),color var(--motion-standard)}
+.dash-proj-new:hover{border-color:var(--a2-accent);color:var(--a2-accent)}
+
+/* EBOOK CARDS — Atlas Visual Redesign v2, Phase R6: History-exclusive
+   (confirmed via grep: Dashboard uses its own separate .dash-projcard).
+   Same soft-shadow card language as Dashboard's project cards. */
+.ebook-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.ebook-card{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r);overflow:hidden;box-shadow:var(--a2-shadow-sm);cursor:pointer;transition:box-shadow var(--motion-standard),transform var(--motion-standard)}
+.ebook-card:hover{box-shadow:var(--a2-shadow-md);transform:translateY(-2px)}
 .ebook-cover{height:140px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;position:relative;overflow:hidden}
 .ebook-cover-title{font-family:'Noto Serif KR',serif;font-size:13px;font-weight:700;color:#fff;position:relative;z-index:1;line-height:1.4;word-break:keep-all}
-.ebook-cover-cat{font-size:10px;color:rgba(255,255,255,.5);position:relative;z-index:1;margin-top:6px}
+.ebook-cover-cat{font-size:10px;color:rgba(255,255,255,.65);position:relative;z-index:1;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:4px}
 .ebook-body{padding:14px 16px}
-.ebook-meta{font-size:11px;color:var(--text3);margin-bottom:5px}
-.ebook-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;word-break:keep-all;line-height:1.4}
+.ebook-meta{font-size:11px;color:var(--a2-text-faint);margin-bottom:5px}
+.ebook-title{font-size:13px;font-weight:700;color:var(--a2-text);margin-bottom:10px;word-break:keep-all;line-height:1.4}
 .ebook-tags{display:flex;gap:5px;flex-wrap:wrap}
-.ebook-tag{background:var(--p3);border:1px solid rgba(99,102,241,.2);color:var(--p2);font-size:10px;font-weight:600;padding:3px 9px;border-radius:100px}
-.ebook-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
-.ebook-act-btn{flex:1;padding:7px;background:var(--glass);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--text2);font-weight:600;transition:all .2s}
-.ebook-act-btn:hover{background:var(--p3);border-color:rgba(99,102,241,.3);color:var(--p2)}
+.ebook-tag{background:var(--a2-accent-soft);border:1px solid var(--a2-border);color:var(--a2-accent);font-size:10px;font-weight:600;padding:3px 9px;border-radius:100px}
+.ebook-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--a2-border)}
+.ebook-act-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px;background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:8px;font-size:11px;color:var(--a2-text-muted);font-weight:600;transition:all .2s}
+.ebook-act-btn:hover{background:var(--a2-surface-hover);border-color:var(--a2-accent);color:var(--a2-accent)}
 
-/* USAGE BAR */
-.usage-bar-wrap{background:rgba(255,255,255,.05);border-radius:100px;height:5px;overflow:hidden;margin:8px 0}
-.usage-bar{height:100%;border-radius:100px;background:var(--grad);transition:width .6s}
+/* Atlas Redesign Phase 2 — State System Foundation (js/atlas-state-system.js).
+   Centralized presentation for Loading/Error/Disabled/No-Results/Validation —
+   Empty reuses .a2-empty (UI Kit), Processing reuses .atlas-state-badge here,
+   Success reuses the toast below. Presentation only, no trigger logic.
+   Atlas Visual Redesign v2, Phase R7: full re-skin to a2 tokens (every
+   consumer — ai-planner.js/image-generation-ui.js — now lives on the
+   already-migrated Converter screen; .atlas-state-disabled-warn/-info were
+   already self-contained light-mode colors and are unchanged). */
+.atlas-state-badge{font-size:11px;font-weight:700}
+.atlas-state-noresults{font-size:12px;color:var(--a2-text-muted);display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap;padding:var(--sp-2) 0}
+.atlas-state-error{font-size:var(--fs-caption);color:var(--a2-danger);margin-top:var(--sp-1)}
+.atlas-state-disabled{font-size:var(--fs-caption);font-weight:700;border-radius:6px;padding:6px 10px}
+.atlas-state-disabled-warn{color:#991b1b;background:#fef2f2;border:1px solid #fca5a5}
+.atlas-state-disabled-info{color:#166534;background:#f0fdf4;border:1px solid #86efac}
+.atlas-state-loading{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-caption);color:var(--a2-text-muted)}
+.atlas-state-spinner{width:12px;height:12px;border:2px solid var(--a2-border);border-top-color:var(--a2-accent);border-radius:50%;animation:atlas-state-spin .7s linear infinite}
+@keyframes atlas-state-spin{to{transform:rotate(360deg)}}
+.atlas-state-validation{font-size:var(--fs-caption);margin-top:var(--sp-1)}
+.atlas-state-validation-warn{color:#b45309}
+.atlas-state-validation-error{color:var(--a2-danger)}
+.atlas-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:12px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity var(--motion-standard),transform var(--motion-standard);pointer-events:none;max-width:380px;text-align:center;white-space:nowrap;color:#fff}
+.atlas-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.atlas-toast-success{background:rgba(16,185,129,.95)}
+.atlas-toast-error{background:rgba(239,68,68,.95)}
+.atlas-toast-info{background:rgba(99,102,241,.95)}
 
-/* EMPTY STATE */
-.empty-state{text-align:center;padding:72px 20px}
-.empty-icon{font-size:56px;margin-bottom:20px;display:block;opacity:.8}
-.empty-title{font-size:20px;font-weight:800;margin-bottom:10px;letter-spacing:-.3px}
-.empty-sub{font-size:14px;color:var(--text2);margin-bottom:28px;line-height:1.75}
-
-/* SEC HEADER */
+/* SEC HEADER — shared by Dashboard's recent-projects shelf (#app-dashboard
+   override, Phase R2) and History's page header (#app-history override,
+   Phase R6, below). */
 .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.sec-head-title{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.sec-head-title{font-size:var(--fs-heading);font-weight:800;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
 .sec-head-sub{font-size:12px;color:var(--text2);margin-top:3px}
-.link-btn{font-size:12px;color:var(--p2);font-weight:600;background:none;border:none;transition:color .2s}
-.link-btn:hover{color:var(--text)}
+.link-btn{font-size:12px;color:var(--a2-accent);font-weight:600;background:none;border:none;transition:color .2s}
+.link-btn:hover{color:var(--a2-accent-hover)}
 
-/* UPGRADE BANNER */
-.upgrade-banner{
-  background:linear-gradient(135deg,rgba(99,102,241,.09),rgba(167,139,250,.06));
-  border:1px solid rgba(99,102,241,.18);border-radius:var(--r);
-  padding:20px 26px;display:flex;align-items:center;justify-content:space-between;
-  gap:16px;margin-bottom:24px;flex-wrap:wrap;
-}
-.upgrade-text h4{font-size:15px;font-weight:800;margin-bottom:4px;letter-spacing:-.2px}
-.upgrade-text p{font-size:13px;color:var(--text2);line-height:1.6}
-.btn-upgrade{padding:10px 22px;background:var(--grad);border:none;border-radius:10px;font-size:13px;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.3);transition:all .2s}
-.btn-upgrade:hover{filter:brightness(1.1)}
-
-/* SETTINGS */
+/* SETTINGS — Atlas Visual Redesign v2, Phase R6: light card sections inside
+   the re-skinned .card wrapper. .btn-save/.btn-sec/.btn-danger/.toggle
+   (old app-chrome buttons/switch) retired — Settings/History now use the
+   UI Kit's .a2-btn-primary/-secondary/-danger directly (confirmed zero
+   remaining references before removal). */
 .settings-section{margin-bottom:32px}
-.settings-title{font-size:14px;font-weight:800;margin-bottom:16px;padding-bottom:13px;border-bottom:1px solid var(--border);letter-spacing:-.2px;color:var(--text2);text-transform:uppercase;letter-spacing:1px}
-.settings-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.03);gap:16px;flex-wrap:wrap}
-.settings-label{font-size:14px;font-weight:600;letter-spacing:-.1px}
-.settings-desc{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.6}
-.settings-input{flex:1;min-width:200px;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);outline:none;transition:all .2s}
-.settings-input:focus{border-color:var(--p);background:rgba(99,102,241,.05);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
-.btn-save{padding:10px 22px;background:var(--grad);border:none;border-radius:9px;font-size:13px;font-weight:700;color:#fff;box-shadow:0 3px 12px rgba(99,102,241,.25);transition:all .2s}
-.btn-save:hover{filter:brightness(1.1)}
-.btn-danger{padding:10px 22px;background:rgba(240,80,112,.08);border:1px solid rgba(240,80,112,.2);border-radius:9px;font-size:13px;font-weight:700;color:#ffb3c1;transition:all .2s}
-.btn-danger:hover{background:rgba(240,80,112,.15)}
-.toggle{width:44px;height:24px;background:rgba(255,255,255,.1);border-radius:100px;position:relative;border:none;flex-shrink:0;transition:background .25s}
-.toggle.on{background:var(--p)}
-.toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
-.toggle.on::after{transform:translateX(20px)}
+.settings-section:last-child{margin-bottom:0}
+.settings-title{font-size:var(--fs-caption);font-weight:800;margin-bottom:16px;padding-bottom:13px;border-bottom:1px solid var(--a2-border);letter-spacing:1px;color:var(--a2-text-muted);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--a2-border);gap:16px;flex-wrap:wrap}
+.settings-row:last-child{border-bottom:none;padding-bottom:0}
+.settings-label{font-size:var(--fs-body);font-weight:600;color:var(--a2-text);letter-spacing:-.1px}
+.settings-desc{font-size:12px;color:var(--a2-text-muted);margin-top:3px;line-height:1.6}
+.settings-input{flex:1;min-width:200px;padding:11px 14px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);font-size:13px;color:var(--a2-text);outline:none;transition:all .2s}
+.settings-input:focus{border-color:var(--a2-accent);background:var(--a2-surface);box-shadow:0 0 0 3px var(--a2-accent-soft)}
+.settings-input:read-only{opacity:.6;cursor:not-allowed}
 
-/* CONVERTER */
-.converter-wrap{max-width:800px;width:100%;container-type:inline-size}
-.cv-apikey-warn{display:none;background:rgba(240,80,112,.08);border:1px solid rgba(240,80,112,.2);border-radius:var(--rsm);padding:14px 18px;margin-bottom:14px;font-size:13px;color:#ffb3c1;line-height:1.7}
-.cv-limit-warn{background:rgba(232,184,75,.07);border:1px solid rgba(232,184,75,.18);border-radius:var(--rsm);padding:12px 16px;font-size:13px;color:var(--gold);margin-bottom:16px;display:none}
-.input-mode-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(34,201,138,.08);border:1px solid rgba(34,201,138,.18);color:var(--green);font-size:11px;font-weight:700;padding:5px 14px;border-radius:100px;margin-bottom:16px}
-.input-tabs{display:flex;gap:0;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:22px}
-.input-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--text2);border-radius:9px;border:none;background:transparent;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.1px}
-.input-tab.active{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.3)}
+/* CONVERTER — Atlas Visual Redesign v2, Phase R3: Step 1 re-skinned to the
+   light a2-* system. cv-topic-input/-label/cv-url-input/-textarea retired
+   (migrated to a2-input/a2-label/a2-textarea directly in index.html —
+   confirmed zero remaining references before removal). */
+/* Atlas Visual Redesign v2, Phase R10 — Ebook Generation Workspace: widened
+   from the old 800px cap so the workspace uses the desktop canvas like a
+   real working surface instead of a centered narrow form (confirmed via
+   screenshot audit: ~45% dead gray space on both sides at 1440px). Text-
+   heavy panels (Step 1 forms, Title Studio edit fields) still constrain
+   their own line-length via .cv-topic-wrap/.ts-edit, so widening the outer
+   wrap doesn't hurt readability — it gives 2-column layouts (Step 3/4) room
+   to exist. */
+.converter-wrap{max-width:1120px;width:100%;container-type:inline-size}
+.cv-limit-warn{background:var(--a2-warning-soft);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);padding:12px 16px;font-size:13px;color:var(--a2-warning);margin-bottom:16px;display:none}
+.input-mode-badge{display:inline-flex;align-items:center;gap:6px;background:var(--a2-success-soft);border:1px solid var(--a2-border);color:var(--a2-success);font-size:11px;font-weight:700;padding:5px 14px;border-radius:100px;margin-bottom:16px}
+.input-tabs{display:flex;gap:0;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:12px;padding:4px;margin-bottom:22px}
+.input-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--a2-text-muted);border-radius:9px;border:none;background:transparent;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.1px;font-family:inherit}
+.input-tab svg{width:14px;height:14px}
+.input-tab.active{background:var(--a2-accent);color:#fff;box-shadow:var(--a2-shadow-sm)}
 .input-panel{display:none}.input-panel.active{display:block}
 .cv-upload-area{
-  border:2px dashed rgba(99,102,241,.28);border-radius:var(--r);
-  background:rgba(99,102,241,.03);padding:56px 28px;text-align:center;
+  border:2px dashed var(--a2-border);border-radius:var(--a2-r);
+  background:var(--a2-bg);padding:56px 28px;text-align:center;
   transition:all .3s;margin-bottom:20px;position:relative;overflow:hidden;
 }
-.cv-upload-area::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,rgba(99,102,241,.04),transparent);opacity:0;transition:opacity .3s;pointer-events:none}
-.cv-upload-area:hover,.cv-upload-area.drag{border-color:var(--p);background:rgba(99,102,241,.07)}
-.cv-upload-area:hover::before,.cv-upload-area.drag::before{opacity:1}
-.cv-upload-area.has-file{border-color:var(--p2);background:rgba(99,102,241,.07)}
-.cv-upload-icon{font-size:52px;margin-bottom:16px;display:block}
-.cv-upload-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:-.2px}
-.cv-upload-sub{font-size:13px;color:var(--text2);line-height:1.7}
-.cv-file-chip{display:inline-flex;align-items:center;gap:8px;background:var(--p3);border:1px solid rgba(99,102,241,.3);padding:9px 18px;border-radius:10px;font-size:13px;color:var(--p2);margin-top:12px;max-width:100%;word-break:break-all}
+.cv-upload-area:hover,.cv-upload-area.drag{border-color:var(--a2-accent);background:var(--a2-accent-soft)}
+.cv-upload-area.has-file{border-color:var(--a2-accent);background:var(--a2-accent-soft)}
+.cv-upload-icon{margin-bottom:16px;display:flex;justify-content:center;color:var(--a2-accent)}
+.cv-upload-title{font-size:17px;font-weight:700;color:var(--a2-text);margin-bottom:8px;letter-spacing:-.2px}
+.cv-upload-sub{font-size:13px;color:var(--a2-text-muted);line-height:1.7}
+.cv-file-chip{display:inline-flex;align-items:center;gap:8px;background:var(--a2-accent-soft);border:1px solid var(--a2-border);padding:9px 18px;border-radius:10px;font-size:13px;color:var(--a2-accent);margin-top:12px;max-width:100%;word-break:break-all}
 .cv-file-types{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-.cv-ftype{background:var(--glass);border:1px solid var(--border);color:var(--text2);font-size:11px;padding:4px 11px;border-radius:100px}
+.cv-ftype{background:var(--a2-surface-hover);border:1px solid var(--a2-border);color:var(--a2-text-muted);font-size:11px;padding:4px 11px;border-radius:100px}
 .cv-topic-wrap{display:flex;flex-direction:column;gap:14px}
 .cv-topic-row{display:flex;flex-direction:column;gap:7px}
-.cv-topic-label{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.2px}
-.cv-topic-input{width:100%;padding:13px 16px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:11px;font-size:14px;color:var(--text);outline:none;transition:all .2s}
-.cv-topic-input:focus{border-color:var(--p);background:rgba(99,102,241,.05);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
-.cv-topic-input::placeholder{color:var(--text3)}
-.cv-topic-textarea{resize:vertical;min-height:110px;line-height:1.7}
-.cv-url-input{width:100%;padding:13px 16px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:11px;font-size:14px;color:var(--text);outline:none;transition:all .2s}
-.cv-url-input:focus{border-color:var(--p);background:rgba(99,102,241,.05);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
-.cv-url-input::placeholder{color:var(--text3)}
-.url-fetch-btn{padding:13px 18px;background:var(--p3);border:1px solid rgba(99,102,241,.3);border-radius:11px;font-size:13px;font-weight:700;color:var(--p2);transition:all .2s;white-space:nowrap}
-.url-fetch-btn:hover{background:rgba(99,102,241,.25)}.url-fetch-btn:disabled{opacity:.4;cursor:not-allowed}
-.url-preview{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--text2);line-height:1.7;display:none;margin-top:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap}
+.url-preview{background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--a2-text-muted);line-height:1.7;display:none;margin-top:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap}
 .url-preview.show{display:block}
 .topic-examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
-.topic-ex{background:var(--p3);border:1px solid rgba(99,102,241,.2);color:var(--p2);font-size:11px;font-weight:600;padding:5px 13px;border-radius:100px;transition:all .2s}
-.topic-ex:hover{background:rgba(99,102,241,.22)}
+.topic-ex{background:var(--a2-accent-soft);border:1px solid var(--a2-border);color:var(--a2-accent);font-size:11px;font-weight:600;padding:5px 13px;border-radius:100px;transition:background var(--motion-fast)}
+.topic-ex:hover{background:var(--a2-surface-hover)}
 .cv-gen-btn{
-  width:auto;max-width:400px;padding:17px 48px;background:var(--grad);border:none;border-radius:100px;
-  font-size:16px;font-weight:800;color:#fff;letter-spacing:-.2px;
-  box-shadow:0 8px 28px rgba(99,102,241,.45),inset 0 1px 0 rgba(255,255,255,.12);
-  transition:all .3s;display:block;margin:0 auto;
+  width:auto;max-width:400px;padding:17px 48px;background:var(--a2-accent);border:none;border-radius:100px;
+  font-size:16px;font-weight:700;color:#fff;letter-spacing:-.2px;
+  box-shadow:var(--a2-shadow-md);
+  transition:all .3s;display:block;margin:0 auto;font-family:inherit;
 }
-.cv-gen-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 40px rgba(99,102,241,.6)}
-.cv-gen-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none}
+.cv-gen-btn:hover:not(:disabled){background:var(--a2-accent-hover);transform:translateY(-2px);box-shadow:var(--a2-shadow-lg)}
+.cv-gen-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
 
 /* PROCESS */
-.cv-process{text-align:center;padding:68px 20px}
+/* Atlas Visual Redesign v2, Phase R4: generation-progress screen re-skinned
+   to the light a2-* system — the circular + linear progress bars now use
+   the UI Kit's .a2-progress-circle/.a2-progress primitives directly instead
+   of a bespoke inline SVG gradient. */
+.cv-process{padding:40px 20px}
+.cv-process-card{max-width:520px;margin:0 auto;text-align:center;background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:32px 28px}
+.cv-process-pct{font-size:26px;font-weight:800;color:var(--a2-text);line-height:1}
+.cv-process-pct-label{font-size:11px;color:var(--a2-text-faint);margin-top:3px}
+.cv-process-title{font-size:18px;font-weight:800;margin-bottom:4px;color:var(--a2-text)}
+.cv-process-sub{font-size:13px;color:var(--a2-text-muted);margin-bottom:20px}
+.cv-process-fun{margin-top:18px;font-size:12px;font-weight:600;min-height:20px}
+.cv-process-saved{margin-top:10px;font-size:11px;color:var(--a2-success);opacity:0;transition:opacity .4s ease}
 .cv-psteps{display:flex;flex-direction:column;gap:8px;max-width:380px;margin:24px auto 0}
-.cv-pstep{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--grad-card);border:1px solid var(--border);border-radius:11px;font-size:13px;color:var(--text2);transition:all .4s;letter-spacing:-.1px}
-.cv-pstep.active{color:var(--p2);border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.08)}
-.cv-pstep.done{color:var(--green);border-color:rgba(34,201,138,.2);background:rgba(34,201,138,.05)}
+.cv-pstep{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);font-size:13px;color:var(--a2-text-muted);transition:all .4s;letter-spacing:-.1px}
+.cv-pstep svg{flex-shrink:0}
+.cv-pstep-dot{width:6px;height:6px;border-radius:50%;background:var(--a2-border);flex-shrink:0}
+.cv-pstep-spin{display:inline-flex;color:var(--a2-accent)}
+.cv-pstep-spin svg{animation:atlas-state-spin 1.1s linear infinite}
+.cv-pstep.active{color:var(--a2-accent);border-color:var(--a2-accent-soft);background:var(--a2-accent-soft)}
+.cv-pstep.done{color:var(--a2-success);border-color:var(--a2-success-soft);background:var(--a2-success-soft)}
+.cv-pstep.failed{color:var(--a2-danger);border-color:var(--a2-danger-soft);background:var(--a2-danger-soft)}
 
-/* RESULT ACTIONS */
+/* RESULT ACTIONS — Atlas Visual Redesign v2, Phase R4: .r-btn/.r-btn-p/-w/-e/-g
+   fully retired (confirmed zero remaining call sites) in favor of the UI
+   Kit's .a2-btn/.a2-btn-primary/.a2-btn-secondary, used directly on every
+   button in Steps 3-4. .result-actions itself stays — still the real
+   flex-row wrapper class for these action rows. */
 .result-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-.r-btn{padding:9px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;transition:all .2s;letter-spacing:-.1px}
-.r-btn-p{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.3)}
-.r-btn-w{background:linear-gradient(135deg,#2563eb,#38b0ff);color:#fff;box-shadow:0 4px 14px rgba(59,130,246,.25)}
-.r-btn-s{background:linear-gradient(135deg,#dc2626,#f05070);color:#fff;box-shadow:0 4px 14px rgba(240,80,112,.25)}
-.r-btn-e{background:var(--gold2);border:1px solid rgba(232,184,75,.2);color:var(--gold)}
-.r-btn-g{background:var(--glass);border:1px solid var(--border);color:var(--text2)}
-.r-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
 
 /* EBOOK PREVIEW WRAP */
-.ebook-preview-wrap{background:linear-gradient(160deg,#1a1a2e,#0f0f1a);border-radius:var(--r);overflow:hidden;padding:16px;border:1px solid var(--border)}
+/* Atlas Visual Redesign v2, Phase R4: outer preview canvas (the frame AROUND
+   the actual ebook page content) re-skinned to a light neutral canvas,
+   matching the rest of the redesigned Converter. This does not touch the
+   ebook page content itself (#cv-edoc's own typography/colors are the real
+   exported product — Preview==Export stays untouched, Design Bible §invariant). */
+.ebook-preview-wrap{background:var(--a2-bg);border-radius:var(--a2-r-lg);overflow:hidden;padding:20px;border:1px solid var(--a2-border)}
 
-/* PROMPT BOX */
-.prompt-box{background:rgba(34,201,138,.05);border-left:3px solid var(--green);border-radius:0 11px 11px 0;padding:16px 20px;margin:18px 0}
-.prompt-box-title{font-size:11px;font-weight:700;color:var(--green);letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px}
-.prompt-item{background:rgba(255,255,255,.03);border:1px solid rgba(34,201,138,.12);border-radius:9px;padding:12px 14px;margin-bottom:10px;position:relative}
-.prompt-label{font-size:11px;font-weight:700;color:var(--green);opacity:.8;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.prompt-text{font-size:12px;color:rgba(240,255,248,.75);line-height:1.85;white-space:pre-wrap;word-break:keep-all;font-family:monospace;background:rgba(0,0,0,.2);padding:10px 12px;border-radius:7px;border:1px solid rgba(34,201,138,.1)}
-.prompt-copy-btn{position:absolute;top:10px;right:10px;background:rgba(34,201,138,.12);color:var(--green);border:1px solid rgba(34,201,138,.2);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;transition:all .2s}
-.prompt-copy-btn:hover{background:rgba(34,201,138,.22)}.prompt-copy-btn.copied{background:var(--p3);color:var(--p2)}
+/* PROMPT BOX — single authoritative definition now lives with the rest of
+   the ebook page CSS below (this dark-glass variant was permanently
+   overridden by the later light-green rule and was dead code). */
 
 /* EDITOR TOOLBAR */
 #cv-editor-toolbar,#cv-sp-toolbar{display:none;flex-wrap:wrap;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:14px;align-items:center}
@@ -585,12 +867,19 @@ textarea{resize:vertical}
 .cv-option-title{font-size:13px;font-weight:700;letter-spacing:-.1px}
 .cv-option-desc{font-size:11px;color:var(--text2);margin-top:2px}
 
-/* ─── EBOOK PAGE CSS ─── */
-.pg{background:#fff;color:#1a1a2e;border-radius:7px;overflow:hidden;box-shadow:0 4px 22px rgba(0,0,0,.25);position:relative;margin-bottom:4px}
+/* ─── EBOOK PAGE CSS — Premium Ebook Output Design (Phase 2) ───
+   The generated ebook itself, not Atlas app chrome — Design Bible/Editorial
+   Intelligence-governed, separate visual system from .a2-*. Icons come
+   from AtlasIcons.svg() called directly in renderers.js (no emoji anywhere
+   in real ebook content — this is what a paying customer reads/exports).
+   Word (.docx) export is a wholly separate OOXML builder (application.js)
+   and is not affected by this CSS — only the HTML preview (#cv-edoc). */
+.pg{background:#fff;color:#1a1a2e;border-radius:12px;overflow:hidden;box-shadow:0 10px 34px rgba(15,15,35,.10);position:relative;margin-bottom:28px}
 .cvr{min-height:620px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:linear-gradient(160deg,#1a1a2e 0%,#16213e 40%,#0f3460 100%);padding:48px 36px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ccirc{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.14),transparent)}
-.ccat{background:rgba(99,102,241,.22);border:1px solid rgba(99,102,241,.5);padding:5px 16px;border-radius:100px;font-size:11px;color:#a5b4fc;font-weight:700;letter-spacing:1px;margin-bottom:24px;position:relative}
-.ctit{font-family:'Noto Serif KR',serif;font-size:clamp(22px,4vw,38px);font-weight:700;color:#fff;line-height:1.3;margin-bottom:14px;position:relative}
+.ccat{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.22);border:1px solid rgba(99,102,241,.5);padding:5px 16px;border-radius:100px;font-size:11px;color:#a5b4fc;font-weight:700;letter-spacing:1px;margin-bottom:24px;position:relative}
+.ccat svg{width:12px;height:12px}
+.ctit{font-family:'Noto Serif KR',serif;font-size:clamp(24px,4vw,40px);font-weight:700;color:#fff;line-height:1.3;margin-bottom:14px;position:relative;letter-spacing:-.2px}
 .csub{font-size:14px;color:rgba(255,255,255,.55);line-height:1.8;max-width:440px;margin-bottom:28px;position:relative}
 .cdiv{width:48px;height:3px;background:linear-gradient(90deg,#6366f1,#a5b4fc);margin:0 auto 22px;border-radius:2px;position:relative}
 .caut{font-size:13px;color:rgba(255,255,255,.45);position:relative}.caut strong{color:rgba(255,255,255,.82)}
@@ -599,37 +888,143 @@ textarea{resize:vertical}
 .cinn{border-top:1px solid #e2e8f0;padding-top:16px}
 .clbl{font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
 .ctxt{font-size:11px;color:#94a3b8;line-height:1.9}.ctxt p{margin-bottom:6px}.ctxt strong{color:#64748b}
-.inn{padding:40px}
-.ey{font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
-.sh{font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:22px;line-height:1.3}
-.ti{display:flex;align-items:baseline;gap:9px;padding:14px 0;border-bottom:1px solid #f1f5f9}
-.tn{font-size:12px;color:#6366f1;font-weight:700;min-width:50px}
+.inn{padding:44px}
+.ey{display:flex;align-items:center;gap:7px;font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.ey svg{width:13px;height:13px}
+.sh{font-family:'Noto Serif KR',serif;font-size:25px;font-weight:700;color:#1a1a2e;margin-bottom:24px;line-height:1.3;letter-spacing:-.3px}
+.ti{display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid #f1f5f9}
+.tn{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#6366f1;font-weight:700;min-width:56px}
+.tn svg{width:12px;height:12px;flex-shrink:0}
 .tt{font-size:15px;color:#1a1a2e;font-weight:500;flex:1;line-height:1.4}
-.cb{display:inline-flex;align-items:center;gap:7px;margin-bottom:14px}
-.cp{background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;font-size:10px;font-weight:800;padding:3px 11px;border-radius:100px;letter-spacing:.8px}
-.cl{font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.8px;text-transform:uppercase}
-.cht{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:#1a1a2e;line-height:1.4;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f1f5f9}
-.chb{font-size:14px;color:#374151;line-height:2.1;white-space:pre-wrap;word-break:keep-all;margin-bottom:20px}
-.kpb{background:linear-gradient(135deg,#f0f4ff,#f5f0ff);border-left:4px solid #6366f1;border-radius:0 10px 10px 0;padding:16px 20px;margin:18px 0}
-.kpb h4{font-size:11px;font-weight:700;color:#6366f1;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px}
-.kpi{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:#334155;line-height:1.6;margin-bottom:7px}
-.kpd{width:5px;height:5px;background:#6366f1;border-radius:50%;margin-top:8px;flex-shrink:0}
-.acb{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-top:14px}
-.acb h4{font-size:11px;font-weight:700;color:#15803d;margin-bottom:9px}
-.aci{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:#166534;margin-bottom:6px}
-.concl{margin-top:28px;padding:20px;text-align:center;background:linear-gradient(135deg,#f0f4ff,#f5f0ff);border-radius:12px}
-.concl p{font-size:14px;font-weight:700;color:#4338ca}.concl small{font-size:12px;color:#6366f1;margin-top:5px;display:block}
-.apg{padding:40px;background:linear-gradient(160deg,#1a1a2e,#16213e);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ah{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:#fff;margin-bottom:20px}
+/* Chapter opener — given real visual weight (Editorial Intelligence: a
+   chapter start should reset pacing, never read as a near-blank page) via
+   a taller eyebrow + a genuinely large serif title + an accent rule,
+   instead of a small pill badge. */
+.cb{margin-bottom:22px}
+.cp{display:flex;align-items:center;gap:9px;font-size:11px;color:#6366f1;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:4px}
+.cp svg{width:14px;height:14px}
+.cl{font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:.6px}
+.cht{font-family:'Noto Serif KR',serif;font-size:30px;font-weight:700;color:#1a1a2e;line-height:1.28;margin-top:10px;padding-bottom:18px;border-bottom:2px solid #eef0fb;letter-spacing:-.4px}
+.chb{font-size:14.5px;color:#374151;line-height:2.05;white-space:pre-wrap;word-break:keep-all;margin-bottom:22px}
+
+/* Target-reader callout — deliberately distinct from the Tip/Framework
+   block below (outlined, quiet) since its role is "is this for you", not
+   an in-chapter insight. */
+.tgtb{border:1.5px solid #e0e4f7;border-radius:12px;padding:16px 20px;margin:20px 0;display:flex;gap:12px;align-items:flex-start}
+.tgtb-ic{flex-shrink:0;width:30px;height:30px;border-radius:8px;background:#f0f4ff;color:#6366f1;display:flex;align-items:center;justify-content:center}
+.tgtb-ic svg{width:16px;height:16px}
+.tgtb h4{font-size:11px;font-weight:700;color:#6366f1;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px}
+.tgtb p{font-size:13px;color:#334155;line-height:1.8}
+
+/* Action Box (actionBox) — the single "do this today" callout. Warm coral
+   accent to feel urgent without reading as an alarm. */
+.actb{background:linear-gradient(135deg,#fff7f5,#fef1ef);border:1px solid #fecdc7;border-radius:12px;padding:18px 22px;margin:20px 0}
+.actb h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#dc4a30;letter-spacing:.6px;text-transform:uppercase;margin-bottom:12px}
+.actb h4 svg{width:15px;height:15px}
+.actb-row{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;font-weight:600;color:#7c2d12;line-height:1.7}
+.actb-row+.actb-row{margin-top:9px}
+.actb-num{flex-shrink:0;width:20px;height:20px;border-radius:50%;background:#dc4a30;color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
+
+/* Warning box (warningBox) — amber caution, visually distinct from Action. */
+.warnb{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin:20px 0}
+.warnb h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#b45309;letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px}
+.warnb h4 svg{width:14px;height:14px}
+.warnb-row{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:#78350f;line-height:1.7;margin-bottom:6px}
+.warnb-row:last-child{margin-bottom:0}
+.warnb-num{flex-shrink:0;font-weight:700;color:#b45309}
+
+/* Tip / Insight box (keyPoints) — a genuine callout, not repurposed as a
+   framework grid. Real data, its own honest role. */
+.tipb{background:linear-gradient(135deg,#f0f4ff,#f5f0ff);border-left:4px solid #6366f1;border-radius:0 12px 12px 0;padding:16px 20px;margin:20px 0}
+.tipb h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#6366f1;letter-spacing:.6px;text-transform:uppercase;margin-bottom:11px}
+.tipb h4 svg{width:14px;height:14px}
+.tipb-row{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:#334155;line-height:1.7;margin-bottom:8px}
+.tipb-row:last-child{margin-bottom:0}
+.tipb-dot{width:5px;height:5px;border-radius:50%;background:#6366f1;margin-top:8px;flex-shrink:0}
+
+/* Checklist (actionItems) — a real checklist, distinct from Timeline below. */
+.cklist{margin:20px 0}
+.cklist h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#15803d;letter-spacing:.6px;text-transform:uppercase;margin-bottom:12px}
+.cklist h4 svg{width:14px;height:14px}
+.cklrow{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#166534;line-height:1.7;margin-bottom:8px}
+.cklrow:last-child{margin-bottom:0}
+.ckl-check{flex-shrink:0;width:18px;height:18px;border-radius:5px;border:1.5px solid #86efac;background:#f0fdf4;color:#16a34a;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.ckl-check svg{width:11px;height:11px}
+
+/* Timeline (real ch.timeline field — a genuine AI-described process/journey,
+   distinct from the actionItems checklist above). Sequential real stages
+   rendered as a connected vertical timeline (Editorial Intelligence: 3+
+   sequential stages should default to a Timeline). */
+.tlb{margin:22px 0}
+.tlb h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#0e7490;letter-spacing:.6px;text-transform:uppercase;margin-bottom:16px}
+.tlb h4 svg{width:14px;height:14px}
+.tlrow{position:relative;padding-left:40px;padding-bottom:20px}
+.tlrow:last-child{padding-bottom:0}
+.tlrow::before{content:'';position:absolute;left:11px;top:26px;bottom:0;width:2px;background:#cdeef4}
+.tlrow:last-child::before{display:none}
+.tldot{position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;background:#ecfbfd;border:2px solid #06b6d4;color:#0e7490;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.tllabel{font-size:13.5px;font-weight:700;color:#164e63;margin-bottom:3px}
+.tltext{font-size:13px;color:#155e75;line-height:1.75}
+
+/* Framework (real ch.framework field — a genuine named model/system the AI
+   describes, with its own name and step titles+descriptions, not a
+   restyled insight list). */
+.fwb{margin:24px 0}
+.fwb h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#6366f1;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
+.fwb h4 svg{width:14px;height:14px}
+.fwb-name{font-family:'Noto Serif KR',serif;font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:14px}
+.fwgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.fwcard{background:linear-gradient(160deg,#f7f8ff,#f6f2ff);border:1px solid #e6e8fb;border-radius:12px;padding:16px 15px}
+.fwcard-num{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:#a5b0f5;margin-bottom:8px}
+.fwcard-title{font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:5px;line-height:1.4}
+.fwcard p{font-size:12.5px;color:#3a3f5c;line-height:1.65}
+
+/* Comparison Table (real ch.comparisonTable field). */
+.ctable{margin:24px 0}
+.ctable h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#9333ea;letter-spacing:.6px;text-transform:uppercase;margin-bottom:12px}
+.ctable h4 svg{width:14px;height:14px}
+.ctable-scroll{overflow-x:auto;border:1px solid #eef0fb;border-radius:12px}
+.ctable table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ctable th{background:#f7f6fe;color:#4c1d95;font-weight:700;text-align:left;padding:11px 14px;border-bottom:1px solid #eef0fb;white-space:nowrap}
+.ctable td{padding:11px 14px;border-bottom:1px solid #f5f5fb;color:#374151;line-height:1.6}
+.ctable tr:last-child td{border-bottom:none}
+.ctable tr:nth-child(even) td{background:#fbfaff}
+
+/* Chapter Summary (real ch.summary field) — a genuine AI-written recap,
+   distinct from the Tip box above; positioned at the chapter's close. */
+.chsum{margin-top:26px;padding:18px 22px;background:#f8f9fc;border:1px solid #eef0fb;border-radius:12px}
+.chsum h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#64748b;letter-spacing:.6px;text-transform:uppercase;margin-bottom:9px}
+.chsum h4 svg{width:14px;height:14px}
+.chsum p{font-size:13px;color:#374151;line-height:1.8}
+
+/* Impact statement / quote block (the closing line) — a genuine oversized
+   pull-quote treatment (Editorial Intelligence: "oversized impact
+   statement... a genuinely strong, underused technique"). */
+.impactb{margin-top:32px;padding:36px 28px;text-align:center;background:linear-gradient(160deg,#1a1a2e,#20264a);border-radius:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.impactb-mark{font-family:'Noto Serif KR',serif;font-size:40px;color:#6366f1;line-height:.6;margin-bottom:6px}
+.impactb p{font-family:'Noto Serif KR',serif;font-size:19px;font-weight:700;color:#fff;line-height:1.5;letter-spacing:-.2px}
+.impactb small{font-size:12px;color:rgba(255,255,255,.5);margin-top:10px;display:block}
+
+.chnx{margin-top:26px;padding-top:16px;border-top:2px solid #eef0fb;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.chnx-done{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:800;letter-spacing:.6px;color:#6366f1}
+.chnx-done svg{width:13px;height:13px}
+.chnx-next{font-size:12.5px;color:#64748b}
+.chnx-next b{color:#1a1a2e}
+.apg{padding:44px;background:linear-gradient(160deg,#1a1a2e,#16213e);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ah{font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:#fff;margin-bottom:22px;letter-spacing:-.2px}
 .ac{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:26px;display:flex;gap:18px}
-.aa{width:64px;height:64px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#6366f1,#a5b4fc);display:flex;align-items:center;justify-content:center;font-size:28px}
+.aa{width:64px;height:64px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#6366f1,#a5b4fc);display:flex;align-items:center;justify-content:center;color:#fff}
+.aa svg{width:28px;height:28px}
 .an{font-size:17px;color:#fff;font-weight:700;margin-bottom:3px}.ar{font-size:10px;color:#6366f1;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px}.ab{font-size:13px;color:rgba(255,255,255,.58);line-height:1.8}
-.bkpg{padding:36px;text-align:center;background:linear-gradient(160deg,#0f0f1a,#07070f);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.bkpg h3{font-family:'Noto Serif KR',serif;font-size:17px;color:#fff}.bkpg p{font-size:12px;color:rgba(255,255,255,.38);line-height:1.7;max-width:360px}
+.bkpg{padding:40px;text-align:center;background:linear-gradient(160deg,#0f0f1a,#07070f);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bkpg-ic{color:#6366f1}
+.bkpg h3{font-family:'Noto Serif KR',serif;font-size:18px;color:#fff;letter-spacing:-.2px}.bkpg p{font-size:12px;color:rgba(255,255,255,.38);line-height:1.7;max-width:360px}
 .bkc{font-size:10px;color:rgba(255,255,255,.16);letter-spacing:1.3px;border-top:1px solid rgba(255,255,255,.07);padding-top:14px;width:100%;text-align:center}
-.prompt-box{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-left:4px solid #16a34a;border-radius:0 10px 10px 0;padding:16px 20px;margin:18px 0}
+.prompt-box{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-left:4px solid #16a34a;border-radius:0 10px 10px 0;padding:16px 20px;margin:20px 0}
 .prompt-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.prompt-box-title{font-size:11px;font-weight:700;color:#16a34a;letter-spacing:.8px;text-transform:uppercase}
+.prompt-box-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:#16a34a;letter-spacing:.8px;text-transform:uppercase}
+.prompt-box-title svg{width:13px;height:13px}
+@media(max-width:520px){.fwgrid{grid-template-columns:1fr}}
 
 /* MOBILE */
 
@@ -660,36 +1055,59 @@ textarea{resize:vertical}
   .lsec{padding:80px 32px}
 }
 
-/* ─── 모바일 (최대 768px) ─── */
+/* ─── 모바일 (최대 768px) ───
+   Atlas Visual Redesign v2 — Phase R1 mobile correction, plus the follow-up
+   App Shell cleanup: the mobile hamburger button and sidebar drawer are
+   removed outright (not just re-skinned) — once the 4 nav destinations
+   moved to #mobile-tabbar, the drawer held only the logo and an account
+   row, which isn't enough content to justify a full-height overlay. The
+   sidebar is now desktop/tablet-only (hidden entirely below 769px);
+   account/logout on mobile is reached through the existing Settings screen
+   (already has a real 계정 정보/플랜/로그아웃 section — see #app-settings),
+   itself reachable via #mobile-tabbar's 설정 tab. #sb-overlay stays in the
+   DOM (hidden) purely so closeSidebar() — still called by showApp() on
+   every navigation, a desktop/tablet-safe no-op on mobile — doesn't throw
+   on a missing element. Dashboard stat cards stack in a single readable
+   column instead of being squeezed into 2. Verified zero horizontal scroll
+   at 320/375/390/430px. */
 @media(max-width:768px){
-  /* 사이드바 */
+  /* ── 사이드바: 데스크톱/태블릿 전용 — 모바일에서는 완전히 제거 (주
+       내비게이션은 하단 탭바, 계정/로그아웃은 설정 화면) ── */
   :root{--sidebar:0px}
-  .menu-btn{display:flex !important}
-  .sidebar{
-    transform:translateX(-100%);
-    width:260px !important;
-    z-index:200;
-    box-shadow:4px 0 24px rgba(0,0,0,.5);
-  }
-  .sidebar.open{transform:translateX(0)}
-  /* 메인 컨텐츠 - 사이드바가 fixed라서 margin 0 */
-  .main-content{margin-left:0 !important}
-  .topbar{padding:0 16px}
+  .sidebar{display:none}
+  #sb-overlay{display:none !important}
 
-  /* 앱 내부 */
+  /* ── 하단 탭바: 모바일의 주 내비게이션 ── */
+  #mobile-tabbar{display:flex}
+  .a2-tabbar-item{min-height:48px;justify-content:center;font-size:10.5px}
+
+  /* ── 메인 컨텐츠: 데스크톱 축소가 아닌 전체 폭 ── */
+  .main-content{margin-left:0 !important}
+  .topbar{padding:0 16px;gap:8px}
+  .topbar-title{font-size:16px}
+  .topbar-right{flex-shrink:0}
+  #topbar-new-btn{padding:9px 14px;min-height:40px}
+
+  /* ── 앱 내부: 전체 폭 + 하단 탭바에 가리지 않도록 하단 여백 확보 ── */
   #app-dashboard,#app-history,#app-settings,#app-converter{
     width:100%;
-    padding:16px !important;
+    padding:16px 16px calc(88px + env(safe-area-inset-bottom)) !important;
     box-sizing:border-box;
   }
-  .stat-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  /* 대시보드: 2열로 욱여넣지 않고 의도적으로 1열 스택 (Phase R2: 카드 종류가
+     dash-qa-card/dash-projcard로 바뀌어도 동일한 원칙 유지) */
+  .stat-grid{grid-template-columns:1fr;gap:10px}
+  .dash-workcenter{padding:20px}
+  .dash-workcenter-actions{flex-direction:column}
+  .dash-workcenter-actions button{width:100%;min-height:44px;box-sizing:border-box}
+  .dash-quickactions{grid-template-columns:1fr;gap:10px}
+  .dash-projgrid{grid-template-columns:1fr}
+  .dash-projactions .a2-btn{min-height:40px}
   .ebook-grid{grid-template-columns:1fr}
-  .upgrade-banner{flex-direction:column;gap:12px}
-  .btn-upgrade{width:100%;text-align:center}
   .settings-row{flex-direction:column;align-items:flex-start;gap:10px}
   .settings-input{width:100%;min-width:0}
   .result-actions{gap:6px}
-  .r-btn{padding:8px 12px;font-size:12px}
+  .result-actions .a2-btn{min-height:40px}
 
   /* 랜딩 */
   .lnav{padding:0 18px;height:60px}
@@ -722,9 +1140,13 @@ textarea{resize:vertical}
   .lstat{border-right:none;border-bottom:1px solid var(--border);padding:10px 0}
   .lstat:last-child{border-bottom:none}
   .lfeat-grid{grid-template-columns:1fr}
-  .stat-grid{grid-template-columns:1fr 1fr}
+  .stat-grid{grid-template-columns:1fr}
   .ebook-grid{grid-template-columns:1fr}
-  #app-dashboard,#app-history,#app-settings,#app-converter{padding:12px !important}
+  #app-dashboard,#app-history,#app-settings,#app-converter{padding:12px 12px calc(88px + env(safe-area-inset-bottom)) !important}
+  /* 매우 좁은 화면: 상단바 CTA를 아이콘 전용으로 축소해 겹침/줄바꿈 없이
+     항상 맞도록 함 (제목·메뉴버튼과의 충돌 방지) */
+  .topbar-new-label{display:none}
+  #topbar-new-btn{padding:9px;width:40px}
 }
 
 /* ── Atlas v0.5 Multi-Source & Title Studio ── */
@@ -742,90 +1164,117 @@ textarea{resize:vertical}
 .ms-link-row{display:flex;gap:8px}
 .ms-link-row input{flex:1}
 .ms-status{font-size:11px;line-height:1.55;color:var(--text3);margin-top:8px}
-.title-studio{background:linear-gradient(180deg,rgba(99,102,241,.08),rgba(255,255,255,.015));border:1px solid rgba(99,102,241,.3);border-radius:18px;padding:22px}
-.ts-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
+/* Atlas Visual Redesign v2, Phase R3 — Title Studio / AI Planner / Smart
+   Interview re-skinned to the light a2-* system (same soft-shadow card
+   language as the Dashboard/Step 1). Shared step-header classes replace the
+   repeated inline-styled eyebrow/title/sub blocks previously duplicated in
+   every Converter sub-state. */
+.cv-step-eyebrow{font-size:11px;font-weight:700;color:var(--a2-accent);letter-spacing:1px;text-transform:uppercase}
+.cv-step-title{font-size:22px;font-weight:800;color:var(--a2-text);margin-top:6px;letter-spacing:-.3px;word-break:keep-all}
+.cv-step-sub{font-size:12px;color:var(--a2-text-muted);margin-top:6px;line-height:1.6}
+.title-studio{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:24px}
+.ts-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:18px}
 .ts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:500px;overflow:auto;padding-right:3px}
-.ts-card{border:1px solid var(--border);background:rgba(255,255,255,.025);border-radius:13px;padding:14px;cursor:pointer;transition:.18s;position:relative}
-.ts-card:hover{border-color:rgba(99,102,241,.65);transform:translateY(-1px)}
-.ts-card.selected{border-color:#818cf8;background:rgba(99,102,241,.12);box-shadow:0 0 0 2px rgba(99,102,241,.12)}
-.ts-type{font-size:10px;color:#a5b4fc;font-weight:800;letter-spacing:.6px;margin-bottom:6px}
-.ts-title{font-size:15px;font-weight:800;color:var(--text);line-height:1.45;word-break:keep-all}
-.ts-sub{font-size:11px;color:var(--text3);line-height:1.5;margin-top:6px}
+.ts-card{border:1px solid var(--a2-border);background:var(--a2-surface);box-shadow:var(--a2-shadow-sm);border-radius:var(--a2-r);padding:14px;cursor:pointer;transition:box-shadow var(--motion-standard),transform var(--motion-standard),border-color var(--motion-standard);position:relative}
+.ts-card:hover{box-shadow:var(--a2-shadow-md);transform:translateY(-1px)}
+.ts-card.selected{border-color:var(--a2-accent);background:var(--a2-accent-soft);box-shadow:0 0 0 2px var(--a2-accent-soft)}
+.ts-type{font-size:10px;color:var(--a2-accent);font-weight:700;letter-spacing:.6px;margin-bottom:6px;text-transform:uppercase}
+.ts-title{font-size:15px;font-weight:700;color:var(--a2-text);line-height:1.45;word-break:keep-all}
+.ts-sub{font-size:11px;color:var(--a2-text-faint);line-height:1.5;margin-top:6px}
 .ts-score{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
-.ts-score span{font-size:9px;padding:4px 6px;border-radius:100px;background:rgba(255,255,255,.055);color:var(--text2)}
-.ts-total{position:absolute;right:10px;top:10px;font-size:11px;font-weight:900;color:#fbbf24}
-.ts-edit{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.ts-score span{font-size:9px;padding:4px 7px;border-radius:100px;background:var(--a2-surface-hover);color:var(--a2-text-muted);font-weight:600}
+.ts-total{position:absolute;right:10px;top:10px;font-size:11px;font-weight:800;color:var(--a2-warning)}
+.ts-edit{margin-top:18px;padding-top:18px;border-top:1px solid var(--a2-border)}
 .ts-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
-.ts-analysis{font-size:12px;line-height:1.7;color:var(--text2);background:rgba(255,255,255,.025);border:1px solid var(--border);padding:12px;border-radius:10px;margin-bottom:14px}
+.ts-analysis{font-size:12px;line-height:1.7;color:var(--a2-text-muted);background:var(--a2-bg);border:1px solid var(--a2-border);padding:12px 14px;border-radius:var(--a2-r-sm);margin-bottom:14px}
 @media(max-width:760px){.ms-workspace{grid-template-columns:1fr}.ts-grid{grid-template-columns:1fr}.ts-head{flex-direction:column}.ms-item{grid-template-columns:minmax(0,1fr) 100px 30px}}
 /* M3.2 Phase 1: AI Planner — docs/ATLAS_AI_ENGINE_SPECIFICATION.md 기준. title-studio와 동일한
    카드/여백 리듬을 재사용해 새 화면이 기존 Studio와 이질감 없이 보이도록 한다. */
-.ai-planner{background:linear-gradient(180deg,rgba(99,102,241,.08),rgba(255,255,255,.015));border:1px solid rgba(99,102,241,.3);border-radius:18px;padding:22px}
+.ai-planner{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:24px}
 .aip-report{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
-.aip-card{font-size:12px;line-height:1.7;color:var(--text2);background:rgba(255,255,255,.025);border:1px solid var(--border);padding:14px;border-radius:12px}
+.aip-card{font-size:12px;line-height:1.7;color:var(--a2-text-muted);background:var(--a2-bg);border:1px solid var(--a2-border);padding:14px;border-radius:var(--a2-r-sm)}
 .aip-card-full{grid-column:1/-1}
-.aip-card-label{font-weight:800;color:var(--text);font-size:11px;letter-spacing:.3px;margin-bottom:6px}
-.aip-card-value{color:var(--text2);font-size:13px;font-weight:700}
-.aip-card-caption{color:var(--text3);font-size:10px;margin-top:6px;font-weight:400;line-height:1.6}
+.aip-card-label{font-weight:700;color:var(--a2-text);font-size:11px;letter-spacing:.3px;margin-bottom:6px}
+.aip-card-value{color:var(--a2-text-muted);font-size:13px;font-weight:700}
+.aip-card-caption{color:var(--a2-text-faint);font-size:10px;margin-top:6px;font-weight:400;line-height:1.6}
 .aip-cautions{margin:0;padding-left:18px}
 .aip-cautions li{margin-bottom:4px;font-weight:400;font-size:12px}
 #aip-visual-generate-btn:disabled{opacity:.45;cursor:not-allowed}
 .aip-confidence{display:flex;align-items:center;gap:8px}
-.aip-confidence-bar{flex:1;height:6px;border-radius:100px;background:rgba(255,255,255,.08);overflow:hidden}
-.aip-confidence-fill{height:100%;background:linear-gradient(90deg,#6366f1,#a855f7);border-radius:100px}
-.aip-confidence-pct{font-size:13px;font-weight:900;color:#c4b5fd;min-width:38px;text-align:right}
-.aip-accordion{margin-bottom:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)}
-.aip-accordion-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;color:var(--text2);font-size:12px;font-weight:800;padding:12px 14px;cursor:pointer}
+.aip-confidence-bar{flex:1;height:6px;border-radius:100px;background:var(--a2-border);overflow:hidden}
+.aip-confidence-fill{height:100%;background:var(--a2-accent);border-radius:100px}
+.aip-confidence-pct{font-size:13px;font-weight:800;color:var(--a2-accent);min-width:38px;text-align:right}
+.aip-accordion{margin-bottom:16px;border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);overflow:hidden;background:var(--a2-bg)}
+.aip-accordion-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;color:var(--a2-text-muted);font-size:12px;font-weight:700;padding:12px 14px;cursor:pointer;font-family:inherit}
 .aip-accordion-arrow{display:inline-block;transition:transform .18s ease;font-size:10px}
-.aip-accordion-body{padding:0 14px 14px;font-size:12px;color:var(--text3);line-height:1.7}
-.aip-reason-section-title{font-size:11px;font-weight:800;color:#a5b4fc;margin:10px 0 6px;letter-spacing:.3px}
+.aip-accordion-body{padding:0 14px 14px;font-size:12px;color:var(--a2-text-faint);line-height:1.7}
+.aip-reason-section-title{font-size:11px;font-weight:700;color:var(--a2-accent);margin:10px 0 6px;letter-spacing:.3px}
 .aip-reason-section-title:first-child{margin-top:0}
 .aip-reason-list{margin:0;padding-left:18px}
-.aip-reason-note{margin-top:6px;margin-bottom:4px;font-style:italic;color:var(--text3)}
-.aip-candidates-head{font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px}
+.aip-reason-note{margin-top:6px;margin-bottom:4px;font-style:italic;color:var(--a2-text-faint)}
+.aip-candidates-head{font-size:12px;font-weight:700;color:var(--a2-text);margin-bottom:10px}
 .aip-candidates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.aip-candidate{border:1px solid var(--border);background:rgba(255,255,255,.025);border-radius:13px;padding:14px;cursor:pointer;transition:.18s}
-.aip-candidate:hover{border-color:rgba(99,102,241,.65);transform:translateY(-1px)}
-.aip-candidate.selected{border-color:#818cf8;background:rgba(99,102,241,.12);box-shadow:0 0 0 2px rgba(99,102,241,.12)}
+.aip-candidate{border:1px solid var(--a2-border);background:var(--a2-surface);box-shadow:var(--a2-shadow-sm);border-radius:var(--a2-r);padding:14px;cursor:pointer;transition:box-shadow var(--motion-standard),transform var(--motion-standard),border-color var(--motion-standard)}
+.aip-candidate:hover{box-shadow:var(--a2-shadow-md);transform:translateY(-1px)}
+.aip-candidate.selected{border-color:var(--a2-accent);background:var(--a2-accent-soft);box-shadow:0 0 0 2px var(--a2-accent-soft)}
 .aip-candidate-head{display:flex;justify-content:space-between;align-items:center;gap:6px}
-.aip-candidate-name{font-size:14px;font-weight:800;color:var(--text)}
-.aip-candidate-check{font-size:10px;font-weight:800;color:#a5b4fc}
-.aip-candidate-tagline{font-size:11px;color:var(--text3);margin-top:4px}
+.aip-candidate-name{font-size:14px;font-weight:700;color:var(--a2-text)}
+.aip-candidate-check{font-size:10px;font-weight:700;color:var(--a2-accent)}
+.aip-candidate-tagline{font-size:11px;color:var(--a2-text-faint);margin-top:4px}
 .aip-swatches{display:flex;gap:5px;margin-top:10px}
-.aip-swatch{width:16px;height:16px;border-radius:5px;border:1px solid rgba(255,255,255,.25);display:inline-block}
-.aip-candidate-meta{font-size:10px;color:var(--text3);margin-top:6px}
+.aip-swatch{width:16px;height:16px;border-radius:5px;border:1px solid var(--a2-border);display:inline-block}
+.aip-candidate-meta{font-size:10px;color:var(--a2-text-faint);margin-top:6px}
 @media(max-width:760px){.aip-candidates{grid-template-columns:1fr}.aip-report{grid-template-columns:1fr}}
-.smart-premium-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(99,102,241,.2));border:1px solid rgba(167,139,250,.38);font-size:12px;font-weight:800;color:#ddd6fe;margin:0 auto 12px}
-.smart-interview{background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(30,41,59,.96));border:1px solid rgba(129,140,248,.3);border-radius:20px;padding:24px;max-width:900px;margin:0 auto}
-.si-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.si-kicker{font-size:11px;font-weight:900;color:#a5b4fc;letter-spacing:1.2px}.si-title{font-size:25px;font-weight:900;color:#fff;margin-top:5px}.si-desc{font-size:13px;color:#94a3b8;line-height:1.7;margin-top:7px}.si-reason{padding:12px 14px;border-radius:12px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.22);color:#c7d2fe;font-size:13px;line-height:1.65;margin-bottom:16px}.si-list{display:grid;gap:12px}.si-card{padding:16px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08)}.si-q{font-size:14px;font-weight:800;color:#f8fafc;margin-bottom:10px;line-height:1.5}.si-options{display:flex;gap:8px;flex-wrap:wrap}.si-opt{border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.7);color:#cbd5e1;padding:8px 11px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}.si-opt.selected{background:#6366f1;border-color:#818cf8;color:#fff}.si-input{width:100%;box-sizing:border-box;border:1px solid rgba(148,163,184,.24);background:rgba(15,23,42,.7);color:#fff;border-radius:11px;padding:11px 12px;font-size:13px;outline:none}.si-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.smart-progress-note{font-size:12px;color:#c4b5fd;margin-top:8px;line-height:1.6}
+.smart-interview{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:24px;max-width:900px;margin:0 auto}
+.si-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.si-kicker{font-size:11px;font-weight:700;color:var(--a2-accent);letter-spacing:1.2px;text-transform:uppercase}.si-title{font-size:22px;font-weight:800;color:var(--a2-text);margin-top:6px}.si-desc{font-size:12px;color:var(--a2-text-muted);line-height:1.7;margin-top:6px}.si-reason{padding:12px 14px;border-radius:var(--a2-r-sm);background:var(--a2-accent-soft);border:1px solid var(--a2-border);color:var(--a2-text-muted);font-size:13px;line-height:1.65;margin-bottom:16px}.si-list{display:grid;gap:12px}.si-card{padding:16px;border-radius:var(--a2-r);background:var(--a2-bg);border:1px solid var(--a2-border)}.si-q{font-size:14px;font-weight:700;color:var(--a2-text);margin-bottom:10px;line-height:1.5}.si-options{display:flex;gap:8px;flex-wrap:wrap}.si-opt{border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text-muted);padding:8px 12px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;transition:background var(--motion-fast),color var(--motion-fast)}.si-opt:hover{background:var(--a2-surface-hover)}.si-opt.selected{background:var(--a2-accent);border-color:var(--a2-accent);color:#fff}.si-input{width:100%;box-sizing:border-box;border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text);border-radius:var(--a2-r-sm);padding:11px 12px;font-size:13px;outline:none;font-family:inherit}.si-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.smart-progress-note{font-size:12px;color:var(--a2-text-faint);margin-top:8px;line-height:1.6}
 @media(max-width:760px){.si-header{flex-direction:column}.si-actions{flex-direction:column}.si-actions button{width:100%}}
 
 
 
 /* ── Atlas v0.6 Workspace UI ── */
-.atlas-workspace{background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(168,85,247,.08));border:1px solid rgba(129,140,248,.28);border-radius:18px;padding:18px;margin-bottom:16px;position:relative;overflow:hidden}
-.atlas-workspace:before{content:"";position:absolute;width:180px;height:180px;border-radius:50%;right:-80px;top:-100px;background:radial-gradient(circle,rgba(129,140,248,.22),transparent 70%);pointer-events:none}
-.aw-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;position:relative;z-index:1}
-.aw-kicker{font-size:10px;letter-spacing:1.8px;color:#a5b4fc;font-weight:900}
-.aw-title{font-size:20px;font-weight:900;color:var(--text);margin-top:5px;word-break:keep-all}
-.aw-meta{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.6}
-.aw-badge{font-size:10px;font-weight:900;color:#c7d2fe;border:1px solid rgba(165,180,252,.3);background:rgba(99,102,241,.12);padding:6px 10px;border-radius:100px;white-space:nowrap}
-.aw-progress-head{display:flex;justify-content:space-between;gap:10px;margin-top:16px;font-size:11px;color:#cbd5e1;font-weight:800}
-.aw-progress{height:7px;background:rgba(255,255,255,.08);border-radius:100px;overflow:hidden;margin-top:7px}
-.aw-progress>div{height:100%;width:8%;background:linear-gradient(90deg,#6366f1,#a855f7);border-radius:100px;transition:width .35s ease}
-.aw-steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:14px;position:relative;z-index:1}
-.aw-step{border:1px solid rgba(255,255,255,.08);background:rgba(8,11,26,.42);border-radius:11px;padding:9px 7px;text-align:center;color:#64748b;min-width:0}
-.aw-step .ico{font-size:16px;display:block;margin-bottom:4px}
-.aw-step .lbl{font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.aw-step.done{color:#86efac;border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.07)}
-.aw-step.active{color:#e0e7ff;border-color:rgba(129,140,248,.5);background:rgba(99,102,241,.16);box-shadow:0 0 0 1px rgba(99,102,241,.12) inset}
-.aw-coach{display:flex;gap:10px;align-items:flex-start;margin-top:13px;background:rgba(15,23,42,.55);border:1px solid rgba(255,255,255,.08);padding:11px 12px;border-radius:12px;position:relative;z-index:1}
-.aw-coach-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:rgba(99,102,241,.18);border-radius:8px;flex:0 0 auto}
-.aw-coach-text{font-size:11px;color:#cbd5e1;line-height:1.55}
-.aw-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1}
-.aw-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#cbd5e1;border-radius:9px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer}
-.aw-btn:hover{background:rgba(255,255,255,.09)}
-@media(max-width:760px){.aw-top{flex-direction:column}.aw-steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* Atlas Visual Redesign v2, Phase R3: workspace banner re-skinned to the
+   light a2-* system (was a dark purple-glow gradient card). Decorative
+   ::before glow removed outright — it added no clarity, only decoration
+   (North Star: beauty only when it aids clarity). */
+/* Atlas Visual Redesign v2, Phase R10 — Ebook Generation Workspace header:
+   compacted from 7 stacked rows (kicker/title, badge, progress-text,
+   progress-bar, 4 STEP pills, coach banner, 3 full-width utility buttons)
+   down to 5, by folding the utility actions into a corner icon-button
+   cluster (.aw-top-right, next to the badge — the same "action-in-the-
+   header-corner" pattern real workspace tools use) instead of their own
+   dedicated row. .aw-btn (old full-width utility button) retired —
+   confirmed zero remaining references. */
+.atlas-workspace{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:22px 24px;margin-bottom:20px}
+.aw-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.aw-kicker{font-size:10px;letter-spacing:1.4px;color:var(--a2-accent);font-weight:700;text-transform:uppercase}
+.aw-title{font-size:20px;font-weight:800;color:var(--a2-text);margin-top:5px;word-break:keep-all}
+.aw-meta{font-size:11px;color:var(--a2-text-faint);margin-top:5px;line-height:1.6}
+.aw-top-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
+.aw-badge{font-size:10px;font-weight:700;color:var(--a2-accent);border:none;background:var(--a2-accent-soft);padding:6px 12px;border-radius:100px;white-space:nowrap}
+.aw-actions{display:flex;gap:2px}
+.aw-progress-head{display:flex;justify-content:space-between;gap:10px;margin-top:16px;font-size:var(--fs-caption);color:var(--a2-text-muted);font-weight:600}
+.aw-progress{height:6px;background:var(--a2-border);border-radius:100px;overflow:hidden;margin-top:7px}
+.aw-progress>div{height:100%;width:8%;background:var(--a2-accent);border-radius:100px;transition:width .35s ease}
+.aw-steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:14px}
+.aw-step{border:1px solid var(--a2-border);background:var(--a2-bg);border-radius:10px;padding:9px 7px;text-align:center;color:var(--a2-text-faint);min-width:0}
+.aw-step .ico{display:flex;justify-content:center;margin-bottom:4px}
+.aw-step .ico svg{width:14px;height:14px}
+.aw-step .lbl{font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aw-step.done{color:var(--a2-success);border-color:var(--a2-success-soft);background:var(--a2-success-soft)}
+.aw-step.active{color:var(--a2-accent);border-color:var(--a2-accent-soft);background:var(--a2-accent-soft)}
+.aw-coach{display:flex;gap:10px;align-items:flex-start;margin-top:14px;background:var(--a2-accent-soft);border:1px solid var(--a2-border);padding:11px 14px;border-radius:var(--a2-r-sm)}
+.aw-coach-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--a2-surface);color:var(--a2-accent);border-radius:8px;flex:0 0 auto}
+.aw-coach-text{font-size:12px;color:var(--a2-text-muted);line-height:1.6}
+@media(max-width:760px){.aw-top{flex-direction:column}.aw-top-right{flex-direction:row-reverse;align-items:center;width:100%;justify-content:space-between}.aw-steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* ── Phase 17.1: 사용자 기본 화면 4단계 배너(aw-steps 7단계는 <details> 안 "고급"으로 유지) ── */
+.aw-steps-simple{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.aw-step-simple{border:1px solid var(--a2-border);background:var(--a2-bg);border-radius:var(--a2-r-sm);padding:12px 8px;text-align:center;color:var(--a2-text-faint);min-width:0}
+.aw-step-simple .num{font-size:10px;font-weight:700;display:block;margin-bottom:4px;letter-spacing:.3px}
+.aw-step-simple .lbl{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit}
+.aw-step-simple.done{color:var(--a2-success);border-color:var(--a2-success-soft);background:var(--a2-success-soft)}
+.aw-step-simple.active{color:var(--a2-accent);border-color:var(--a2-accent-soft);background:var(--a2-accent-soft)}
+@media(max-width:760px){.aw-steps-simple{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 
 
@@ -848,11 +1297,42 @@ textarea{resize:vertical}
 @media(max-width:760px){.atlas-landing{padding:30px 16px}.al-brand{margin-bottom:27px}.al-logo{width:53px;height:53px;border-radius:16px}.al-name{font-size:25px}.al-title{letter-spacing:-2px}.al-featurebar{grid-template-columns:repeat(2,1fr);padding:10px}.al-feature{border-right:0;border-bottom:1px solid rgba(148,163,184,.1);justify-content:flex-start;padding:12px}.al-feature:last-child{grid-column:1/-1;border-bottom:0;justify-content:center}.al-btn{width:100%;min-width:0}.al-actions{gap:10px}.al-version{display:none}}
 
 
-/* Atlas Final: quality coach + partial regeneration */
-.atlas-final-tools{margin-top:16px;background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(30,27,75,.94));border:1px solid rgba(129,140,248,.3);border-radius:18px;padding:16px;color:#e2e8f0}
-.aft-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.aft-kicker{font-size:10px;font-weight:900;letter-spacing:1.5px;color:#a5b4fc}.aft-title{font-size:18px;font-weight:900;margin-top:4px}.aft-score{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4f46e5,#a855f7);font-size:18px;font-weight:900;box-shadow:0 8px 22px rgba(99,102,241,.3)}
-.aft-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:13px}.aft-metric{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);border-radius:11px;padding:10px}.aft-metric b{display:block;font-size:16px;color:#fff}.aft-metric span{font-size:10px;color:#94a3b8}.aft-note{margin-top:10px;font-size:12px;line-height:1.65;color:#cbd5e1;background:rgba(99,102,241,.09);border-radius:10px;padding:10px 12px}.aft-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.aft-btn{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#e2e8f0;border-radius:100px;padding:8px 12px;font-size:11px;font-weight:800;cursor:pointer}.aft-btn.primary{border:0;background:linear-gradient(135deg,#4f46e5,#8b5cf6);color:white}
-.atlas-modal-bg{position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:18px;z-index:99999}.atlas-modal{width:min(620px,100%);max-height:88vh;overflow:auto;background:#0f172a;border:1px solid rgba(129,140,248,.32);border-radius:20px;padding:20px;color:#e2e8f0;box-shadow:0 30px 90px rgba(0,0,0,.5)}.atlas-modal h3{margin:0 0 5px;font-size:20px}.atlas-modal p{margin:0 0 15px;color:#94a3b8;font-size:12px;line-height:1.6}.atlas-form-row{margin-bottom:12px}.atlas-form-row label{display:block;font-size:11px;color:#a5b4fc;font-weight:800;margin-bottom:6px}.atlas-form-row select,.atlas-form-row textarea{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.15);background:#020617;color:#e2e8f0;border-radius:11px;padding:10px;font-family:inherit}.atlas-form-row textarea{min-height:105px;resize:vertical}.atlas-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.atlas-platform-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}.atlas-platform-row select{background:#0f172a;color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:100px;padding:7px 11px;font-size:11px;font-weight:800}
+/* Atlas Visual Redesign v2, Phase R4 — AI Quality Coach re-skinned to the
+   light a2-* system (was a dark purple-gradient card). */
+.atlas-final-tools{margin-top:16px;background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:20px;color:var(--a2-text)}
+.aft-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.aft-kicker{font-size:10px;font-weight:700;letter-spacing:1.2px;color:var(--a2-accent);text-transform:uppercase}
+.aft-title{font-size:18px;font-weight:800;margin-top:4px;color:var(--a2-text)}
+.aft-score{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--a2-accent-soft);color:var(--a2-accent);font-size:18px;font-weight:800}
+.aft-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.aft-metric{background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);padding:10px}
+.aft-metric b{display:block;font-size:16px;color:var(--a2-text)}
+.aft-metric span{font-size:10px;color:var(--a2-text-faint)}
+.aft-note{margin-top:10px;font-size:12px;line-height:1.65;color:var(--a2-text-muted);background:var(--a2-accent-soft);border-radius:var(--a2-r-sm);padding:10px 12px}
+.aft-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.aft-btn{border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text-muted);border-radius:100px;padding:8px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:background var(--motion-fast)}
+.aft-btn:hover{background:var(--a2-surface-hover)}
+.aft-btn.primary{border:0;background:var(--a2-accent);color:#fff}
+.aft-btn.primary:hover{background:var(--a2-accent-hover)}
+/* Atlas Visual Redesign v2, Phase R4: image-production section (thumbnail/
+   sales-page generation, STEP 3~4) wrapped in a light card matching the
+   rest of the Converter — was a bare unstyled block. */
+.ipe-section{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:24px}
+/* Atlas Visual Redesign v2, Phase R4: partial-regeneration modal + platform
+   selector re-skinned to the light a2-* system (was a dark modal floating
+   over an already-light Converter — jarring, not an intentional theme
+   choice). */
+.atlas-modal-bg{position:fixed;inset:0;background:rgba(20,22,30,.45);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:18px;z-index:99999}
+.atlas-modal{width:min(620px,100%);max-height:88vh;overflow:auto;background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);padding:24px;color:var(--a2-text);box-shadow:var(--a2-shadow-lg)}
+.atlas-modal h3{margin:0 0 5px;font-size:20px;color:var(--a2-text)}
+.atlas-modal p{margin:0 0 15px;color:var(--a2-text-muted);font-size:12px;line-height:1.6}
+.atlas-form-row{margin-bottom:12px}
+.atlas-form-row label{display:block;font-size:11px;color:var(--a2-text-muted);font-weight:700;margin-bottom:6px}
+.atlas-form-row select,.atlas-form-row textarea{width:100%;box-sizing:border-box;border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text);border-radius:var(--a2-r-sm);padding:10px;font-family:inherit}
+.atlas-form-row textarea{min-height:105px;resize:vertical}
+.atlas-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}
+.atlas-platform-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.atlas-platform-row select{background:var(--a2-surface);color:var(--a2-text);border:1px solid var(--a2-border);border-radius:100px;padding:7px 11px;font-size:11px;font-weight:700}
 @media(max-width:760px){.aft-grid{grid-template-columns:repeat(2,1fr)}}
 
 /* ════════════════════════════════

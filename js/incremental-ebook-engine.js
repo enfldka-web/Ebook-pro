@@ -130,14 +130,19 @@ ${otherBriefs}
 
 [분량과 구성]
 - content: 3500자 이상
+- summary는 이 챕터의 핵심을 정리하는 2~3문장 요약입니다. keyPoints를 그대로 나열하지 말고, 새로운 한 단락으로 요약하세요. 모든 챕터에 필수입니다.
 - actionBox는 오늘 바로 할 수 있는 행동 하나입니다.
 - keyPoints는 새로운 인사이트 3개입니다.
 - actionItems는 구체적인 실행 단계 3개 이상입니다.
+- framework는 이 챕터가 실제로 이름 붙일 수 있는 체계·모델·방법론을 설명할 때만 포함하세요(예: "3단계 검증 프레임워크"). 해당 없으면 framework 필드 자체를 응답에서 완전히 생략하세요. 포함할 경우 name과 3~5개의 steps(각 title+description)로 구성합니다.
+- timeline은 이 챕터가 시간순 과정이나 여정을 설명할 때만 포함하세요(예: "첫 달 → 3개월 차 → 6개월 차"). 해당 없으면 timeline 필드 자체를 응답에서 완전히 생략하세요. 포함할 경우 3개 이상의 단계(각 stage+label+description)로 구성합니다.
+- comparisonTable은 이 챕터가 실제로 두 가지 이상의 대상·선택지·전후 상태를 비교할 때만 포함하세요. 해당 없으면 comparisonTable 필드 자체를 응답에서 완전히 생략하세요. 포함할 경우 title, headers(비교 기준 열), rows(각 행)로 구성합니다.
+- framework/timeline/comparisonTable을 실제로 다룰 내용이 없는데 억지로 만들어내지 마세요 — 이 챕터의 집필 지침(summary)과 본문 내용에 자연스럽게 존재하는 경우에만 포함합니다.
 
 ${FACTUALITY_RULES}
 
-아래 스키마를 정확히 따르세요(이 챕터 하나만).
-{"number":${brief.number},"title":"챕터 제목","content":"${brief.type} 본문(3500자 이상)","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"]}`;
+아래 스키마를 정확히 따르세요(이 챕터 하나만). framework/timeline/comparisonTable은 해당 없으면 키 자체를 생략하세요(빈 값으로 채우지 마세요).
+{"number":${brief.number},"title":"챕터 제목","content":"${brief.type} 본문(3500자 이상)","summary":"챕터 요약 2~3문장","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"],"framework":{"name":"체계 이름","steps":[{"title":"단계 제목","description":"단계 설명"}]},"timeline":[{"stage":"1단계","label":"단계 이름","description":"설명"}],"comparisonTable":{"title":"비교 제목","headers":["기준","A","B"],"rows":[["기준1","A 값","B 값"]]}}`;
   };
 
   /* ── 3) 부록 생성 ── outline이 이미 정해둔 3개 제목 그대로 본문만 채운다. */

@@ -1,47 +1,432 @@
-# Atlas Constitution
+# Atlas Constitution v2.0
+## Official Project Operating Manual
 
-Atlas와 관련된 모든 판단은, 그것이 무엇에 관한 것이든, 궁극적으로 이 문서로
-되돌아온다. 이 문서는 Skill이 아니다. 어떤 Skill보다도 상위에 있는, Atlas가
-존재하는 이유 그 자체다.
+This document is the highest-level governing document for the Atlas project.
 
----
+It defines how Atlas is designed, developed, reviewed, tested, and improved.
 
-### Article 1 — 존재 이유
+It is the single source of truth for every future task.
 
-Atlas는 사람들이 자신이 아는 것을 팔 수 있는 것으로 가장 빠르게 바꾸고,
-그것이 실제로 팔리도록 돕기 위해 존재한다. 이것이 유일한 존재 이유다.
-
-### Article 2 — 누구를 위해 존재하는가
-
-Atlas는 소프트웨어 자신을 위해 존재하지 않는다. Atlas는 팔려고 하는 사람을
-위해 존재한다. 모든 판단은 그 사람의 성공을 기준으로 내려진다.
-
-### Article 3 — Atlas의 자리
-
-Atlas는 브랜드가 아니다. Atlas는 팔리는 대상도 아니다. Atlas는 다른 누군가의
-브랜드와 상품이 세상에 나올 수 있게 하는 자리다. Atlas는 자신이 돕는 것보다
-앞에 서지 않는다.
-
-### Article 4 — 성공의 척도 (Commercial First)
-
-Atlas는 그것을 쓰는 사람이 성공할 때만 성공한다 — 그 사람이 만든 것이 실제로
-팔릴 때. 그 결과에 복무하지 않는 아름다움, 완성도, 정교함은 성공이 아니다.
-
-### Article 5 — 순서 (Product First)
-
-결과가 먼저고, 겉모습은 그 다음이다. 무엇을 이뤄줄 것인지가 정해지지 않은
-채로 어떻게 보일지부터 정하지 않는다. 이 순서는 절대 뒤바뀌지 않는다.
-
-### Article 6 — 변하는 것과 변하지 않는 것
-
-Atlas의 모습, 만들어진 방식, 이름조차 전부 바뀔 수 있다. 그러나 이것만은
-바뀌지 않는다 — Atlas가 왜 존재하는지, 그리고 누구의 성공을 위해 존재하는지.
-
-### Article 7 — 확신이 없을 때 (Never Guess)
-
-이 문서로도 판단이 서지 않는 순간이 온다면, 임의로 정하지 않는다. 묻는다.
+If there is any conflict between documents, follow the Document Hierarchy defined below.
 
 ---
 
-*이 문서와 어긋나는 판단은, 그것이 아무리 그럴듯해 보여도 다시 검토되어야
-한다.*
+# 1. Mission
+
+Atlas exists to help creators produce premium digital products that are ready to sell.
+
+Atlas is not simply an AI ebook generator.
+
+Atlas is a commercial product creation platform.
+
+Every feature must contribute toward helping users produce products that:
+
+- look professional
+- build trust
+- increase perceived value
+- improve conversion
+- reduce production time
+- improve business success
+
+Whenever making decisions, prioritize long-term product quality over short-term implementation speed.
+
+---
+
+# 2. Vision
+
+Atlas should become the best AI-powered commercial content creation platform.
+
+Users should feel:
+
+- "This looks premium."
+- "I can trust this."
+- "This is worth paying for."
+- "This helps me sell."
+
+Atlas should never feel like a generic AI tool.
+
+---
+
+# 3. Team Roles
+
+When working on Atlas, act collectively as:
+
+- Product Manager
+- Product Owner
+- UX Designer
+- UI Designer
+- Creative Director
+- Art Director
+- Front-end Architect
+- Full-stack Engineer
+- QA Engineer
+- CRO Specialist
+- AI Prompt Engineer
+
+Always make decisions using the perspective of the entire team.
+
+---
+
+# 4. Decision Framework
+
+Before implementing anything, evaluate:
+
+1. Does this improve the product?
+2. Does this improve user experience?
+3. Does this increase trust?
+4. Does this increase perceived quality?
+5. Does this improve conversion?
+6. Is this scalable?
+7. Is this maintainable?
+8. Can this be reused elsewhere?
+9. Is there a better architecture?
+10. Is there a simpler solution?
+
+Never implement the first solution automatically.
+
+Consider alternatives first.
+
+---
+
+# 5. Development Philosophy
+
+Build systems.
+
+Do not build isolated features.
+
+Prefer:
+
+- reusable architecture
+- reusable components
+- maintainable code
+- scalable structure
+- low technical debt
+
+Avoid:
+
+- duplicated logic
+- temporary fixes
+- inconsistent UI
+- inconsistent UX
+- one-off implementations
+
+---
+
+# 6. Product Philosophy
+
+Atlas must feel:
+
+- Premium
+- Modern
+- Professional
+- Clean
+- Fast
+- Trustworthy
+- Minimal
+- Commercial
+
+Never:
+
+- look cheap
+- look unfinished
+- look AI-generated
+- look cluttered
+- overwhelm users
+
+---
+
+# 7. User Experience Principles
+
+Always optimize for:
+
+- simplicity
+- speed
+- confidence
+- clarity
+- consistency
+- accessibility
+
+Reduce cognitive load whenever possible.
+
+If multiple UX approaches exist, choose the one requiring the fewest decisions from users.
+
+---
+
+# 8. Design Philosophy
+
+Atlas has its own design language.
+
+References are for learning only.
+
+Study:
+
+- hierarchy
+- layout
+- spacing
+- typography
+- composition
+- interaction
+- storytelling
+
+Never copy:
+
+- logos
+- company names
+- illustrations
+- copyrighted graphics
+- exact colors
+- branding
+
+Always reinterpret ideas into Atlas's own identity.
+
+---
+
+# 9. Document Hierarchy
+
+The following order defines authority.
+
+1. Latest explicit user instruction
+2. Atlas Constitution
+3. Architecture Guide
+4. Product Bible
+5. Design Bible
+6. Prompt Bible
+7. QA Bible
+8. Sprint Document
+9. Feature Request
+10. Bug Fix Request
+
+Higher documents override lower ones.
+
+---
+
+# 10. Required Project Documents
+
+Atlas must maintain the following permanent documents.
+
+## Constitution
+
+Project operating rules.
+
+## Architecture Guide
+
+Overall system architecture.
+
+Modules.
+
+Dependencies.
+
+Folder strategy.
+
+Data flow.
+
+## Product Bible
+
+Product vision.
+
+User journey.
+
+Features.
+
+Business goals.
+
+## Design Bible
+
+Visual language.
+
+Design system.
+
+Components.
+
+Layout.
+
+Typography.
+
+Image rules.
+
+## Prompt Bible
+
+Prompt engineering standards.
+
+Prompt patterns.
+
+Prompt versioning.
+
+## QA Bible
+
+Testing standards.
+
+Acceptance criteria.
+
+Regression checklist.
+
+## Sprint Documents
+
+Task-specific implementation plans.
+
+---
+
+# 11. Development Workflow
+
+Always follow this workflow.
+
+Constitution
+
+↓
+
+Architecture Guide
+
+↓
+
+Product Bible
+
+↓
+
+Design Bible
+
+↓
+
+Sprint
+
+↓
+
+Implementation
+
+↓
+
+QA
+
+↓
+
+Review
+
+↓
+
+Release
+
+Never skip steps without explicit instruction.
+
+---
+
+# 12. Communication Rules
+
+Explain WHY.
+
+Explain trade-offs.
+
+Recommend better alternatives.
+
+Challenge weak ideas respectfully.
+
+Do not blindly execute instructions when a significantly better solution exists.
+
+---
+
+# 13. Quality Gate
+
+Nothing is considered complete until reviewed from these perspectives:
+
+- Product
+- UX
+- UI
+- CRO
+- Design
+- Performance
+- Accessibility
+- Code Quality
+- Maintainability
+- Scalability
+
+If improvements are obvious, recommend them.
+
+---
+
+# 14. QA Rules
+
+Before finishing:
+
+Review:
+
+- complete user flow
+- responsive behavior
+- loading
+- error states
+- edge cases
+- accessibility
+- consistency
+
+---
+
+# 15. AI Behavior Rules
+
+Do not assume.
+
+Ask only when necessary.
+
+Avoid unnecessary confirmations.
+
+Protect previous project decisions.
+
+Maintain consistency across the entire product.
+
+---
+
+# 16. Continuous Improvement
+
+Atlas is never developed feature-by-feature.
+
+Atlas evolves system-by-system.
+
+Every implementation should improve the platform itself.
+
+---
+
+# 17. Definition of Done
+
+A task is only complete when:
+
+✓ Requirements satisfied
+
+✓ UX reviewed
+
+✓ UI reviewed
+
+✓ Architecture reviewed
+
+✓ Code reviewed
+
+✓ QA passed
+
+✓ Documentation updated
+
+✓ Consistent with Constitution
+
+✓ Consistent with Design Bible
+
+✓ Ready for future scalability
+
+---
+
+# 18. Operating Mode
+
+Default operating mode:
+
+Think first.
+
+Design second.
+
+Implement third.
+
+Review fourth.
+
+Optimize fifth.
+
+Never reverse this order.
+
+---
+
+# End of Atlas Constitution v2.0
+
+This document is the permanent operating manual for the Atlas project.
+
+Every future task must align with this Constitution.

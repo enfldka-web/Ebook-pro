@@ -239,12 +239,40 @@ var SPS_THEMES = [
      카드 자체(배경·뱃지·목록·CTA)가 실제로 다시 스킨되고, 선택되지 않았을 때는 기존 동작과
      완전히 동일하다(폴백 = 기존 값). Export 대상 DOM과 Live Preview DOM이 같은 엘리먼트이므로
      Export 결과에도 동일한 토큰이 그대로 반영된다. ── */
+  /* 카드 콘텐츠(cardInner) 프리미엄 구성 원칙:
+     1) 히어로/마무리 CTA는 시각적으로 가장 무겁게(큰 타이포, 강조된 버튼), 그 사이의
+        본문 섹션들은 상대적으로 조용하게 — "무엇을 먼저 봐야 하는가"가 타이포 크기
+        자체로 드러나야 한다(강제 설명 없이).
+     2) 이전에는 모든 섹션이 위쪽 정렬(justify-content:flex-start)이라 실제 텍스트
+        분량이 적을 때 카드 아래쪽 절반 이상이 빈 공간으로 남는 문제가 있었다(육안
+        확인됨) — 모든 섹션을 세로 중앙 정렬로 바꿔 540×675 카드 하나하나가 "완성된
+        구성"으로 보이게 한다.
+     3) 각 섹션 상단에 실제 섹션 라벨(def.label, 새로 짓지 않은 기존 값)을 작은
+        eyebrow로 얹어 카드 여러 장을 넘겨볼 때 "이게 무슨 섹션인지" 즉시 스캔
+        가능하게 한다(히어로/CTA는 문구 자체가 이미 명확해 생략).
+     4) 테마마다 이미 정의돼 있었지만 실제로는 어디서도 쓰이지 않던 --ads-shadow
+        토큰을 리스트 행/카드/CTA 버튼에 적용해 "카드가 떠 있는" 입체감을 준다. */
   function cardInner(section, th, ebook){
     var themeId = (typeof AtlasDesignSystem!=='undefined') ? AtlasDesignSystem.state.themeId : null;
     var underline = (typeof AtlasDesignSystem!=='undefined' && AtlasDesignSystem.titleUnderline) ? AtlasDesignSystem.titleUnderline(themeId) : '';
-    var badgeHtml = section.badge ? '<div style="display:inline-block;padding:4px 12px;border-radius:100px;background:var(--ads-primary-soft,'+th.accentSoft+');border:1px solid var(--ads-primary,'+th.accent+');color:var(--ads-primary,'+th.accent+');font-size:12px;font-weight:800;margin-bottom:14px;font-family:var(--ads-accent-font,inherit)">'+x(section.badge)+'</div>' : '';
-    var titleHtml = '<h2 style="font-size:28px;font-weight:900;line-height:1.28;color:var(--ads-text-primary,'+th.text+');word-break:keep-all;margin:0 0 12px;font-family:var(--ads-heading-font,inherit)">'+x(section.title||'')+'</h2>' + underline;
-    var ctaHtml = section.cta ? '<div style="margin-top:16px;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:100px;background:var(--ads-primary,'+th.accent+');color:var(--ads-button-text,#fff);font-weight:800;font-size:13px;font-family:var(--ads-accent-font,inherit)">'+x(section.cta)+' →</div>' : '';
+    var def = sectionDef(section.type);
+    var isHero = section.type==='hero';
+    var isCta = section.type==='cta';
+
+    /* 제목이 섹션 라벨과 똑같은 문구(예: Benefits 기본 제목 "핵심 장점" = def.label
+       "핵심 장점")면 eyebrow를 생략한다 — 같은 문구가 두 줄로 겹쳐 보이는 어색함을
+       피한다(라벨 자체를 감추는 게 아니라, 제목이 이미 그 역할을 하고 있을 때만). */
+    var eyebrowHtml = (!isHero && !isCta && String(section.title||'').trim()!==def.label)
+      ? '<div style="font-size:12px;font-weight:800;letter-spacing:1.5px;color:var(--ads-primary,'+th.accent+');margin-bottom:10px;opacity:.85">'+x(def.label)+'</div>' : '';
+
+    var badgePadY = isHero?7:4, badgePadX = isHero?16:12, badgeFont = isHero?13:12, badgeMB = isHero?18:14;
+    var badgeHtml = section.badge ? '<div style="display:inline-block;padding:'+badgePadY+'px '+badgePadX+'px;border-radius:100px;background:var(--ads-primary-soft,'+th.accentSoft+');border:1px solid var(--ads-primary,'+th.accent+');color:var(--ads-primary,'+th.accent+');font-size:'+badgeFont+'px;font-weight:800;margin-bottom:'+badgeMB+'px;font-family:var(--ads-accent-font,inherit)">'+x(section.badge)+'</div>' : '';
+
+    var titleSize = isHero?34:(isCta?27:24);
+    var titleHtml = '<h2 style="font-size:'+titleSize+'px;font-weight:900;line-height:1.26;color:var(--ads-text-primary,'+th.text+');word-break:keep-all;margin:0 0 '+(isHero?16:14)+'px;font-family:var(--ads-heading-font,inherit)">'+x(section.title||'')+'</h2>' + underline;
+
+    var ctaPadY = isCta?16:11, ctaPadX = isCta?34:22, ctaFont = isCta?15:13, ctaMT = isCta?26:18;
+    var ctaHtml = section.cta ? '<div style="margin-top:'+ctaMT+'px;display:inline-flex;align-items:center;gap:8px;padding:'+ctaPadY+'px '+ctaPadX+'px;border-radius:100px;background:var(--ads-primary,'+th.accent+');color:var(--ads-button-text,#fff);font-weight:800;font-size:'+ctaFont+'px;font-family:var(--ads-accent-font,inherit);box-shadow:var(--ads-shadow,none)">'+x(section.cta)+' →</div>' : '';
 
     var bodyHtml = '';
     if(section.type==='toc'){
@@ -252,10 +280,10 @@ var SPS_THEMES = [
       if(!chapters.length){
         bodyHtml = '<div style="font-size:13px;color:var(--ads-text-secondary,'+th.sub+')">챕터 데이터가 없습니다.</div>';
       } else {
-        bodyHtml = '<div style="display:flex;flex-direction:column;gap:9px">'+chapters.slice(0,7).map(function(c,i){
-          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 13px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:10px">'
-            +'<div style="width:24px;height:24px;border-radius:7px;background:var(--ads-primary,'+th.accent+');color:var(--ads-button-text,#fff);font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
-            +'<div style="font-size:13px;font-weight:700;color:var(--ads-text-primary,'+th.text+');word-break:keep-all">'+x(c.title||'')+'</div></div>';
+        bodyHtml = '<div style="display:flex;flex-direction:column;gap:10px">'+chapters.slice(0,7).map(function(c,i){
+          return '<div style="display:flex;align-items:center;gap:12px;padding:11px 15px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:11px;box-shadow:var(--ads-shadow,none)">'
+            +'<div style="width:26px;height:26px;border-radius:8px;background:var(--ads-primary,'+th.accent+');color:var(--ads-button-text,#fff);font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
+            +'<div style="font-size:14px;font-weight:700;color:var(--ads-text-primary,'+th.text+');word-break:keep-all">'+x(c.title||'')+'</div></div>';
         }).join('')+'</div>';
       }
     } else if(section.type==='beforeAfter'){
@@ -263,39 +291,44 @@ var SPS_THEMES = [
       var afterArr = linesOf(section.afterText);
       function col(label, arr, tone){
         var tcolor = tone==='after' ? 'var(--ads-primary,'+th.accent+')' : 'var(--ads-text-secondary,'+th.sub+')';
-        return '<div style="flex:1;padding:13px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:12px">'
-          +'<div style="font-size:10px;font-weight:900;letter-spacing:1px;color:'+tcolor+';margin-bottom:8px">'+label+'</div>'
-          +(arr.length ? arr.slice(0,5).map(function(l){return '<div style="font-size:12px;color:var(--ads-text-primary,'+th.text+');margin-bottom:6px;line-height:1.5">'+(tone==='after'?'✓ ':'– ')+x(l)+'</div>';}).join('') : '<div style="font-size:11px;color:var(--ads-text-secondary,'+th.sub+')">내용 없음</div>')
+        return '<div style="flex:1;padding:16px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:13px'+(tone==='after'?';box-shadow:var(--ads-shadow,none)':'')+'">'
+          +'<div style="font-size:10px;font-weight:900;letter-spacing:1px;color:'+tcolor+';margin-bottom:10px">'+label+'</div>'
+          +(arr.length ? arr.slice(0,5).map(function(l){return '<div style="font-size:13px;color:var(--ads-text-primary,'+th.text+');margin-bottom:7px;line-height:1.55">'+(tone==='after'?'✓ ':'– ')+x(l)+'</div>';}).join('') : '<div style="font-size:11px;color:var(--ads-text-secondary,'+th.sub+')">내용 없음</div>')
           +'</div>';
       }
+      var arrowHtml = '<div style="display:flex;align-items:center;justify-content:center;color:var(--ads-primary,'+th.accent+');font-size:18px;font-weight:900;flex-shrink:0">→</div>';
       bodyHtml = (section.layoutId==='split')
-        ? '<div style="display:flex;flex-direction:column;gap:10px">'+col('BEFORE',beforeArr,'before')+col('AFTER',afterArr,'after')+'</div>'
-        : '<div style="display:flex;gap:10px">'+col('BEFORE',beforeArr,'before')+col('AFTER',afterArr,'after')+'</div>';
+        ? '<div style="display:flex;flex-direction:column;gap:12px">'+col('BEFORE',beforeArr,'before')+col('AFTER',afterArr,'after')+'</div>'
+        : '<div style="display:flex;align-items:stretch;gap:10px">'+col('BEFORE',beforeArr,'before')+arrowHtml+col('AFTER',afterArr,'after')+'</div>';
     } else if(section.layoutId==='icon-list' || section.layoutId==='checklist'){
       var arr = linesOf(section.body);
       bodyHtml = arr.length
-        ? '<div style="display:flex;flex-direction:column;gap:8px">'+arr.slice(0,6).map(function(l,i){
+        ? '<div style="display:flex;flex-direction:column;gap:10px">'+arr.slice(0,6).map(function(l,i){
             var icon = (typeof AtlasDesignSystem!=='undefined' && AtlasDesignSystem.listIcon) ? AtlasDesignSystem.listIcon(themeId,i) : (section.layoutId==='checklist'?'✓':'•');
-            return '<div style="display:flex;align-items:flex-start;gap:9px;padding:9px 13px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:10px">'
-              +'<div style="color:var(--ads-primary,'+th.accent+');font-weight:900;font-size:13px;flex-shrink:0">'+icon+'</div>'
-              +'<div style="font-size:12px;color:var(--ads-text-primary,'+th.text+');line-height:1.5;word-break:keep-all">'+x(l)+'</div></div>';
+            return '<div style="display:flex;align-items:flex-start;gap:10px;padding:11px 15px;background:var(--ads-surface-2,'+th.panel+');border:1px solid var(--ads-border,'+th.panelBorder+');border-radius:11px;box-shadow:var(--ads-shadow,none)">'
+              +'<div style="color:var(--ads-primary,'+th.accent+');font-weight:900;font-size:14px;flex-shrink:0">'+icon+'</div>'
+              +'<div style="font-size:13px;color:var(--ads-text-primary,'+th.text+');line-height:1.55;word-break:keep-all">'+x(l)+'</div></div>';
           }).join('')+'</div>'
         : '<div style="font-size:12px;color:var(--ads-text-secondary,'+th.sub+')">내용을 입력해주세요.</div>';
     } else if(section.layoutId==='comparison'){
       var all = linesOf(section.body);
       var half = Math.ceil(all.length/2);
-      bodyHtml = '<div style="display:flex;gap:10px;font-size:12px;color:var(--ads-text-primary,'+th.text+');line-height:1.7;word-break:keep-all">'
+      bodyHtml = '<div style="display:flex;gap:12px;font-size:13px;color:var(--ads-text-primary,'+th.text+');line-height:1.75;word-break:keep-all">'
         +'<div style="flex:1">'+all.slice(0,half).map(x).join('<br>')+'</div>'
         +'<div style="flex:1">'+all.slice(half).map(x).join('<br>')+'</div></div>';
+    } else if(section.type==='solution'){
+      /* Authority/Solution: 평범한 문단이 아니라 인용구처럼 강조해, "이 책이 제공하는
+         해결 구조"라는 핵심 설득 메시지에 걸맞은 무게를 준다. */
+      bodyHtml = '<div style="border-left:3px solid var(--ads-primary,'+th.accent+');padding:2px 0 2px 18px;font-size:15px;font-weight:600;color:var(--ads-text-primary,'+th.text+');line-height:1.7;word-break:keep-all;white-space:pre-line">'+x(section.body||'')+'</div>';
     } else {
-      bodyHtml = '<div style="font-size:13px;color:var(--ads-text-secondary,'+th.sub+');line-height:1.75;word-break:keep-all;white-space:pre-line">'+x(section.body||'')+'</div>';
+      bodyHtml = '<div style="font-size:14px;color:var(--ads-text-secondary,'+th.sub+');line-height:1.8;word-break:keep-all;white-space:pre-line">'+x(section.body||'')+'</div>';
     }
 
     var centered = section.layoutId==='text-center';
-    return '<div style="position:relative;z-index:1;padding:34px 28px;display:flex;flex-direction:column;height:100%;box-sizing:border-box;'
-      +(centered?'text-align:center;align-items:center;justify-content:center':'text-align:left;align-items:flex-start;justify-content:flex-start')
-      +';gap:2px">'
-      + badgeHtml + titleHtml + bodyHtml + ctaHtml
+    return '<div style="position:relative;z-index:1;padding:36px 30px;display:flex;flex-direction:column;height:100%;box-sizing:border-box;'
+      +(centered?'text-align:center;align-items:center':'text-align:left;align-items:flex-start')
+      +';justify-content:center;gap:6px">'
+      + eyebrowHtml + badgeHtml + titleHtml + bodyHtml + ctaHtml
       +'</div>';
   }
 

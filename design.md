@@ -1,338 +1,312 @@
-# Atlas Design Bible v1
+# Atlas Design Bible
+### Elevated from design.md v1 — Permanent Visual & Commercial Design Reference
 
-## 프로젝트
-
-Atlas AI eBook Studio
-
-이 문서는 디자인 명세만 담는다 — Brand Theme, UI, 컴포넌트, 레이아웃, 디자인
-시스템 규칙. Atlas가 왜 존재하는지, 어떤 철학으로 판단하는지는 이 문서의
-역할이 아니다. 그 내용은 `ATLAS_CONSTITUTION.md`, `ATLAS_PRODUCT_VISION.md`,
-`.claude/skills/atlas-business-bible/SKILL.md`를 참고한다.
+*This is an evolution of the original Atlas Design Bible v1, not a replacement. Every rule, theme, constraint, and requirement originally defined remains in force below, unchanged in substance. What's added is the reasoning — why each rule exists, what business objective it protects, and how it connects to the Constitution, the Architecture Handbook, and the Product Bible.*
 
 ---
 
-# Design Principles
+## Table of Contents
 
-## 1. Beautiful by Default
+**Part I — Foundation & Scope**
+0. Reading This Document
+1. Design Vision
+2. Relationship to the Other Foundation Documents
 
-사용자가 디자인를 몰라도
-기본값만으로 완성도 높은 결과가 나온다.
+**Part II — Design Principles**
+3. The Five Design Principles
 
-복잡한 설정을 강요하지 않는다.
+**Part III — Commercial Design Philosophy**
+4. Why Premium Design Builds Trust
+5. Visual Philosophy
+6. Commercial Design Psychology
+7. Information Hierarchy
+8. Typography Philosophy
+9. Color Philosophy
+10. Whitespace Philosophy
+11. Composition Philosophy
 
----
+**Part IV — Brand Identity System**
+12. Brand Theme Philosophy
+13. Theme Rules — Premium / Study Note / Handwriting
+14. Theme Cards
 
-## 2. Brand First
+**Part V — Product Surface Philosophy**
+15. Thumbnail Philosophy
+16. Hero Philosophy
+17. Detail Page Philosophy
+18. Overlay Philosophy
+19. Product Mockup Philosophy
 
-모든 화면은
+**Part VI — Execution Rules**
+20. Layout Rules
+21. Animation Rules
+22. Preview == Export
 
-- 전자책
-- 썸네일
-- 상세페이지
-- Export 결과
+**Part VII — Governance**
+23. Design Governance
+24. Relationship to the Prompt Bible and QA Bible
+25. Future Evolution
 
-가 하나의 브랜드처럼 보여야 한다.
-
-UI와 결과물이 서로 다른 디자인이면 안 된다.
-
----
-
-## 3. Preview First
-
-설정보다
-
-Preview가 중요하다.
-
-항상
-
-Preview가 화면에서 가장 중요한 요소가 되어야 한다.
-
----
-
-## 4. One Click
-
-클릭 수를 최소화한다.
-
-사용자는
-
-브랜드 하나만 선택하면
-
-폰트
-
-색상
-
-버튼
-
-카드
-
-썸네일
-
-상세페이지
-
-가 자동으로 적용되어야 한다.
+**Part VIII — Atlas Design Language**
+26. Atlas Design Language
+27. Design Decision Framework
+28. Design Anti-Patterns
+29. Design North Star
 
 ---
 
-## 5. Premium SaaS
+## 0. Reading This Document
 
-관리자 페이지처럼 만들지 않는다.
+A durable design handbook earns its permanence by explaining **why**, not merely **what**. Every color, font, required element, and forbidden element from the original document appears below exactly as it was, still as the source of truth for implementation. What this elevation adds is a *why* beside every *what* — because a rule without a reason is easy to accidentally break under pressure, and a rule with a reason survives contact with a deadline.
 
-목표 UX
-
-- Canva
-- Gamma
-- Framer
-- Apple
+Two facts recur throughout this handbook: (1) Atlas's visual language exists for exactly one commercial purpose — to make a buyer trust a product enough to pay for it, in the few seconds they spend deciding; (2) nothing here is implementation documentation, code documentation, or onboarding documentation — it explains why Atlas looks the way it does and must keep looking that way.
 
 ---
 
-# Brand Themes
+## 1. Design Vision
 
-현재
+Atlas's visual language exists for exactly one commercial purpose: **to make a buyer trust a product enough to pay for it, in the few seconds they spend deciding.**
 
-- Premium
-- Study Note
-- Handwriting
+This is not a general design-quality aspiration. A marketplace buyer judges a listing's thumbnail before reading a single word of its description, and that judgment is made in seconds, against every other listing competing for the same click. Atlas's visual language is the mechanism by which a creator with no design skill produces something that survives that judgment.
 
-향후
-
-- Business
-- Creator
-- Minimal
-- Finance
-- Healthcare
-- Education
+The long-term vision is that Atlas's visual output becomes recognizable *as quality* even to a viewer who has never heard of Atlas. Atlas's visual identity is not meant to be famous. It is meant to make *the user's* product look worth paying for, every time, by default, without requiring design judgment from the user.
 
 ---
 
-# Theme Rules
+## 2. Relationship to the Other Foundation Documents
 
-## Premium
+- **Constitution** → timeless principles: why Atlas exists, whose success it serves, what never changes.
+- **Architecture Handbook** → technical boundaries: how the system is structured to make anything in this document possible.
+- **Product Bible** → business philosophy: what Atlas is, who it serves, why premium quality matters commercially.
+- **Design Bible (this document)** → visual language and commercial execution: what "premium," "trustworthy," and "calm" actually look like, pixel by pixel.
 
-느낌
-
-- 고급
-- 전문가
-- AI
-- 투자
-- 부업
-
-색상
-
-- Black
-- Charcoal
-- Gold
-- Ivory
-
-폰트
-
-Heading
-
-Noto Serif KR
-
-Body
-
-Pretendard
-
-Accent
-
-Pretendard Bold
-
-금지
-
-- 보라색 버튼
-- 네온 효과
-- 과도한 Glow
+Two specific inheritances anchor everything below: from the **Constitution** — Atlas's own interface must never visually compete with the user's product; from the **Product Bible** — "premium over volume" and "simplicity over complexity" are business principles, not aesthetic preferences, and every design rule below is a specific, enforceable translation of one or both.
 
 ---
 
-## Study Note
+## 3. The Five Design Principles
 
-느낌
+### 3.1 Beautiful by Default
 
-- 공부노트
-- 플래너
-- 건강
-- 자기계발
-- 육아
+*Rule:* a user who knows nothing about design gets a high-quality result from default settings alone. Complex configuration is never required.
 
-색상
+*Why it exists:* Atlas's primary user has no design skill and no design vocabulary — asking them to make aesthetic decisions is asking them to fail at something they were never equipped for.
 
-- Ivory
-- Beige
-- Brown
-- Sage
-- Yellow
+*What it prevents:* a product whose visual quality is a lottery based on the user's personal taste.
 
-필수 요소
+### 3.2 Brand First
 
-- 줄노트
-- Dot Grid
-- 포스트잇
-- 체크리스트
-- 형광펜
-- 책갈피
+*Rule:* every surface — ebook, thumbnail, detail page, and export result — must read as one brand. UI and output must never look like two different designs.
 
-폰트
+*Why it exists:* a buyer who sees a thumbnail, then a detail page, then the delivered ebook, is silently checking whether this is one coherent, professionally-run product or an assembled patchwork.
 
-Heading
+*Business objective supported:* one approved strategy must present as one product.
 
-Noto Serif KR
+### 3.3 Preview First
 
-Body
+*Rule:* Preview outweighs configuration. Preview must always be the single most prominent element on screen.
 
-Pretendard
+*Why it exists:* a user should be looking at what they're about to sell, not at a settings panel.
 
-Accent
+*What it protects:* user confidence — a large, clear preview is what lets a non-designer see that the result is good.
 
-Poor Story
+### 3.4 One Click
 
-금지
+*Rule:* minimize the number of clicks. Selecting one Brand Pack should be sufficient to apply font, color, buttons, cards, thumbnail, and detail-page treatment automatically.
 
-- 다크 카드
-- 검정 배경
+*Why it exists:* every additional decision Atlas asks a user to make is a place a non-designer can make a choice they're not equipped to evaluate.
+
+*Problem it prevents:* decision fatigue that stalls a first-time user before they ever reach a finished product.
+
+### 3.5 Premium SaaS
+
+*Rule:* the interface must not look like an admin panel. Target UX references: Canva, Gamma, Framer, Apple.
+
+*Why it exists:* an interface that looks like internal tooling silently tells the user "this is a utility, not a premium production studio," undermining trust in the *output* before the user has even reached it.
 
 ---
 
-## Handwriting
+# Part III — Commercial Design Philosophy
 
-느낌
+## 4. Why Premium Design Builds Trust
 
-- 다이어리
-- 루틴
-- 감성
-- 기록
-- 메모
+A buyer cannot inspect an ebook's actual content before purchasing it — they are buying on trust signals alone. For a digital product sold sight-unseen, design quality is itself a component of the product's perceived value.
 
-색상
+## 5. Visual Philosophy
 
-- Warm Ivory
-- Dusty Pink
-- Warm Brown
-- Soft Blue
+Atlas's visual language should feel **calm rather than noisy** — restrained color use, generous whitespace, clear hierarchy, no more than one or two focal points per surface. A busy, competing-for-attention layout forces the eye to work to find what matters, and every extra second of visual effort is a second closer to the buyer moving to the next listing instead.
 
-필수 요소
+This is also why Atlas deliberately avoids generic, obviously-AI-generated imagery as a visual signature: imagery that reads as "obviously AI" undermines exactly the trust a buyer needs to extend before purchasing.
 
-- 손그림 밑줄
-- 마스킹테이프
-- 메모
-- 스티커
-- 손글씨 포인트
+## 6. Commercial Design Psychology
 
-폰트
+- **Consistency signals competence.** A viewer who sees the same color logic, typography, and spacing language across every surface unconsciously reads that as evidence of a competent team.
+- **Restraint signals confidence; visual noise signals compensation.**
+- **A clear focal point converts better than a busy one.**
+- **The first visual impression sets the price expectation.**
 
-Heading
+## 7. Information Hierarchy
 
-Noto Serif KR
+Every Atlas-produced surface must have exactly one primary message, communicated first, before any secondary detail.
 
-Body
+## 8. Typography Philosophy
 
-Pretendard
+Body text uses Pretendard by default; handwritten/script fonts are reserved for badges, notes, and emphasis phrases only; full-body handwritten typesetting is forbidden. A body typeface must prioritize legibility over personality; a display or handwritten typeface earns its place only where its *personality*, not its *legibility*, is the point.
 
-Accent
+## 9. Color Philosophy
 
-Single Day
+Color in Atlas is never decorative — it is always a signal of which Brand Pack, and therefore which commercial positioning, a product belongs to. Each Theme Rule specifies not just an allowed palette but explicit forbidden colors/effects.
 
-금지
+## 10. Whitespace Philosophy
 
-- 본문 전체 필기체
-- 유아용 디자인
+Whitespace is not empty space — it is the mechanism by which a viewer's eye is told what to look at and what to ignore.
+
+## 11. Composition Philosophy
+
+Every visual surface Atlas produces should be composable back to one sentence: "the eye goes here, then here."
 
 ---
 
-# Layout Rules
+# Part IV — Brand Identity System
 
-왼쪽
+## 12. Brand Theme Philosophy
 
-설정
+Current Brand Themes are Premium, Study Note, and Handwriting; future Brand Themes include Business, Creator, Minimal, Finance, Healthcare, Education. A Brand Theme is never a color scheme choice — it is a **positioning and trust strategy** expressed visually.
 
-오른쪽
+## 13. Theme Rules — Premium / Study Note / Handwriting
 
-Preview
+### Premium
+- **Mood:** 고급 · 전문가 · AI · 투자 · 부업
+- **Colors:** Black, Charcoal, Gold, Ivory
+- **Typography:** Heading — Noto Serif KR; Body — Pretendard; Accent — Pretendard Bold
+- **Forbidden:** purple buttons, neon effects, excessive glow
 
-Preview는
-항상 가장 크게 보여야 한다.
+*Why:* Premium exists to make an expert-level, high-price product credible. Purple buttons, neon, and glow are forbidden because they are visual markers of tech-startup playfulness, directly at odds with "expert/investment/luxury."
 
----
+### Study Note
+- **Mood:** 공부노트 · 플래너 · 건강 · 자기계발 · 육아
+- **Colors:** Ivory, Beige, Brown, Sage, Yellow
+- **Required elements:** ruled lines, dot grid, sticky notes, checklists, highlighter marks, bookmarks
+- **Typography:** Heading — Noto Serif KR; Body — Pretendard; Accent — Poor Story
+- **Forbidden:** dark cards, black backgrounds
 
-# Theme Cards
+*Why:* the trust signal a buyer needs is "this feels like something I could actually use daily," not "this is authoritative." Dark backgrounds are forbidden because they read as formal/serious in exactly the way this theme is trying not to.
 
-텍스트 버튼 사용 금지.
+### Handwriting
+- **Mood:** 다이어리 · 루틴 · 감성 · 기록 · 메모
+- **Colors:** Warm Ivory, Dusty Pink, Warm Brown, Soft Blue
+- **Required elements:** hand-drawn underlines, washi/masking tape, memos, stickers, handwritten accent marks
+- **Typography:** Heading — Noto Serif KR; Body — Pretendard; Accent — Single Day
+- **Forbidden:** full-body handwritten script, childish/infantile design
 
-반드시 카드 형태.
+*Why:* trust is built through warmth and intimacy rather than authority or utility. Childish design is forbidden because "emotional warmth" and "juvenile" are different positioning claims entirely.
 
-카드 안에는
+## 14. Theme Cards
 
-- 실제 Thumbnail
-- 실제 Sales Page
-- Font Pair
-- Color Palette
-- 추천 분야
+*Rule:* text-only buttons for theme selection are forbidden; theme selection must always be presented as a card containing a real thumbnail sample, a real sales-page sample, the font pairing, the color palette, and recommended use categories.
 
-를 포함한다.
-
----
-
-# Animation
-
-허용
-
-- Fade
-- Hover
-- Scale
-
-150~220ms
-
-금지
-
-- Bounce
-- 과도한 Glow
-- 지속적인 움직임
+*Why:* a non-designer cannot make the Brand Pack decision from a text label alone — showing the actual downstream output lets the user evaluate the *actual commercial consequence* of their choice before committing to it.
 
 ---
 
-# Typography
+# Part V — Product Surface Philosophy
 
-본문
+## 15. Thumbnail Philosophy
 
-Pretendard
+A thumbnail's entire job, commercially, is to earn a click in a field of competing listings — evaluated in under a second. Thumbnail composition must resolve to one or two focal elements, never more. The product itself must be prominent enough in frame to be legible even at small marketplace-grid size.
 
-기본
+## 16. Hero Philosophy
 
-필기체는
+The Hero carries a different burden than the thumbnail: the buyer has already clicked, so trust is partially earned, but the Hero must confirm — in the same visual language and campaign mood as the thumbnail that earned the click — that this was the right decision.
 
-- Badge
-- 메모
-- 강조 문구
+## 17. Detail Page Philosophy
 
-에만 사용한다.
+A detail page's job is to walk a buyer from curiosity to purchase confidence across a sequence of pages, each with a distinct commercial purpose. Visual consistency across all pages is what makes the sequence read as one persuasive argument rather than a set of unrelated slides.
 
-본문 전체 필기체 금지.
+## 18. Overlay Philosophy
 
----
+The Overlay is where a generated background becomes a finished, on-brand commercial asset — because AI-generated text inside an image is unreliable and cannot be evaluated for hierarchy or brand consistency before it exists.
 
-# Export Rule
+## 19. Product Mockup Philosophy
 
-Preview와 Export 결과는 동일해야 한다.
-
-Preview만 예쁘고
-
-Export가 다르면 안 된다.
+Wherever an ebook is depicted as a physical or device-displayed object, the mockup must be large and undistorted enough in frame to read as the actual product being sold.
 
 ---
 
-# 개발 규칙
+# Part VI — Execution Rules
 
-새로운 UI를 만들기 전에
+## 20. Layout Rules
 
-반드시
+Configuration/settings are placed on the left; Preview is placed on the right. Preview must always occupy the largest visual area on screen.
 
-design.md를 먼저 읽는다.
+## 21. Animation Rules
 
-이 문서와 충돌하는 디자인은 구현하지 않는다.
+Allowed motion is limited to fade, hover, and scale, at 150–220ms. Bounce, excessive glow, and continuous/looping motion are forbidden. Motion in a premium product should confirm an interaction happened, not entertain.
 
-애매하면
+## 22. Preview == Export
 
-반드시 사용자에게 먼저 질문한다.
+The Preview shown to the user and the final exported result must be identical. A Preview that looks better than the actual export is forbidden — this is treated as an invariant, not a target.
 
-임의로 디자인을 변경하지 않는다.
+---
+
+# Part VII — Governance
+
+## 23. Design Governance
+
+Before building any new interface, this document must be read first. Any design that conflicts with it is not implemented. Where the right choice is ambiguous, the answer is to ask the user — never to decide unilaterally.
+
+## 24. Relationship to the Prompt Bible and QA Bible
+
+**The Design Bible defines principles. The Prompt Bible defines how AI should generate outputs using those principles. The QA Bible defines how generated outputs are validated against those principles.** These responsibilities must never overlap.
+
+## 25. Future Evolution
+
+As Atlas grows into new Brand Themes and new product surfaces, every addition should be evaluated by the same method: identify the business/positioning claim first, then derive the visual rule from that claim — never the reverse.
+
+---
+
+# Part VIII — Atlas Design Language
+
+## 26. Atlas Design Language
+
+Every other part of this document describes what Atlas *looks like* today. This section describes something that should not change even when all of that does: **how Atlas makes a visual decision.**
+
+A Brand Theme is a dialect. Atlas Design Language is the grammar underneath every dialect. A viewer who has seen all three should still be able to recognize a fourth, not-yet-invented theme as unmistakably *Atlas*. That recognizability is made of four permanent qualities:
+
+- **Restraint.** Every theme is more restrained than it could be.
+- **Deference.** Atlas's own interface, and every visual flourish inside a generated asset, defers to the user's actual product.
+- **Clarity of intent.** Every visual element earns its place by carrying information — never by existing purely for visual interest.
+- **Commercial honesty.** A visual choice never implies something about the product's positioning, price, or quality that isn't true.
+
+## 27. Design Decision Framework
+
+1. **Whose attention does this serve?**
+2. **Does this make the user's product more prominent, or does it compete with it?**
+3. **Can the eye's path be described in one sentence?**
+4. **Does this hold up restrained, or does it only work maximized?**
+5. **Would this still make sense in a Brand Theme that doesn't exist yet?**
+6. **Is this reversible if wrong?**
+
+## 28. Design Anti-Patterns
+
+- **Decoration without information.**
+- **Novelty for its own sake.**
+- **Style outweighing Preview.**
+- **Accidental consistency.**
+- **"It looks impressive in isolation" as the sole justification.**
+- **Generic AI aesthetic.**
+- **Mistaking complexity for premium.**
+
+## 29. Design North Star
+
+Every principle, rule, theme, and anti-pattern in this document exists in service of one question — the last check any future design decision must pass:
+
+> **Does this design help the creator sell with more confidence?**
+
+Not: is this beautiful. Not: is this novel. Not: is this technically impressive. Not: is this the most creative execution possible. Beauty, novelty, and technical sophistication earn their place in Atlas only when they increase a buyer's trust, strengthen the creator's brand, improve clarity, or help the creator sell with more confidence.
+
+When a future decision has no other section to check it against, this is the question to return to. If the honest answer is yes, the decision belongs in Atlas. If the honest answer is no, or merely "it looks good," it does not, no matter how well-crafted it is.
+
+---
+
+*End of Atlas Design Bible.*
