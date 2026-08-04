@@ -12,7 +12,7 @@ var ATLAS_STAGE_INFO={
  analysis:{pct:22,label:'2단계 · 자료 분석',badge:'분석 중',coach:'Atlas가 핵심 주제, 독자, 문제와 차별화 각도를 정리하고 있습니다.'},
  title:{pct:36,label:'3단계 · 제목과 후킹',badge:'선택 필요',coach:'후킹과 신뢰를 함께 고려해 제목을 고르세요. 선택한 제목은 모든 결과물에 연결됩니다.'},
  planner:{pct:50,label:'4단계 · AI 기획 승인',badge:'승인 필요',coach:'AI Planner가 정리한 기획안을 확인하고 Brand Pack을 선택한 뒤 승인하세요.'},
- ebook:{pct:68,label:'5단계 · 콘텐츠 제작',badge:'전자책 완성',coach:'전자책이 완성되었습니다. 내용과 제목을 검토한 뒤 판매 디자인으로 이동하세요.'},
+ ebook:{pct:100,label:'5단계 · 전자책 완성',badge:'전자책 완성',coach:'전자책이 완성되었습니다. 내용과 제목을 검토한 뒤 판매 디자인으로 이동하세요.'},
  sales:{pct:88,label:'6단계 · 판매 디자인',badge:'디자인 작업',coach:'썸네일, 상세페이지와 전자책 판매자료를 확인하고 가장 적합한 시안을 선택하세요.'},
  publish:{pct:100,label:'7단계 · 판매 준비 완료',badge:'출시 가능',coach:'최종 결과물을 저장하고 크몽 등록 전 정책 검사와 문구를 한 번 더 확인하세요.'}
 };
@@ -40,6 +40,25 @@ function atlasSetWorkspaceStage(stage,opts){
  document.querySelectorAll('[data-aw-step]').forEach(function(el){var n=ATLAS_STAGE_ORDER.indexOf(el.getAttribute('data-aw-step'));el.classList.toggle('done',n<idx);el.classList.toggle('active',n===idx);});
  if(!opts.noSave)atlasSaveDraft(false);
 }
+/* Phase 17.1: 사용자 기본 화면에 보여줄 4단계(STEP1~4) 배너 — 기존 7단계
+   ATLAS_STAGE_ORDER/atlasSetWorkspaceStage는 그대로 두고(내부 저장/코치 문구용),
+   화면에 실제로 어떤 STATE div가 보이는지를 기준으로 이 배너만 별도로 갱신한다. */
+/* Atlas Visual Redesign v2, Phase R10 — Result screen (STEP 4) header: the
+   most important screen in the app previously had the weakest header (a
+   single caption line, no title), unlike Title Studio/AI Planner's full
+   eyebrow+title+sub treatment. Called from renderCvEbook() (renderers.js)
+   with the same real ebook object already being rendered — chrome-only,
+   does not touch the actual exported ebook page content. */
+function atlasUpdateResultHeader(e){
+  var t=document.getElementById('cv-result-title');
+  if(t)t.textContent=(e&&e.title)?e.title:'전자책이 완성되었습니다';
+}
+function atlasSetSimpleStep(step){
+ document.querySelectorAll('[data-aw-simple-step]').forEach(function(el){
+  var n=parseInt(el.getAttribute('data-aw-simple-step'),10);
+  el.classList.toggle('done',n<step);el.classList.toggle('active',n===step);
+ });
+}
 function atlasCollectDraft(){
  function val(id){var e=document.getElementById(id);return e?e.value:'';}
  return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'input',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,ebookProgress:ebookProgressLightweight(APP.ebookProgress),thumbnailStudio:APP.thumbnailStudio||null,salesPageStudio:APP.salesPageStudio||null,brandTheme:APP.brandTheme||null,plannerReport:APP.plannerReport||null,brandProfile:APP.brandProfile||null,marketingCopy:APP.marketingCopy||null,thumbnailBlueprint:APP.thumbnailBlueprint||null,salesPageBlueprint:APP.salesPageBlueprint||null,ebookBlueprint:APP.ebookBlueprint||null,creativeCampaign:APP.creativeCampaign||null};
@@ -60,6 +79,39 @@ function atlasLoadDraft(show){
  }catch(e){if(show)showToast('error','프로젝트 불러오기에 실패했습니다.');}
 }
 function atlasClearDraft(){if(!confirm('저장된 임시 프로젝트를 지울까요?'))return;localStorage.removeItem(atlasProjectStorageKey());if(typeof AtlasEbookProgressStore!=='undefined'&&AtlasEbookProgressStore.remove)AtlasEbookProgressStore.remove('current');if(typeof resetConverter==='function')resetConverter();showToast('success','임시 프로젝트를 지웠습니다.');}
+/* Atlas Redesign Phase 4 (Dashboard): read-only summary of the single-slot
+   draft, if one exists — no side effects, no state mutation, purely for
+   display. Reuses the same localStorage key/shape atlasSaveDraft/atlasLoadDraft
+   already read and write; does not introduce a new storage format. */
+function atlasGetDraftSummary(){
+  try{
+    var raw=localStorage.getItem(atlasProjectStorageKey());
+    if(!raw)return null;
+    var d=JSON.parse(raw);
+    if(!d||typeof d!=='object')return null;
+    var stage=(d.stage&&ATLAS_STAGE_INFO[d.stage])?d.stage:'input';
+    var info=ATLAS_STAGE_INFO[stage];
+    var title=(d.lockedTitle||(d.topic&&d.topic.main)||'').trim()||'새 전자책 프로젝트';
+    var pct=(d.ebookProgress&&typeof d.ebookProgress.progressPct==='number')?d.ebookProgress.progressPct:info.pct;
+    return {title:title,stageLabel:info.label,badge:info.badge,pct:pct,savedAt:d.savedAt||null};
+  }catch(e){return null;}
+}
+function atlasRelativeTime(ts){
+  if(!ts)return '';
+  var diffMin=Math.round((Date.now()-ts)/60000);
+  if(diffMin<1)return '방금 저장됨';
+  if(diffMin<60)return diffMin+'분 전 저장됨';
+  var diffHr=Math.round(diffMin/60);
+  if(diffHr<24)return diffHr+'시간 전 저장됨';
+  return new Date(ts).toLocaleDateString('ko-KR')+' 저장됨';
+}
+/* Dashboard "이어서 작업하기" — reuses the exact same working path as the
+   existing in-converter "↻ 저장 프로젝트 불러오기" button (index.html), just
+   triggered from outside the converter screen. showApp('converter') lands
+   on the default STEP1 view (setupConverter/checkCvReady, no forced reset
+   since we're entering converter, not leaving it), then atlasLoadDraft(true)
+   restores the saved project exactly as it already does today. */
+function atlasResumeDraft(){showApp('converter');atlasLoadDraft(true);}
 /* 어느 화면/단계에 있든(같은 converter 섹션에 이미 머물러 있어도) 항상 실제로
    새 프로젝트 상태로 되돌리기 위해 showApp('converter') 전에 반드시 resetConverter()를
    먼저 호출한다 — showApp()은 section이 이미 'converter'면 내부 상태를 리셋하지 않는다. */
@@ -92,20 +144,24 @@ function refreshAtlasGatewayStatus(){
 }
 function testGatewayConnection(){
   var el=document.getElementById('api-test-result');
+  /* Atlas Redesign Phase 2 (Loading state): show an immediate inline loading
+     indicator instead of leaving the result box untouched until the request
+     resolves — the toast alone was too transient to count as feedback. */
+  if(el && window.AtlasStateSystem){el.className='';el.style.display='block';el.style.background='';el.style.color='';el.innerHTML=AtlasStateSystem.loadingInline('AI 서버 연결 확인 중...');}
   showToast('info','AI 서버 연결 확인 중...');
   refreshAtlasGatewayStatus().then(function(st){
     if(!st.reachable){
-      if(el){el.style.display='block';el.style.background='rgba(239,68,68,.12)';el.style.color='#fca5a5';el.textContent='❌ AI 서버가 실행되지 않았습니다.';}
+      if(el){el.style.display='block';el.className='a2-banner a2-banner-error';el.innerHTML='<span data-icon="alertTriangle"></span><span>AI 서버가 실행되지 않았습니다.</span>';if(window.AtlasIcons)AtlasIcons.applyAll(el);}
       showToast('error','AI 서버가 실행되지 않았습니다.');
       return;
     }
     if(!st.configured){
-      if(el){el.style.display='block';el.style.background='rgba(239,68,68,.12)';el.style.color='#fca5a5';el.textContent='⚠️ AI 서버는 실행 중이지만 Anthropic API 키가 설정되지 않았습니다.';}
+      if(el){el.style.display='block';el.className='a2-banner a2-banner-warning';el.innerHTML='<span data-icon="alertTriangle"></span><span>AI 서버는 실행 중이지만 Anthropic API 키가 설정되지 않았습니다.</span>';if(window.AtlasIcons)AtlasIcons.applyAll(el);}
       showToast('error','서버에 API 키가 설정되지 않았습니다.');
       return;
     }
-    if(el){el.style.display='block';el.style.background='rgba(16,185,129,.12)';el.style.color='#34d399';el.textContent='✅ AI 서버가 정상적으로 연결되어 있습니다.';}
-    showToast('success','✅ AI 서버 연결 정상!');
+    if(el){el.style.display='block';el.className='a2-banner a2-banner-success';el.innerHTML='<span data-icon="checkCircle"></span><span>AI 서버가 정상적으로 연결되어 있습니다.</span>';if(window.AtlasIcons)AtlasIcons.applyAll(el);}
+    showToast('success','AI 서버 연결 정상!');
   });
 }
 function getUserEbooks(email){
@@ -148,43 +204,50 @@ function showTrialLimitPopup(type){
   var typeNames={file:'파일 업로드',topic:'주제 키워드',url:'URL',text:'텍스트',sales:'상세페이지'};
   var typeName=typeNames[type]||type;
   var p=document.createElement('div');
-  p.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+  p.className='atlas-modal-bg';
   var inner=document.createElement('div');
-  inner.style.cssText='background:#1a1a2e;border:1px solid rgba(99,102,241,.4);border-radius:20px;padding:36px 32px;max-width:400px;width:90%;text-align:center;';
-  inner.innerHTML='<div style="font-size:32px;margin-bottom:12px">🔒</div>'
-    +'<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">'+typeName+' 체험 횟수 초과</div>'
-    +'<div style="font-size:14px;color:#94a3b8;margin-bottom:24px;line-height:1.6">무료 체험판은 방식별 1회만 사용 가능합니다.<br>무제한으로 사용하려면 구독해주세요!</div>';
+  inner.className='atlas-modal';
+  inner.style.cssText='max-width:400px;text-align:center';
+  inner.innerHTML='<div class="a2-icon-chip amber" data-icon="lock" style="margin:0 auto 16px"></div>'
+    +'<h3 style="margin-bottom:8px">'+typeName+' 체험 횟수 초과</h3>'
+    +'<p style="margin-bottom:24px">무료 체험판은 방식별 1회만 사용 가능합니다.<br>무제한으로 사용하려면 구독해주세요!</p>';
   var btn1=document.createElement('button');
-  btn1.style.cssText='width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;display:block;';
-  btn1.textContent='🚀 월 ₩29,000로 무제한 시작';
+  btn1.className='a2-btn a2-btn-primary';
+  btn1.style.cssText='width:100%;margin-bottom:10px';
+  btn1.textContent='월 ₩29,000로 무제한 시작';
   btn1.onclick=function(){window.open(LATPEED_URL,'_blank');};
   var btn2=document.createElement('button');
-  btn2.style.cssText='width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:12px;color:#94a3b8;font-size:13px;cursor:pointer;display:block;';
+  btn2.className='a2-btn a2-btn-secondary';
+  btn2.style.width='100%';
   btn2.textContent='닫기';
   btn2.onclick=function(){p.remove();};
   inner.appendChild(btn1);
   inner.appendChild(btn2);
   p.appendChild(inner);
   document.body.appendChild(p);
+  if(window.AtlasIcons)AtlasIcons.applyAll(inner);
 }
 
 function showTrialWelcomePopup(){
   if(localStorage.getItem('plrbooks_trial_welcomed'))return;
   localStorage.setItem('plrbooks_trial_welcomed','1');
   var p=document.createElement('div');
-  p.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+  p.className='atlas-modal-bg';
   var inner=document.createElement('div');
-  inner.style.cssText='background:#1a1a2e;border:1px solid rgba(99,102,241,.4);border-radius:20px;padding:36px 32px;max-width:400px;width:90%;text-align:center;';
-  inner.innerHTML='<div style="font-size:40px;margin-bottom:12px">🎁</div>'
-    +'<div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:8px">무료 체험판에 오신 걸 환영합니다!</div>'
-    +'<div style="font-size:14px;color:#94a3b8;margin-bottom:24px;line-height:1.6">파일·주제·URL·상세페이지<br>각 방식별 <b style=\"color:#a5b4fc\">1회씩</b> 무료로 체험하실 수 있습니다.</div>';
+  inner.className='atlas-modal';
+  inner.style.cssText='max-width:400px;text-align:center';
+  inner.innerHTML='<div class="a2-icon-chip violet" data-icon="sparkle" style="margin:0 auto 16px"></div>'
+    +'<h3 style="margin-bottom:8px">무료 체험판에 오신 걸 환영합니다!</h3>'
+    +'<p style="margin-bottom:24px">파일·주제·URL·상세페이지<br>각 방식별 <b style="color:var(--a2-accent)">1회씩</b> 무료로 체험하실 수 있습니다.</p>';
   var btn=document.createElement('button');
-  btn.style.cssText='width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;';
-  btn.textContent='시작하기 🚀';
+  btn.className='a2-btn a2-btn-primary';
+  btn.style.width='100%';
+  btn.textContent='시작하기';
   btn.onclick=function(){p.remove();};
   inner.appendChild(btn);
   p.appendChild(inner);
   document.body.appendChild(p);
+  if(window.AtlasIcons)AtlasIcons.applyAll(inner);
 }
 
 function getTrialCount(){
@@ -199,7 +262,14 @@ function addTrialCount(type){
 function canGenerate(type){ return true; }
 
 function showPage(pg,sub){
-  // access block 숨기기
+  /* Atlas Redesign Phase 3 investigation: #pg-access-block has no matching
+     element anywhere in index.html today (checkAccessPeriod() below is
+     stubbed to always return true, i.e. the access gate is currently open).
+     This defensive hide is left in place rather than removed — it is cheap,
+     harmless, and is the correct hook for whenever a real access-gate
+     overlay is reintroduced under this ID. Not dead code to delete, just a
+     currently-inactive feature hook (Coding Bible: never delete based on
+     "appears unused" alone; confirm intent first). */
   var ab=document.getElementById('pg-access-block');
   if(ab){ab.style.display='none';ab.style.position='';ab.style.zIndex='';}
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -225,6 +295,8 @@ function showApp(section){
     if(el)el.style.display='none';
     var sb=document.getElementById('sb-'+s);
     if(sb)sb.classList.remove('active');
+    var tb=document.getElementById('tb-'+s);
+    if(tb)tb.classList.remove('active');
   });
 
   // 2. 요청 섹션 표시
@@ -232,9 +304,11 @@ function showApp(section){
   if(target)target.style.display='block';
   var sbTarget=document.getElementById('sb-'+section);
   if(sbTarget)sbTarget.classList.add('active');
+  var tbTarget=document.getElementById('tb-'+section);
+  if(tbTarget)tbTarget.classList.add('active');
 
   // 3. 상단바 제목
-  var titles={dashboard:'대시보드',converter:'⚡ 전자책 생성',history:'📚 내 전자책',settings:'⚙️ 설정'};
+  var titles={dashboard:'대시보드',converter:'전자책 생성',history:'내 전자책',settings:'설정'};
   var tt=document.getElementById('topbar-title');
   if(tt)tt.textContent=titles[section]||section;
 
@@ -289,11 +363,11 @@ function doLogin(){
     var name=email.split('@')[0];
     u={name:name,email:email,pw:btoa(pw),plan:'free',joined:new Date().toLocaleDateString('ko-KR')};
     var users=getUsers();users[email]=u;saveUsers(users);
-    setCurrentUser(u);showPage('app','dashboard');showToast('success','🎉 환영합니다! 자동으로 계정이 생성됐습니다.');
+    setCurrentUser(u);showPage('app','dashboard');showToast('success','환영합니다! 자동으로 계정이 생성됐습니다.');
   } else if(u.pw!==btoa(pw)){
     showErr(err,'비밀번호가 올바르지 않습니다. 다시 확인해주세요.');return;
   } else {
-    setCurrentUser(u);showPage('app','dashboard');showToast('success','👋 반갑습니다, '+u.name+'님!');
+    setCurrentUser(u);showPage('app','dashboard');showToast('success','반갑습니다, '+u.name+'님!');
   }
 }
 function doSignup(){
@@ -307,7 +381,7 @@ function doSignup(){
   if(users[email]){showErr(err,'이미 사용 중인 이메일입니다.');return;}
   var u={name:name,email:email,pw:btoa(pw),plan:APP.selPlan,joined:new Date().toLocaleDateString('ko-KR')};
   users[email]=u;saveUsers(users);setCurrentUser(u);
-  showPage('app','dashboard');showToast('success','🎉 가입 완료! 첫 전자책을 만들어보세요.');
+  showPage('app','dashboard');showToast('success','가입 완료! 첫 전자책을 만들어보세요.');
 }
 function doLogout(){clearCurrentUser();APP.ebook=null;APP.selFile=null;showPage('landing');showToast('success','로그아웃되었습니다.');}
 function showErr(el,msg){el.textContent=msg;el.style.display='block';}
@@ -336,6 +410,37 @@ function initApp(){
   showApp('dashboard');
   // setTimeout(showTrialWelcomePopup, 800); // 구독자용 비활성화
 }
+/* Atlas Visual Redesign v2, Phase R2 — truthful daily-count buckets derived
+   from real ebook creation timestamps (eb.id === Date.now() at save time,
+   see addEbook()). No fabricated movement: an account with no ebooks yet
+   simply buckets to all-zero, which atlasSparklineSvg() renders as a calm
+   flat line rather than a broken/empty chart. */
+function atlasDailyCounts(ebooks,days){
+  var now=new Date();now.setHours(0,0,0,0);
+  var buckets=[];
+  for(var i=days-1;i>=0;i--)buckets.push({t:now.getTime()-i*86400000,count:0});
+  ebooks.forEach(function(eb){
+    if(!eb.id)return;
+    var d=new Date(eb.id);d.setHours(0,0,0,0);
+    var diffDays=Math.round((now.getTime()-d.getTime())/86400000);
+    if(diffDays>=0&&diffDays<days)buckets[days-1-diffDays].count++;
+  });
+  return buckets.map(function(b){return b.count;});
+}
+function atlasSparklineSvg(counts){
+  var w=64,h=24,pad=2;
+  var n=counts.length;
+  var rawMax=Math.max.apply(null,counts);
+  var stepX=(w-pad*2)/((n-1)||1);
+  var pts=counts.map(function(c,i){
+    var px=pad+i*stepX;
+    var py=rawMax===0?h/2:(h-pad-(c/rawMax)*(h-pad*2));
+    return [px,py];
+  });
+  var line=pts.map(function(p,i){return (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
+  var area=line+' L'+pts[pts.length-1][0].toFixed(1)+','+(h-pad)+' L'+pts[0][0].toFixed(1)+','+(h-pad)+' Z';
+  return '<svg class="stat-spark" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" aria-hidden="true"><path d="'+area+'" class="stat-spark-fill" stroke="none"/><path d="'+line+'" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
 function renderDashboard(){
   if(!APP.user)return;
   var u=APP.user;
@@ -346,24 +451,93 @@ function renderDashboard(){
   var plan=PLANS[u.plan||'free'];
   var limitLeft=plan.limit-monthCount;
 
-  // upgrade banner
+  /* Atlas Visual Redesign v2, Phase R2 — Dashboard as publishing control
+     center. "What am I working on? / What should I do next?" answered from
+     the real single-slot draft state (atlasGetDraftSummary) — no fabricated
+     progress, no invented data. The work-center card is the FIRST/dominant
+     element (subscription status moved below it — see upgrade-banner-wrap
+     further down). Falls back to a calm start-new prompt when no draft
+     exists. */
+  var draft=atlasGetDraftSummary();
+  var wc=document.getElementById('dash-workcenter');
+  if(wc){
+    if(draft){
+      wc.innerHTML='<div class="dash-workcenter">'
+        +'<div class="dash-workcenter-head"><span class="dash-workcenter-eyebrow">이어서 작업 중</span><span class="dash-workcenter-saved">'+x(atlasRelativeTime(draft.savedAt))+'</span></div>'
+        +'<div class="dash-workcenter-title">'+x(draft.title)+'</div>'
+        +'<div class="dash-workcenter-stage">'+x(draft.stageLabel)+'</div>'
+        +'<div class="a2-progress"><div class="a2-progress-fill" style="width:'+draft.pct+'%"></div></div>'
+        +'<div class="dash-workcenter-actions">'
+        +'<button class="a2-btn a2-btn-primary" onclick="atlasResumeDraft()"><span data-icon="play"></span>이어서 작업하기</button>'
+        +'<button class="a2-btn a2-btn-secondary" onclick="startNewEbookProject()"><span data-icon="plus"></span>새 전자책 시작</button>'
+        +'</div></div>';
+    } else {
+      wc.innerHTML='<div class="dash-workcenter dash-workcenter-empty">'
+        +'<div class="dash-workcenter-title">새로운 전자책을 시작해보세요</div>'
+        +'<div class="dash-workcenter-stage">자료를 준비하면 Atlas가 제목부터 판매 이미지까지 함께 만듭니다.</div>'
+        +'<div class="dash-workcenter-actions">'
+        +'<button class="a2-btn a2-btn-primary" onclick="startNewEbookProject()"><span data-icon="plus"></span>새 전자책 시작</button>'
+        +'</div></div>';
+    }
+  }
+
+  /* Quiet secondary account/status line — deliberately NOT a dominant
+     banner (Phase R2 correction #8). Same real, unconditional plan/logout-
+     adjacent status text the app already showed pre-redesign (no NEW
+     fabricated plan/price/quota/usage data introduced here — only the
+     presentation and position changed, from a large gradient block above
+     the work-center to a quiet text row below it). */
   var bw=document.getElementById('upgrade-banner-wrap');
-  bw.innerHTML='<div class="upgrade-banner" style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(167,139,250,.1));border-color:rgba(99,102,241,.35)"><div class="upgrade-text"><h4>🔓 구독자 전용 서비스</h4><p>무제한으로 PLR 전자책을 생성하세요. 구독해 주셔서 감사합니다 🙏</p></div><span style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;padding:8px 18px;border-radius:10px;font-size:13px;font-weight:800;white-space:nowrap">✅ 구독 중</span></div>';
+  if(bw){
+    bw.innerHTML='<div class="dash-status-row"><span data-icon="lock" data-icon-size="15"></span>'
+      +'<span>구독자 전용 서비스 · 무제한으로 PLR 전자책을 생성하세요</span>'
+      +'<span class="a2-badge a2-badge-success" style="margin-left:auto">구독 중</span></div>';
+  }
 
-  // stats
+  /* Quick Actions — icon-chip shortcuts to real, already-existing
+     destinations only (Phase R2 explicit requirement: New Publication /
+     Resume Current Draft when available / My Ebooks / Settings). "Resume"
+     only appears when a draft genuinely exists — no fake affordance for
+     nothing to resume. All four call existing, unmodified functions. */
+  var qa=document.getElementById('dash-quickactions');
+  if(qa){
+    var actions=[{icon:'plus',color:'violet',label:'새 전자책 만들기',fn:'startNewEbookProject()'}];
+    if(draft)actions.push({icon:'play',color:'amber',label:'이어서 작업하기',fn:'atlasResumeDraft()'});
+    actions.push({icon:'library',color:'blue',label:'내 전자책',fn:"showApp('history')"});
+    actions.push({icon:'settings',color:'green',label:'설정',fn:"showApp('settings')"});
+    qa.innerHTML=actions.map(function(a){
+      return '<button class="dash-qa-card" onclick="'+a.fn+'">'
+        +'<span class="a2-icon-chip '+a.color+'" data-icon="'+a.icon+'"></span>'
+        +'<span class="dash-qa-label">'+x(a.label)+'</span></button>';
+    }).join('');
+  }
+
+  /* Only real, already-tracked counts — the two fabricated tiles (fixed
+     "₩29,000" plan price, fixed "~10분" average time) stay removed (Phase 4
+     finding, Never-Guess). Phase R2: the total-count tile gets a sparkline
+     truthfully derived from real ebook creation timestamps (see
+     atlasDailyCounts) — an account with no history yet gets a calm flat
+     line, never fabricated movement. The monthly tile stays a plain number:
+     a second parallel chart over the same sparse data would be redundant,
+     not clearer. */
   var sg=document.getElementById('stat-grid');
+  var spark=atlasSparklineSvg(atlasDailyCounts(ebooks,14));
   sg.innerHTML=[
-    {icon:'📚',val:ebooks.length,label:'총 생성 전자책',change:'↑ 전체 이력',cls:'neu'},
-    {icon:'📅',val:monthCount,label:'이번 달 생성',change:'무제한 이용 중',cls:'up'},
-    {icon:'💰',val:'₩29,000',label:'월 구독 요금',change:'구독자 전용 · 무제한',cls:'up'},
-    {icon:'⚡',val:'~10분',label:'평균 생성 시간',change:'AI 자동 처리',cls:'up'}
-  ].map(function(s){return '<div class="stat-card"><div class="stat-icon">'+s.icon+'</div><div class="stat-val">'+s.val+'</div><div class="stat-label">'+s.label+'</div><div class="stat-change '+s.cls+'">'+s.change+'</div></div>';}).join('');
+    '<div class="stat-card"><div class="stat-card-top"><span class="a2-icon-chip blue" data-icon="book"></span>'+spark+'</div><div class="stat-val">'+ebooks.length+'</div><div class="stat-label">총 생성 전자책</div><div class="stat-caption">전체 이력 · 최근 14일 추이</div></div>',
+    '<div class="stat-card"><div class="stat-card-top"><span class="a2-icon-chip green" data-icon="calendar"></span></div><div class="stat-val">'+monthCount+'</div><div class="stat-label">이번 달 생성</div><div class="stat-caption">무제한 이용 중</div></div>'
+  ].join('');
 
-  // recent ebooks
+  // recent projects — dashboard-only card, distinct from History's ebookCard()
   var de=document.getElementById('dash-ebooks');
   var recent=ebooks.slice(0,6);
-  if(!recent.length){de.innerHTML='<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">아직 생성한 전자책이 없어요</div><div class="empty-sub">첫 PLR 전자책을 만들어보세요!</div><button class="btn-primary" onclick="showApp(\'converter\')">+ 지금 만들기</button></div>';return;}
-  de.innerHTML='<div class="ebook-grid">'+recent.map(function(eb){return ebookCard(eb);}).join('')+'</div>';
+  if(!recent.length){
+    de.innerHTML='<div class="a2-empty"><div class="a2-empty-icon" data-icon="sparkle" data-icon-size="44"></div><div class="a2-empty-title">아직 생성한 전자책이 없어요</div><div class="a2-empty-sub">첫 PLR 전자책을 만들어보세요!</div><button class="a2-btn a2-btn-primary" onclick="showApp(\'converter\')"><span data-icon="plus"></span>지금 만들기</button></div>';
+  } else {
+    de.innerHTML='<div class="dash-projgrid">'+recent.map(function(eb){return dashProjectCard(eb);}).join('')
+      +'<button class="dash-proj-new" onclick="startNewEbookProject()"><span data-icon="plus" data-icon-size="22"></span><span>새 전자책 만들기</span></button></div>';
+  }
+
+  if(window.AtlasIcons)AtlasIcons.applyAll(document.getElementById('app-dashboard'));
 }
 function renderHistory(){
   if(!APP.user)return;
@@ -373,15 +547,17 @@ function renderHistory(){
   var he=document.getElementById('hist-ebooks');
   if(!he)return;
   if(!ebooks.length){
-    he.innerHTML='<div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">전자책 이력이 없습니다</div><div class="empty-sub">전자책을 생성하면 여기에 저장됩니다</div></div>';
+    he.innerHTML='<div class="a2-empty"><div class="a2-empty-icon" data-icon="book" data-icon-size="44"></div><div class="a2-empty-title">전자책 이력이 없습니다</div><div class="a2-empty-sub">전자책을 생성하면 여기에 저장됩니다</div></div>';
     var btn=document.createElement('button');
-    btn.className='btn-primary';
-    btn.textContent='+ 첫 전자책 만들기';
+    btn.className='a2-btn a2-btn-primary';
+    btn.innerHTML='<span data-icon="plus"></span>첫 전자책 만들기';
     btn.onclick=function(){showApp('converter');};
-    var es=he.querySelector('.empty-state');if(es)es.appendChild(btn);
+    var es=he.querySelector('.a2-empty');if(es)es.appendChild(btn);
+    if(window.AtlasIcons)AtlasIcons.applyAll(he);
     return;
   }
   he.innerHTML='<div class="ebook-grid">'+ebooks.map(function(eb){return ebookCard(eb);}).join('')+'</div>';
+  if(window.AtlasIcons)AtlasIcons.applyAll(he);
 }
 
 function renderSettings(){
@@ -406,16 +582,35 @@ function ebookCard(eb){
   var i=Math.abs(eb.id||0)%colors.length;
   return '<div class="ebook-card" onclick="openEbook('+eb.id+')">'
     +'<div class="ebook-cover" style="background:'+colors[i]+'">'
-    +'<div class="ebook-cover-cat">📚 '+(eb.category||'자기계발')+'</div>'
-    +'<div class="ebook-cover-title">'+(eb.title||'제목 없음')+'</div>'
+    +'<div class="ebook-cover-cat"><span data-icon="book" data-icon-size="12"></span>'+x(eb.category||'자기계발')+'</div>'
+    +'<div class="ebook-cover-title">'+x(eb.title||'제목 없음')+'</div>'
     +'</div>'
     +'<div class="ebook-body">'
-    +'<div class="ebook-meta">'+eb.created+'</div>'
-    +'<div class="ebook-title">'+(eb.title||'제목 없음')+'</div>'
-    +'<div class="ebook-tags"><span class="ebook-tag">'+(eb.category||'자기계발')+'</span></div>'
+    +'<div class="ebook-meta">'+x(eb.created)+'</div>'
+    +'<div class="ebook-title">'+x(eb.title||'제목 없음')+'</div>'
+    +'<div class="ebook-tags"><span class="ebook-tag">'+x(eb.category||'자기계발')+'</span></div>'
     +'<div class="ebook-actions">'
-    +'<button class="ebook-act-btn" onclick="event.stopPropagation();openEbook('+eb.id+')">📖 열기</button>'
-    +'<button class="ebook-act-btn" onclick="event.stopPropagation();deleteEbook('+eb.id+')">🗑️</button>'
+    +'<button class="ebook-act-btn" onclick="event.stopPropagation();openEbook('+eb.id+')"><span data-icon="chevronRight"></span>열기</button>'
+    +'<button class="ebook-act-btn" onclick="event.stopPropagation();deleteEbook('+eb.id+')"><span data-icon="trash"></span></button>'
+    +'</div></div></div>';
+}
+/* Atlas Visual Redesign v2, Phase R2 — Dashboard-only recent-project card.
+   Deliberately separate from ebookCard() above: History (Phase R6 scope)
+   still renders the old dark .ebook-card everywhere, and this phase must
+   not touch that shared component. Same real data (eb.id/title/category/
+   created) and the exact same openEbook()/deleteEbook() handlers — only the
+   markup/classes differ. */
+function dashProjectCard(eb){
+  var colors=['linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)','linear-gradient(135deg,#0f2027,#203a43,#2c5364)','linear-gradient(135deg,#1e1b4b,#312e81,#1e3a8a)','linear-gradient(135deg,#14532d,#166534,#15803d)','linear-gradient(135deg,#4c1d95,#5b21b6,#6d28d9)'];
+  var i=Math.abs(eb.id||0)%colors.length;
+  return '<div class="dash-projcard" onclick="openEbook('+eb.id+')">'
+    +'<div class="dash-projcover" style="background:'+colors[i]+'"><div class="dash-projcover-title">'+x(eb.title||'제목 없음')+'</div></div>'
+    +'<div class="dash-projbody">'
+    +'<div class="dash-projmeta">'+x(eb.created)+' · '+x(eb.category||'자기계발')+'</div>'
+    +'<div class="dash-projtitle">'+x(eb.title||'제목 없음')+'</div>'
+    +'<div class="dash-projactions">'
+    +'<button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="event.stopPropagation();openEbook('+eb.id+')"><span data-icon="chevronRight"></span>열기</button>'
+    +'<button class="a2-icon-btn" onclick="event.stopPropagation();deleteEbook('+eb.id+')" title="삭제"><span data-icon="trash"></span></button>'
     +'</div></div></div>';
 }
 function openEbook(id){
@@ -464,7 +659,7 @@ async function fetchUrl(){
   var url=document.getElementById('url-input').value.trim();
   if(!url)return;
   var btn=document.getElementById('url-fetch-btn');
-  btn.textContent='⏳ 불러오는 중...';btn.disabled=true;
+  btn.innerHTML=(window.AtlasStateSystem?AtlasStateSystem.loadingInline('불러오는 중...'):'불러오는 중...');btn.disabled=true;
   var preview=document.getElementById('url-preview');
   try{
     // CORS proxy를 통해 URL 내용 가져오기
@@ -477,16 +672,16 @@ async function fetchUrl(){
     var text=tmp.innerText||tmp.textContent||'';
     text=text.replace(/\s+/g,' ').trim().substring(0,1500);
     APP.urlContent=(text||'URL 내용을 불러왔습니다.');
-    preview.textContent='✅ 불러오기 완료 ('+text.length+'자)\n\n'+text.substring(0,300)+'...';
+    preview.textContent='불러오기 완료 ('+text.length+'자)\n\n'+text.substring(0,300)+'...';
     preview.classList.add('show');
     checkCvReady();
     showToast('success','URL 내용을 불러왔습니다!');
   }catch(e){
     APP.urlContent='';
-    preview.textContent='⚠️ 불러오기 실패: '+e.message+'\n\nURL을 직접 입력해두면 AI가 참고합니다.';
+    preview.textContent='불러오기 실패: '+e.message+'\n\nURL을 직접 입력해두면 AI가 참고합니다.';
     preview.classList.add('show');
     checkCvReady();
-  }finally{btn.textContent='📥 불러오기';btn.disabled=false;}
+  }finally{btn.innerHTML='<span data-icon="refresh"></span>불러오기';if(window.AtlasIcons)AtlasIcons.applyAll(btn);btn.disabled=false;}
 }
 
 function setupConverter(){
@@ -583,12 +778,11 @@ function cvPick(f){
   var okExts=['pdf','docx','doc','txt','md','hwp'];
   if(!okExts.includes(ext)&&!allowed.includes(f.type)){showToast('error','Word(.docx), PDF 파일 지원합니다.');return;}
   APP.selFile=f;
-  var icons={'pdf':'📄','docx':'📝','doc':'📝'};
   document.getElementById('cv-dz').classList.add('has-file');
-  document.getElementById('cv-uico').textContent=icons[ext]||'📂';
+  var uicoEl=document.getElementById('cv-uico');uicoEl.innerHTML=window.AtlasIcons?AtlasIcons.svg('file',{size:30}):'';
   document.getElementById('cv-utit').textContent='파일 준비 완료';
   document.getElementById('cv-usub').style.display='none';
-  var chip=document.getElementById('cv-chip');chip.textContent='📎 '+f.name;chip.style.display='inline-flex';
+  var chip=document.getElementById('cv-chip');chip.textContent=f.name;chip.style.display='inline-flex';
   checkCvReady();
 }
 function checkCvReady(){
@@ -612,8 +806,8 @@ function checkCvReady(){
   else if(CV_MODE==='url'){var u=document.getElementById('url-input');ready=!!(u&&u.value.trim()&&gwReady);}
   else if(CV_MODE==='multi')ready=!!((APP.multiFiles.length||APP.multiLinks.length||(document.getElementById('ms-notes')&&document.getElementById('ms-notes').value.trim()))&&gwReady);
   btn.disabled=!ready;
-  if(gw.checked&&!gwReady){btn.textContent=!gw.reachable?'⚠️ AI 서버가 실행되지 않았습니다':'⚠️ 서버에 API 키 설정 필요';btn.style.opacity='.5';}
-  else{btn.textContent='✨ 자료 분석 & 제목 후보 만들기';btn.style.opacity=ready?'1':'.4';}
+  if(gw.checked&&!gwReady){btn.textContent=!gw.reachable?'AI 서버가 실행되지 않았습니다':'서버에 API 키 설정 필요';btn.style.opacity='.5';}
+  else{btn.textContent='자료 분석 & 제목 후보 만들기';btn.style.opacity=ready?'1':'.4';}
   var warn=document.getElementById('cv-limit-warn');
   if(warn)warn.style.display='none';
 }
@@ -628,7 +822,7 @@ function resetConverter(){
   CV_MODE='file';
   var fi=document.getElementById('cv-fi');if(fi)fi.value='';
   var dz=document.getElementById('cv-dz');if(dz)dz.classList.remove('has-file');
-  document.getElementById('cv-uico').textContent='📂';
+  var uicoResetEl=document.getElementById('cv-uico');uicoResetEl.innerHTML=window.AtlasIcons?AtlasIcons.svg('upload',{size:30}):'';
   document.getElementById('cv-utit').textContent='파일을 드래그하거나 클릭하세요';
   document.getElementById('cv-usub').style.display='';
   document.getElementById('cv-chip').style.display='none';
@@ -644,12 +838,14 @@ function resetConverter(){
   document.getElementById('cv-process-state').style.display='none';
   document.getElementById('cv-result-state').style.display='none';
   document.getElementById('cv-sales-state').style.display='none';
+  var igs=document.getElementById('cv-imagegen-state');if(igs)igs.style.display='none';
   if(typeof AtlasAIPlanner!=='undefined'&&typeof AtlasAIPlanner.reset==='function')AtlasAIPlanner.reset();
   /* APP.workspaceStage를 직접 대입하는 대신 atlasSetWorkspaceStage()를 호출해야
      상단 워크스페이스 위젯(단계 배지/진행률 바/코치 문구)도 함께 'input' 단계로
      되돌아간다 — 그렇지 않으면 이전 단계(예: "2단계 · 자료 분석")가 화면에 그대로
      남아 마치 초기화가 되지 않은 것처럼 보인다(실제 사용자 버그 리포트로 발견됨). */
   atlasSetWorkspaceStage('input',{noSave:true});
+  atlasSetSimpleStep(1);
   checkCvReady();
 }
 
@@ -712,6 +908,7 @@ function backToInputs(){
   document.getElementById('cv-title-state').style.display='none';
   var _si=document.getElementById('cv-interview-state');if(_si)_si.style.display='none';
   document.getElementById('cv-upload-state').style.display='';
+  atlasSetSimpleStep(1);
   checkCvReady();window.scrollTo(0,0);
 }
 function safeTitleText(v){
@@ -750,7 +947,7 @@ function renderSmartInterview(reason){
   var list=document.getElementById('si-list');if(!list)return;
   list.innerHTML=(APP.interviewQuestions||[]).map(function(q,idx){
     var body=q.type==='choice'?'<div class="si-options">'+q.options.map(function(op){return '<button type="button" class="si-opt" data-qid="'+x(q.id)+'" data-value="'+x(op)+'" onclick="selectInterviewOption(this)">'+x(op)+'</button>';}).join('')+'</div>':'<input class="si-input" id="si-input-'+x(q.id)+'" placeholder="'+x(q.placeholder)+'" value="'+x(APP.interviewAnswers[q.id]||'')+'" oninput="APP.interviewAnswers[\''+x(q.id)+'\']=this.value;atlasSaveDraft(false)"/>';
-    return '<div class="si-card"><div class="si-q">'+(idx+1)+'. '+x(q.question)+(q.required?' <span style="color:#fda4af">*</span>':'')+'</div>'+body+'</div>';
+    return '<div class="si-card"><div class="si-q">'+(idx+1)+'. '+x(q.question)+(q.required?' <span style="color:var(--a2-danger)">*</span>':'')+'</div>'+body+'</div>';
   }).join('');
   atlasSetWorkspaceStage('analysis',{coach:'자료에서 부족한 정보만 골라 질문했습니다. 답변 후 제목과 후킹을 정교하게 추천합니다.'});window.scrollTo(0,0);
 }
@@ -772,7 +969,7 @@ async function generateTitlesFromSmartAnalysis(skipped){
     var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:'유효한 JSON 객체 하나만 반환하세요.',messages:[{role:'user',content:content}]});
     var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');
     var clean=raw.replace(/```json|```/g,'').trim();clean=clean.substring(clean.indexOf('{'),clean.lastIndexOf('}')+1);
-    var obj=JSON.parse(clean);APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');window.scrollTo(0,0);
+    var obj=JSON.parse(clean);APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');atlasSetSimpleStep(2);window.scrollTo(0,0);
   }catch(e){
     showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);
   }finally{
@@ -820,7 +1017,7 @@ async function openTitleStudio(isRetry){
     var clean=raw.replace(/```json|```/g,'').trim();clean=clean.substring(clean.indexOf('{'),clean.lastIndexOf('}')+1);
     var obj=JSON.parse(clean);APP.smartAnalysis=obj.analysis||{};APP.titleAnalysis=obj.analysis||{};var iv=obj.interview||{};APP.interviewContext=iv.reason||'';APP.interviewQuestions=(iv.questions||[]).slice(0,5).map(normalizeInterviewQuestion);APP.interviewAnswers={};
     if(iv.needed&&APP.interviewQuestions.length){APP.titleCandidates=[];renderSmartInterview(iv.reason);}
-    else{APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.selectedTitleIndex=0;document.getElementById('cv-upload-state').style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title',{coach:'자료가 충분해 추가 질문 없이 프리미엄 제목 후보를 완성했습니다.'});window.scrollTo(0,0);}
+    else{APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.selectedTitleIndex=0;document.getElementById('cv-upload-state').style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title',{coach:'자료가 충분해 추가 질문 없이 프리미엄 제목 후보를 완성했습니다.'});atlasSetSimpleStep(2);window.scrollTo(0,0);}
   }catch(e){
     showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);
     /* 실패 시 상단 워크스페이스 배지를 'analysis'(분석 중)에 방치하면 버튼은
@@ -922,7 +1119,7 @@ function persistEbookProgress(){
   }
   var ind=document.getElementById('cv-save-indicator');
   if(ind){
-    ind.textContent='💾 생성 상태가 저장되었습니다.';
+    ind.textContent='생성 상태가 저장되었습니다.';
     ind.style.opacity='1';
     if(_ebookProgressSaveIndicatorTimer)clearTimeout(_ebookProgressSaveIndicatorTimer);
     _ebookProgressSaveIndicatorTimer=setTimeout(function(){ind.style.opacity='0';},2500);
@@ -949,6 +1146,16 @@ function restoreEbookProgressFromIndexedDb(){
   });
 }
 
+/* Atlas Visual Redesign v2, Phase R4 — real SVG status icons for the
+   chapter-by-chapter incremental generation list, replacing the emoji
+   (✅/✍️/⚠️/⏳). "waiting" gets a quiet neutral dot rather than an icon —
+   it's a passive state, not an event, so it stays visually quiet. */
+function cvStepIcon(status){
+  if(status==='completed')return window.AtlasIcons?AtlasIcons.svg('checkCircle',{size:15}):'';
+  if(status==='processing')return window.AtlasIcons?'<span class="cv-pstep-spin">'+AtlasIcons.svg('refresh',{size:15})+'</span>':'';
+  if(status==='failed')return window.AtlasIcons?AtlasIcons.svg('alertTriangle',{size:15}):'';
+  return '<span class="cv-pstep-dot"></span>';
+}
 function renderEbookProgressUI(){
   var p=APP.ebookProgress; if(!p)return;
   var pct=ebookProgressPct(p);
@@ -963,17 +1170,15 @@ function renderEbookProgressUI(){
   if(list){
     var rows=[];
     var outlineDone=!!p.outline;
-    rows.push('<div class="cv-pstep '+(outlineDone?'done':(p.status==='outline'?'active':''))+'"><span>'+(outlineDone?'✅':'📋')+'</span>&nbsp;목차/개요'+(outlineDone?' 완료':(p.status==='outline'?' 생성 중...':' 대기'))+'</div>');
+    rows.push('<div class="cv-pstep '+(outlineDone?'done':(p.status==='outline'?'active':''))+'">'+cvStepIcon(outlineDone?'completed':(p.status==='outline'?'processing':'waiting'))+'<span>목차/개요'+(outlineDone?' 완료':(p.status==='outline'?' 생성 중...':' 대기'))+'</span></div>');
     for(var i=0;i<7;i++){
       var st=p.chapterStatus[i];
-      var icon=st==='completed'?'✅':st==='processing'?'✍️':st==='failed'?'⚠️':'⏳';
       var label=(i+1)+'장'+(st==='completed'?' 완료':st==='processing'?' 생성 중...':st==='failed'?' 실패':' 대기');
-      var retryBtn=(st==='failed')?' <button class="btn-sec" style="padding:2px 8px;font-size:11px" onclick="retryFailedChapter('+i+')">이 장만 다시 생성</button>':'';
-      rows.push('<div class="cv-pstep '+(st==='completed'?'done':st==='processing'?'active':'')+'"><span>'+icon+'</span>&nbsp;'+label+retryBtn+'</div>');
+      var retryBtn=(st==='failed')?' <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="retryFailedChapter('+i+')">이 장만 다시 생성</button>':'';
+      rows.push('<div class="cv-pstep '+(st==='completed'?'done':st==='processing'?'active':(st==='failed'?'failed':''))+'">'+cvStepIcon(st)+'<span>'+label+'</span>'+retryBtn+'</div>');
     }
-    var aIcon=p.appendicesStatus==='completed'?'✅':p.appendicesStatus==='processing'?'✍️':p.appendicesStatus==='failed'?'⚠️':'⏳';
     var aLabel='부록'+(p.appendicesStatus==='completed'?' 완료':p.appendicesStatus==='processing'?' 생성 중...':p.appendicesStatus==='failed'?' 실패':' 대기');
-    rows.push('<div class="cv-pstep '+(p.appendicesStatus==='completed'?'done':p.appendicesStatus==='processing'?'active':'')+'"><span>'+aIcon+'</span>&nbsp;'+aLabel+'</div>');
+    rows.push('<div class="cv-pstep '+(p.appendicesStatus==='completed'?'done':p.appendicesStatus==='processing'?'active':(p.appendicesStatus==='failed'?'failed':''))+'">'+cvStepIcon(p.appendicesStatus)+'<span>'+aLabel+'</span></div>');
     list.innerHTML=rows.join('');
   }
 
@@ -987,8 +1192,8 @@ function renderEbookProgressUI(){
 
   var msg=document.getElementById('cv-fun-msg');
   if(msg){
-    if(p.status==='stopped')msg.innerHTML='<span style="color:#fbbf24">⏸ 사용자 요청으로 중지되었습니다. 완료된 부분은 저장되어 있습니다 — "이어서 생성"을 누르면 계속됩니다.</span>';
-    else if(p.status==='failed')msg.innerHTML='<span style="color:#f87171">⚠️ '+x(p.errorMessage||'생성 중 오류가 발생했습니다.')+' — "이어서 생성"을 누르면 실패한 부분만 다시 시도합니다.</span>';
+    if(p.status==='stopped')msg.innerHTML='<span style="color:var(--a2-warning)">사용자 요청으로 중지되었습니다. 완료된 부분은 저장되어 있습니다 — "이어서 생성"을 누르면 계속됩니다.</span>';
+    else if(p.status==='failed')msg.innerHTML='<span style="color:var(--a2-danger)">'+x(p.errorMessage||'생성 중 오류가 발생했습니다.')+' — "이어서 생성"을 누르면 실패한 부분만 다시 시도합니다.</span>';
     else msg.textContent='';
   }
 }
@@ -1076,8 +1281,12 @@ async function finalizeIncrementalEbook(p){
   document.getElementById('cv-process-state').style.display='none';
   document.getElementById('cv-result-state').style.display='';
   renderCvEbook(ebook);
+  /* Phase 17.1: STEP4 등록 자료 패널 — 새 Engine 없이 기존 buildKmongListing()/
+     renderKmongListing()을 그대로 재사용해 상품 제목/설명/FAQ/키워드/안내문을 채운다. */
+  if(typeof renderKmongListing==='function')renderKmongListing(ebook);
   atlasSetWorkspaceStage('ebook');
-  showToast('success','🎉 전자책이 생성되었습니다!');
+  atlasSetSimpleStep(4);
+  showToast('success','전자책이 생성되었습니다!');
 }
 
 function stopIncrementalEbookGeneration(){
@@ -1157,7 +1366,7 @@ async function startGenerate(titleLocked){
   }
   if(gw.checked&&gw.reachable&&!gw.configured){
     showApp('settings');
-    showToast('error','⚠️ 서버에 API 키가 설정되지 않았습니다.');
+    showToast('error','서버에 API 키가 설정되지 않았습니다.');
     return;
   }
   // 무료 체험 모드별 생성 횟수 체크
@@ -1178,7 +1387,13 @@ async function startGenerate(titleLocked){
   var _edoc=document.getElementById('cv-edoc');if(_edoc)_edoc.innerHTML='';
   var _spb=document.getElementById('cv-sp-body');if(_spb)_spb.innerHTML='';
   document.getElementById('cv-process-state').style.display='';
+  /* Phase 17.1: 판매 이미지 생성(cv-imagegen-state, 기존 ipe-section)은 STEP3부터
+     전자책 진행 화면과 함께 보이기 시작해 STEP4(결과)까지 그대로 유지된다 — 생성
+     중에는 진행 배지가, 완료 후에는 같은 카드가 결과 갤러리 역할을 겸한다. */
+  var igs=document.getElementById('cv-imagegen-state');if(igs)igs.style.display='';
+  if(typeof AtlasImageProductionUI!=='undefined'&&AtlasImageProductionUI.populate)AtlasImageProductionUI.populate();
   atlasSetWorkspaceStage('analysis',{coach:'목차 → 챕터별 → 부록 순서로 전자책을 나눠서 만듭니다. 언제든 중지했다가 이어서 진행할 수 있습니다.'});
+  atlasSetSimpleStep(3);
 
   // 이미 진행 중이던 상태가 있으면(§5: 재시작 시 완료 지점부터 이어서) 그대로 이어가고,
   // 없으면(또는 이전에 완료/실패 없이 새로 시작하는 경우) 새 상태를 만든다.
@@ -1191,11 +1406,18 @@ async function startGenerate(titleLocked){
   // 실제 호출 전 예상 호출 횟수/max_tokens만 콘솔에 남긴다(API Key/Prompt 전문은 절대 출력하지 않음).
   var remainingChapters=APP.ebookProgress.chapterStatus.filter(function(s){return s!=='completed';}).length;
   var remainingUnits=(APP.ebookProgress.outline?0:1)+remainingChapters+(APP.ebookProgress.appendicesStatus==='completed'?0:1);
-  console.log('[incremental-ebook] 시작 — 예상 실제 Anthropic 호출 횟수: '+remainingUnits+'회 (목차 max_tokens=6000, 챕터별 max_tokens=9000, 부록 max_tokens=5000)');
+  console.log('[incremental-ebook] 시작 — 예상 실제 Anthropic 호출 횟수: '+remainingUnits+'회 (목차 max_tokens=16000, 챕터별 max_tokens=9000, 부록 max_tokens=16000)');
 
   await continueEbookPipeline();
 }
 
+/* Phase 17.1: STEP4 "전자책 다시 생성" — 새 Engine 없이 기존 startGenerate(true)를
+   그대로 재사용해 같은 잠금 제목/스타일로 처음부터 다시 만든다(자료 재입력 불필요). */
+function atlasRegenerateEbookFromScratch(){
+  if(!confirm('전자책을 처음부터 다시 만들까요? 현재 완성본은 새 버전으로 덮어써집니다.'))return;
+  APP.ebookProgress=null;
+  startGenerate(true);
+}
 function checkAndShowSales(){
   if(!canGenerate('sales')){showTrialLimitPopup('sales');return;}
   addTrialCount('sales');
@@ -1281,7 +1503,7 @@ function showSalesThemeModal(ebook){
 }
 function closeErrorPopup(el){
   var p=el;
-  while(p&&p.style.position!=='fixed'){p=p.parentElement;}
+  while(p&&!p.classList.contains('atlas-modal-bg')){p=p.parentElement;}
   if(p)p.remove();
 }
 function showErrorPopup(msg){
@@ -1291,33 +1513,34 @@ function showErrorPopup(msg){
   if(us)us.style.display='';
   checkCvReady();
   var overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  var icon='⚠️';
+  overlay.className='atlas-modal-bg';
+  var icon='alertTriangle',iconTone='amber';
   var lines2=msg.split('\n');
   var title2=(lines2[0]||'생성 실패').replace('❌ ','').replace('⚠️ ','');
   var detail2=lines2.slice(1).join('\n').trim();
   var extraHtml='';
   if(msg.indexOf('요청 한도 초과')!==-1||msg.indexOf('rate_limit')!==-1){
-    icon='⏱️';
-    extraHtml='<div style="padding:10px;background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.2);border-radius:10px;font-size:13px;color:#e8b84b;margin-bottom:10px">⏰ 30초~1분 후 다시 시도해주세요</div>';
+    extraHtml='<div class="a2-banner a2-banner-warning" style="margin-bottom:10px"><span data-icon="alertTriangle"></span><span>30초~1분 후 다시 시도해주세요</span></div>';
   } else if(msg.indexOf('API 키')!==-1||msg.indexOf('authentication')!==-1){
-    icon='🔑';
-    extraHtml='<button onclick="closeErrorPopup(this);showApp(\'settings\')" style="width:100%;padding:11px;background:linear-gradient(135deg,#6366f1,#a78bfa);border:none;border-radius:10px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:8px">⚙️ 설정에서 API 키 확인</button>';
+    icon='lock';
+    extraHtml='<button class="a2-btn a2-btn-primary" style="width:100%;margin-bottom:8px" onclick="closeErrorPopup(this);showApp(\'settings\')"><span data-icon="settings"></span>설정에서 API 키 확인</button>';
   } else if(msg.indexOf('크레딧')!==-1||msg.indexOf('credit')!==-1){
-    icon='💳';
-    extraHtml='<a href="https://console.anthropic.com/settings/billing" target="_blank" style="display:block;padding:11px;background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none;margin-bottom:8px;text-align:center">💳 크레딧 충전하기</a>';
+    icon='card';
+    extraHtml='<a href="https://console.anthropic.com/settings/billing" target="_blank" class="a2-btn a2-btn-primary" style="width:100%;margin-bottom:8px;text-decoration:none"><span data-icon="card"></span>크레딧 충전하기</a>';
   }
-  var detailHtml=detail2?('<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#94a3b8;line-height:1.8;white-space:pre-line">'+detail2+'</div>'):'';
+  var detailHtml=detail2?('<div style="background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);padding:12px;margin-bottom:14px;font-size:12px;color:var(--a2-text-muted);line-height:1.8;white-space:pre-line;text-align:left">'+detail2+'</div>'):'';
   var div=document.createElement('div');
+  div.className='atlas-modal';
   div.setAttribute('data-popup','1');
-  div.style.cssText='background:#0c0c1a;border:2px solid rgba(240,80,112,.3);border-radius:20px;padding:32px 26px;max-width:440px;width:100%;text-align:center';
-  div.innerHTML='<div style="font-size:48px;margin-bottom:14px">'+icon+'</div>'
-    +'<div style="font-size:11px;font-weight:700;color:#a5b4fc;margin-bottom:6px">Atlas AI eBook Studio</div>'
-    +'<h2 style="font-size:18px;font-weight:900;color:#fff;margin-bottom:16px;word-break:keep-all">'+title2+'</h2>'
+  div.style.cssText='max-width:440px;text-align:center';
+  div.innerHTML='<div class="a2-icon-chip '+iconTone+'" data-icon="'+icon+'" style="margin:0 auto 14px"></div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--a2-accent);margin-bottom:6px">Atlas AI eBook Studio</div>'
+    +'<h3 style="margin-bottom:16px;word-break:keep-all">'+title2+'</h3>'
     +detailHtml+extraHtml
-    +'<button onclick="closeErrorPopup(this)" style="width:100%;padding:11px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:10px;font-size:13px;color:#94a3b8;cursor:pointer">닫기</button>';
+    +'<button class="a2-btn a2-btn-secondary" style="width:100%" onclick="closeErrorPopup(this)">닫기</button>';
   overlay.appendChild(div);
   document.body.appendChild(overlay);
+  if(window.AtlasIcons)AtlasIcons.applyAll(div);
 }
 
 function showCvSales(){
@@ -1576,7 +1799,7 @@ function downloadDocx(e){
         a.download=title.replace(/[\/\\:*?"<>|]/g,'_')+'.docx';
         document.body.appendChild(a);a.click();
         setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},2000);
-        showToast('success','📝 Word 파일이 저장되었습니다!');
+        showToast('success','Word 파일이 저장되었습니다!');
       }).catch(function(err){showToast('error','저장 실패: '+err.message);});
   }catch(err){showToast('error','오류: '+err.message);}
 }
@@ -1619,10 +1842,10 @@ function toggleCvEdit(){
   var toolbar=document.getElementById('cv-editor-toolbar');
   var doc=document.getElementById('cv-edoc');
   toolbar.style.display=APP.editMode?'flex':'none';
-  btn.textContent=APP.editMode?'✅ 완료':'✏️ 편집';
-  btn.style.cssText=APP.editMode?'background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.4);color:#34d399':'';
+  btn.textContent=APP.editMode?'완료':'편집';
+  btn.style.cssText=APP.editMode?'background:var(--a2-success-soft);border-color:var(--a2-success);color:var(--a2-success)':'';
   setEditableAll(doc,APP.editMode);
-  if(!APP.editMode)showToast('success','✅ 편집이 저장되었습니다');
+  if(!APP.editMode)showToast('success','편집이 저장되었습니다');
 }
 function toggleCvSalesEdit(){
   APP.salesEditMode=!APP.salesEditMode;
@@ -1632,8 +1855,8 @@ function toggleCvSalesEdit(){
   if(!body)return;
   toolbar.style.display=APP.salesEditMode?'flex':'none';
   if(btn){
-    btn.textContent=APP.salesEditMode?'✅ 완료':'✏️ 편집';
-    btn.style.cssText=APP.salesEditMode?'background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.4);color:#34d399':'';
+    btn.textContent=APP.salesEditMode?'완료':'편집';
+    btn.style.cssText=APP.salesEditMode?'background:var(--a2-success-soft);border-color:var(--a2-success);color:var(--a2-success)':'';
   }
   // 상세페이지 카드 안 모든 텍스트 편집 가능
   var editables=body.querySelectorAll('h1,h2,h3,h4,p,span,div');
@@ -1651,7 +1874,7 @@ function toggleCvSalesEdit(){
       el.style.minHeight='';
     }
   });
-  if(!APP.salesEditMode)showToast('success','✅ 상세페이지 편집이 저장되었습니다');
+  if(!APP.salesEditMode)showToast('success','상세페이지 편집이 저장되었습니다');
 }
 
 function getRandomTheme(arr){return arr[Math.floor(Math.random()*arr.length)];}

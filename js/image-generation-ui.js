@@ -134,6 +134,25 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     UI.render();
   };
 
+  /* Phase 17.1: STEP4 "상품을 더 크게/인물 제거/더 고급스럽게/더 밝게" 버튼 —
+     새 평가/점수 Engine을 추가하지 않고, 이미 Provider-neutral Prompt Composer가
+     참조하는 기존 scene 필드(productMockup/negativePrompt/style/lighting)에 고정
+     문구만 덧붙인 뒤 기존 generateThumbnail()을 그대로 재사용해 새 Version을
+     만든다 — Prompt 구조 자체는 바꾸지 않는다. */
+  var STYLE_MODIFIERS = {
+    'bigger-product': { field:'productMockup', suffix:', product mockup significantly larger and more prominent, filling most of the frame' },
+    'remove-person': { field:'negativePrompt', suffix:', people, human figures, hands, faces' },
+    'more-premium': { field:'style', suffix:', more premium and luxurious visual style' },
+    'brighter': { field:'lighting', suffix:', brighter overall exposure, more light' }
+  };
+  UI.applyStyleModifierAndRegenerate = function(conceptId, modifierKey){
+    var card = conceptById(conceptId); if(!card || !card._engineScene) return;
+    var mod = STYLE_MODIFIERS[modifierKey]; if(!mod) return;
+    var scene = card._engineScene;
+    scene[mod.field] = String(scene[mod.field]||'') + mod.suffix;
+    UI.generateThumbnail(conceptId);
+  };
+
   /* §7: Concept 자체를 재기획한다 — 다른 Strategy Type으로 바꾸지 않고, 기존
      결과(resultIds/갤러리)는 삭제하지 않는다. */
   UI.replanThumbnailConcept = function(conceptId){
@@ -379,18 +398,26 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     img.src = url;
   }
 
-  UI.applyThumbnailOverlay = function(){
+  /* Phase 17.1: "카피만 변경" — customCopy가 있으면(사용자가 STEP4에서 직접 수정한
+     문구) 그 값으로, 없으면 기존처럼 승인된 Marketing Copy로 오버레이한다. 이미지
+     재생성 없이 같은 배경에 새 문구만 다시 입힌다 — Overlay Engine은 그대로 재사용. */
+  UI.applyThumbnailOverlay = function(customCopy){
     var st = S.get();
     var result = (st.thumbnail.results||[]).filter(function(r){ return r.jobId===st.thumbnail.selectedResultId; })[0];
     if(!result) return;
     loadImageFromUrl(result.image.objectUrl, function(img){
-      var composite = OE.composeThumbnailOverlay(img, approvedThumbnailCopy(), THUMB_SAFE_AREA_RECT, {});
+      var composite = OE.composeThumbnailOverlay(img, customCopy||approvedThumbnailCopy(), THUMB_SAFE_AREA_RECT, {});
       st.thumbnail.finalComposite = { dataUrl: composite.dataUrl, width: composite.width, height: composite.height, sourceJobId: result.jobId, sourceType: result.image.sourceType };
       UI.render();
     });
   };
 
-  UI.applySalesPageOverlay = function(pageNumber){
+  UI.applyThumbnailOverlayWithCopy = function(){
+    function v(id){ var el=document.getElementById(id); return el?el.value:''; }
+    UI.applyThumbnailOverlay({ headline:v('ipe-thumb-copy-headline'), subheadline:v('ipe-thumb-copy-subheadline'), badge:v('ipe-thumb-copy-badge'), cta:v('ipe-thumb-copy-cta') });
+  };
+
+  UI.applySalesPageOverlay = function(pageNumber, customCopy){
     var st = S.get();
     var jobId = (st.salesPage._selectedByPage||{})[pageNumber];
     var list = st.salesPage.resultsByPage[pageNumber] || [];
@@ -398,10 +425,15 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     if(!result) return;
     var storyboardPage = storyboardPageByNumber(pageNumber);
     loadImageFromUrl(result.image.objectUrl, function(img){
-      var composite = OE.composeSalesPageOverlay(img, approvedSalesPageCopy(storyboardPage), SALES_PAGE_SAFE_AREA_RECT, {});
+      var composite = OE.composeSalesPageOverlay(img, customCopy||approvedSalesPageCopy(storyboardPage), SALES_PAGE_SAFE_AREA_RECT, {});
       st.salesPage.finalComposites[pageNumber] = { dataUrl: composite.dataUrl, width: composite.width, height: composite.height, sourceJobId: result.jobId, sourceType: result.image.sourceType };
       UI.render();
     });
+  };
+
+  UI.applySalesPageOverlayWithCopy = function(pageNumber){
+    function v(id){ var el=document.getElementById(id); return el?el.value:''; }
+    UI.applySalesPageOverlay(pageNumber, { headline:v('ipe-sp-copy-headline-'+pageNumber), subheadline:v('ipe-sp-copy-subheadline-'+pageNumber), badge:v('ipe-sp-copy-badge-'+pageNumber), cta:v('ipe-sp-copy-cta-'+pageNumber) });
   };
 
   function downloadDataUrl(dataUrl, fileName){
@@ -461,7 +493,7 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
   function providerStatusBannerHtml(){
     var openai = window.AtlasOpenAIImageProvider;
     var cache = openai && openai.getStatusCache ? openai.getStatusCache() : { checked:false, configured:false };
-    if(!cache.checked) return '<div style="font-size:12px;color:var(--text3)">이미지 생성 서버 상태를 확인하는 중입니다...</div>';
+    if(!cache.checked) return '<div style="font-size:12px;color:var(--a2-text-faint)">이미지 생성 서버 상태를 확인하는 중입니다...</div>';
     if(cache.configured) return '<div style="font-size:11px;font-weight:700;color:#166534;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:6px 10px">GPT Image 사용 가능 — 오늘 '+x(cache.dailyUsed)+'/'+x(cache.dailyLimit)+'장 · 이번 달 '+x(cache.monthlyUsed)+'/'+x(cache.monthlyLimit)+'장 사용</div>';
     return '<div style="font-size:11px;font-weight:700;color:#991b1b;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:6px 10px">이미지 생성 서버 설정이 필요합니다. (관리자: OPENAI_API_KEY 환경변수를 설정해주세요)</div>';
   }
@@ -478,7 +510,7 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
   function providerSelectorHtml(){
     var st = S.get();
     var providers = Registry.list();
-    return '<select id="ipe-provider-select" class="cv-topic-input" style="max-width:260px" onchange="AtlasImageProductionUI.setProvider(this.value)">'
+    return '<select id="ipe-provider-select" class="a2-input" style="max-width:260px" onchange="AtlasImageProductionUI.setProvider(this.value)">'
       + '<option value="">(선택 안 함)</option>'
       + providers.map(function(p){ return '<option value="'+x(p.id)+'"'+(st.selectedProviderId===p.id?' selected':'')+'>'+x(p.displayName)+'</option>'; }).join('')
       + '</select>';
@@ -491,11 +523,11 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     return '<div style="font-size:12px;font-weight:700;margin-top:6px">'+x(label)+' 생성 중 '+p.done+' / '+p.total+'</div>';
   }
 
+  /* Atlas Redesign Phase 2: label/color map centralized into
+     AtlasStateSystem.processingBadge (js/atlas-state-system.js) — this stays
+     as a thin wrapper so existing call sites are untouched. */
   function cardStatusBadge(status){
-    var LABEL = { planned:'기획 완료', queued:'대기 중', processing:'생성 중...', completed:'완료', failed:'실패', cancelled:'취소됨' };
-    var COLOR = { planned:'#7c3aed', queued:'#6b7280', processing:'#2563eb', completed:'#16a34a', failed:'#dc2626', cancelled:'#6b7280' };
-    if(!status) return '';
-    return '<span style="font-size:11px;font-weight:700;color:'+(COLOR[status]||'#6b7280')+'">'+x(LABEL[status]||status)+'</span>';
+    return window.AtlasStateSystem ? AtlasStateSystem.processingBadge(status) : '';
   }
 
   function thumbnailCardHtml(card){
@@ -508,27 +540,39 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     var isQueued = !inFlight && queueItem && queueItem.status==='queued';
     var lastError = (st.errors||[]).filter(function(e){ return e.assetType==='thumbnail' && e.conceptId===conceptId; }).slice(-1)[0];
     var displayStatus = inFlight ? 'processing' : (isQueued ? 'queued' : (results.length ? 'completed' : card.generationStatus));
-    var galleryHtml = results.map(function(r){
+    var galleryHtml = results.map(function(r,idx){
       var selected = st.thumbnail.selectedResultId===r.jobId;
       return '<div style="display:inline-block;margin:4px;text-align:center">'
-        + '<img src="'+x(r.image.objectUrl)+'" style="width:130px;height:97px;object-fit:cover;border-radius:6px;border:2px solid '+(selected?'#4f46e5':'var(--border)')+';cursor:pointer" onclick="AtlasImageProductionUI.selectThumbnailResult(\''+x(r.jobId)+'\')"/>'
+        + '<img src="'+x(r.image.objectUrl)+'" style="width:130px;height:97px;object-fit:cover;border-radius:6px;border:2px solid '+(selected?'#4f46e5':'var(--a2-border)')+';cursor:pointer" onclick="AtlasImageProductionUI.selectThumbnailResult(\''+x(r.jobId)+'\')"/>'
         + mockBanner(r.image.sourceType)
-        + '<div style="font-size:10px;color:var(--text3)">'+x(r.image.sourceType)+(selected?' · 선택됨':'')+'</div>'
+        + '<div style="font-size:10px;font-weight:800;color:var(--a2-text-faint)">Version '+(idx+1)+(selected?' · 선택됨':'')+'</div>'
         + '</div>';
     }).join('');
     var actionsHtml = '';
     if(inFlight){
-      actionsHtml = '<button class="btn-sec" onclick="AtlasImageProductionUI.cancelThumbnail(\''+x(conceptId)+'\')">취소</button>';
+      actionsHtml = '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.cancelThumbnail(\''+x(conceptId)+'\')">취소</button>';
     } else if(isQueued){
-      actionsHtml = '<button class="btn-sec" onclick="AtlasImageProductionUI.cancelThumbnail(\''+x(conceptId)+'\')">취소</button>';
+      actionsHtml = '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.cancelThumbnail(\''+x(conceptId)+'\')">취소</button>';
     } else if(providerId==='manual-import'){
       actionsHtml = '<input type="file" accept="image/png,image/jpeg,image/webp" onchange="AtlasImageProductionUI.onThumbnailFileSelected(\''+x(conceptId)+'\', this)"/>';
     } else if(providerId){
-      actionsHtml = '<button class="btn-sec" onclick="AtlasImageProductionUI.generateThumbnail(\''+x(conceptId)+'\')">'+(results.length?'다시 생성':'이 Concept 생성')+'</button>';
+      /* Atlas Redesign Phase 2 (Retry state): a prior failure relabels the
+         same action as an explicit retry instead of a generic "다시 생성",
+         so recovery reads as recovery. Trigger condition (lastError && !inFlight)
+         is the same data already computed above — no new logic, just a label. */
+      var isThumbRetry = lastError && !inFlight;
+      actionsHtml = '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.generateThumbnail(\''+x(conceptId)+'\')">'+(isThumbRetry?(window.AtlasStateSystem?AtlasStateSystem.retryLabel():'다시 시도'):(results.length?'다시 생성':'이 Concept 생성'))+'</button>'
+        + (results.length && !isThumbRetry ? ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.generateThumbnail(\''+x(conceptId)+'\')">배경만 변경</button>' : '');
     }
-    actionsHtml += ' <button class="btn-sec" onclick="AtlasImageProductionUI.replanThumbnailConcept(\''+x(conceptId)+'\')">이 Concept 다시 기획</button>';
+    actionsHtml += ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.replanThumbnailConcept(\''+x(conceptId)+'\')">이 Concept 다시 기획</button>';
+    if(results.length && providerId && providerId!=='manual-import'){
+      actionsHtml += ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.applyStyleModifierAndRegenerate(\''+x(conceptId)+'\',\'bigger-product\')">상품을 더 크게</button>'
+        + ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.applyStyleModifierAndRegenerate(\''+x(conceptId)+'\',\'remove-person\')">인물 제거</button>'
+        + ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.applyStyleModifierAndRegenerate(\''+x(conceptId)+'\',\'more-premium\')">더 고급스럽게</button>'
+        + ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.applyStyleModifierAndRegenerate(\''+x(conceptId)+'\',\'brighter\')">더 밝게</button>';
+    }
 
-    return '<div class="ipe-card" style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:10px">'
+    return '<div class="ipe-card" style="border:1px solid var(--a2-border);border-radius:10px;padding:12px;margin-top:10px">'
       + '<div style="font-weight:700;font-size:13px">전략: '+x(card.strategyLabel)+' '+cardStatusBadge(displayStatus)+'</div>'
       + '<div style="font-size:12px;margin-top:6px"><b>판매 각도:</b> '+x(card.salesAngle)+'</div>'
       + '<div style="font-size:12px;margin-top:4px"><b>핵심 장면:</b> '+x(card.visualEvent)+'</div>'
@@ -537,13 +581,15 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
       + '<div style="font-size:12px;margin-top:4px"><b>구도:</b> '+x(card.composition.name)+' — '+x(card.composition.description)+'</div>'
       + '<div style="font-size:12px;margin-top:4px"><b>조명:</b> '+x(card.lighting)+'</div>'
       + '<div style="font-size:12px;margin-top:4px"><b>텍스트 Safe Area:</b> '+x(card.safeArea)+'</div>'
-      + '<div style="font-size:12px;margin-top:4px;color:var(--text3)"><b>왜 이 전략인가:</b> '+x(card.whyThisCanSell)+'</div>'
-      + (card.revisionNumber>1 ? '<div style="font-size:11px;color:var(--text3);margin-top:4px">재기획 '+ (card.revisionNumber-1) +'회 · Revision '+card.revisionNumber+'</div>' : '')
-      + (lastError && !inFlight ? '<div style="font-size:11px;color:#dc2626;margin-top:4px">'+x(lastError.error&&lastError.error.message||'생성에 실패했습니다.')+'</div>' : '')
-      + '<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text3);cursor:pointer">고급 정보(Prompt/Scene)</summary>'
+      + '<div style="font-size:12px;margin-top:4px;color:var(--a2-text-faint)"><b>왜 이 전략인가:</b> '+x(card.whyThisCanSell)+'</div>'
+      + (card.revisionNumber>1 ? '<div style="font-size:11px;color:var(--a2-text-faint);margin-top:4px">재기획 '+ (card.revisionNumber-1) +'회 · Revision '+card.revisionNumber+'</div>' : '')
+      + (lastError && !inFlight ? (window.AtlasStateSystem?AtlasStateSystem.errorMessage(lastError.error&&lastError.error.message||'생성에 실패했습니다.'):'') : '')
+      + '<details style="margin-top:6px"><summary style="font-size:11px;color:var(--a2-text-faint);cursor:pointer">고급 정보(Prompt/Scene)</summary>'
       + '<textarea readonly style="width:100%;min-height:120px;font-family:monospace;font-size:10px;margin-top:6px">'+x(card._engineScene?IE.composePrompt(card._engineScene):'')+'</textarea></details>'
       + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+actionsHtml+'</div>'
-      + '<div style="font-size:11px;color:var(--text3);margin-top:4px">결과 '+results.length+'개</div>'
+      + (results.length
+          ? '<div style="font-size:11px;color:var(--a2-text-faint);margin-top:4px">결과 '+results.length+'개</div>'
+          : ((inFlight||isQueued) ? '' : (window.AtlasStateSystem?AtlasStateSystem.noResults({text:'아직 생성된 결과가 없습니다. 위 버튼으로 첫 결과를 생성해보세요.'}):'')))
       + (galleryHtml?('<div style="margin-top:8px">'+galleryHtml+'</div>'):'')
       + '</div>';
   }
@@ -559,29 +605,44 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     var lastError = (st.errors||[]).filter(function(e){ return e.assetType==='sales-page' && e.pageNumber===pageNumber; }).slice(-1)[0];
     var selectedJobId = (st.salesPage._selectedByPage||{})[pageNumber];
     var displayStatus = inFlight ? 'processing' : (isQueued ? 'queued' : (results.length ? 'completed' : page.generationStatus));
-    var galleryHtml = results.map(function(r){
+    var galleryHtml = results.map(function(r,idx){
       var selected = selectedJobId===r.jobId;
       return '<div style="display:inline-block;margin:4px;text-align:center">'
-        + '<img src="'+x(r.image.objectUrl)+'" style="width:96px;height:120px;object-fit:cover;border-radius:6px;border:2px solid '+(selected?'#4f46e5':'var(--border)')+';cursor:pointer" onclick="AtlasImageProductionUI.selectSalesPageResult('+pageNumber+', \''+x(r.jobId)+'\')"/>'
+        + '<img src="'+x(r.image.objectUrl)+'" style="width:96px;height:120px;object-fit:cover;border-radius:6px;border:2px solid '+(selected?'#4f46e5':'var(--a2-border)')+';cursor:pointer" onclick="AtlasImageProductionUI.selectSalesPageResult('+pageNumber+', \''+x(r.jobId)+'\')"/>'
         + mockBanner(r.image.sourceType)
-        + '<div style="font-size:10px;color:var(--text3)">'+x(r.image.sourceType)+(selected?' · 선택됨':'')+'</div>'
+        + '<div style="font-size:10px;font-weight:800;color:var(--a2-text-faint)">Version '+(idx+1)+(selected?' · 선택됨':'')+'</div>'
         + '</div>';
     }).join('');
     var fc = st.salesPage.finalComposites[pageNumber];
     var actionsHtml = '';
     if(inFlight){
-      actionsHtml = '<button class="btn-sec" onclick="AtlasImageProductionUI.cancelSalesPage('+pageNumber+')">취소</button>';
+      actionsHtml = '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.cancelSalesPage('+pageNumber+')">취소</button>';
     } else if(isQueued){
-      actionsHtml = '<button class="btn-sec" onclick="AtlasImageProductionUI.cancelSalesPage('+pageNumber+')">취소</button>';
+      actionsHtml = '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.cancelSalesPage('+pageNumber+')">취소</button>';
     } else if(providerId==='manual-import'){
       actionsHtml = '<input type="file" accept="image/png,image/jpeg,image/webp" onchange="AtlasImageProductionUI.onSalesPageFileSelected('+pageNumber+', this)"/>';
     } else if(providerId){
-      actionsHtml = '<button class="btn-sec" onclick="AtlasImageProductionUI.generateSalesPage('+pageNumber+')">'+(results.length?'다시 생성':'이 장 생성')+'</button>';
+      /* Atlas Redesign Phase 2 (Retry state): same pattern as thumbnailCardHtml. */
+      var isSpRetry = lastError && !inFlight;
+      actionsHtml = '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.generateSalesPage('+pageNumber+')">'+(isSpRetry?(window.AtlasStateSystem?AtlasStateSystem.retryLabel():'다시 시도'):(results.length?'다시 생성':'이 장 생성'))+'</button>'
+        + (results.length && !isSpRetry ? ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.generateSalesPage('+pageNumber+')">배경만 변경</button>' : '');
     }
-    actionsHtml += ' <button class="btn-sec" onclick="AtlasImageProductionUI.replanSalesPageScene('+pageNumber+')">재기획</button>';
-    if(selectedJobId) actionsHtml += ' <button class="btn-sec" onclick="AtlasImageProductionUI.applySalesPageOverlay('+pageNumber+')">한글 오버레이 적용</button>';
+    actionsHtml += ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.replanSalesPageScene('+pageNumber+')">재기획</button>';
+    var copyEditHtml = '';
+    if(selectedJobId){
+      actionsHtml += ' <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.applySalesPageOverlay('+pageNumber+')">한글 오버레이 적용</button>';
+      var approvedCopy = approvedSalesPageCopy(storyboardPageByNumber(pageNumber));
+      copyEditHtml = '<details style="margin-top:8px"><summary style="font-size:11px;color:var(--a2-text-faint);cursor:pointer">카피만 변경</summary>'
+        + '<div style="margin-top:6px;display:grid;gap:6px;max-width:340px">'
+        + '<input class="a2-input" id="ipe-sp-copy-headline-'+pageNumber+'" placeholder="헤드라인" value="'+x(approvedCopy.headline)+'"/>'
+        + '<input class="a2-input" id="ipe-sp-copy-subheadline-'+pageNumber+'" placeholder="서브헤드라인" value="'+x(approvedCopy.subheadline)+'"/>'
+        + '<input class="a2-input" id="ipe-sp-copy-badge-'+pageNumber+'" placeholder="배지" value="'+x(approvedCopy.badge)+'"/>'
+        + '<input class="a2-input" id="ipe-sp-copy-cta-'+pageNumber+'" placeholder="CTA" value="'+x(approvedCopy.cta)+'"/>'
+        + '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.applySalesPageOverlayWithCopy('+pageNumber+')">카피만 변경 적용(재생성 없음)</button>'
+        + '</div></details>';
+    }
 
-    return '<div class="ipe-card" style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:10px">'
+    return '<div class="ipe-card" style="border:1px solid var(--a2-border);border-radius:10px;padding:12px;margin-top:10px">'
       + '<div style="font-weight:700;font-size:13px">'+pageNumber+'장 · '+x(page.role)+' '+cardStatusBadge(displayStatus)+'</div>'
       + '<div style="font-size:12px;margin-top:6px"><b>판매 목적:</b> '+x(page.salesPurpose)+'</div>'
       + '<div style="font-size:12px;margin-top:4px"><b>실제 장면:</b> '+x(page.visualEvent)+'</div>'
@@ -589,16 +650,19 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
       + '<div style="font-size:12px;margin-top:4px"><b>카메라:</b> '+x(page.camera)+'</div>'
       + '<div style="font-size:12px;margin-top:4px"><b>구도:</b> '+x(page.composition.name)+' — '+x(page.composition.description)+'</div>'
       + '<div style="font-size:12px;margin-top:4px"><b>정보 밀도:</b> '+x(page.informationDensity)+'</div>'
-      + '<div style="font-size:12px;margin-top:4px;color:var(--text3)"><b>왜 이 장이 필요한가:</b> '+x(page.whyThisPageExists)+'</div>'
-      + (lastError && !inFlight ? '<div style="font-size:11px;color:#dc2626;margin-top:4px">'+x(lastError.error&&lastError.error.message||'생성에 실패했습니다.')+'</div>' : '')
-      + '<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text3);cursor:pointer">고급 정보(Prompt/Scene)</summary>'
+      + '<div style="font-size:12px;margin-top:4px;color:var(--a2-text-faint)"><b>왜 이 장이 필요한가:</b> '+x(page.whyThisPageExists)+'</div>'
+      + (lastError && !inFlight ? (window.AtlasStateSystem?AtlasStateSystem.errorMessage(lastError.error&&lastError.error.message||'생성에 실패했습니다.'):'') : '')
+      + '<details style="margin-top:6px"><summary style="font-size:11px;color:var(--a2-text-faint);cursor:pointer">고급 정보(Prompt/Scene)</summary>'
       + '<textarea readonly style="width:100%;min-height:110px;font-family:monospace;font-size:10px;margin-top:6px">'+x(page._engineScene?IE.composePrompt(page._engineScene):'')+'</textarea></details>'
       + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+actionsHtml+'</div>'
-      + '<div style="font-size:11px;color:var(--text3);margin-top:4px">결과 '+results.length+'개</div>'
+      + copyEditHtml
+      + (results.length
+          ? '<div style="font-size:11px;color:var(--a2-text-faint);margin-top:4px">결과 '+results.length+'개</div>'
+          : ((inFlight||isQueued) ? '' : (window.AtlasStateSystem?AtlasStateSystem.noResults({text:'아직 생성된 결과가 없습니다. 위 버튼으로 첫 결과를 생성해보세요.'}):'')))
       + (galleryHtml?('<div style="margin-top:8px">'+galleryHtml+'</div>'):'')
-      + (fc ? ('<div style="margin-top:8px"><img src="'+x(fc.dataUrl)+'" style="width:120px;border-radius:6px;border:1px solid var(--border)"/>'
-          + '<div style="margin-top:4px"><button class="btn-sec" onclick="AtlasImageProductionUI.downloadSalesPage('+pageNumber+',\'png\')">PNG 다운로드</button> '
-          + '<button class="btn-sec" onclick="AtlasImageProductionUI.downloadSalesPage('+pageNumber+',\'jpg\')">JPG 다운로드</button></div></div>') : '')
+      + (fc ? ('<div style="margin-top:8px"><img src="'+x(fc.dataUrl)+'" style="width:120px;border-radius:6px;border:1px solid var(--a2-border)"/>'
+          + '<div style="margin-top:4px"><button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.downloadSalesPage('+pageNumber+',\'png\')">PNG 다운로드</button> '
+          + '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.downloadSalesPage('+pageNumber+',\'jpg\')">JPG 다운로드</button></div></div>') : '')
       + '</div>';
   }
 
@@ -619,6 +683,16 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     if(thumbGenerateBtn) thumbGenerateBtn.disabled = !effectiveProviderId || !thumbPlanned;
     var spGenerateBtn = document.getElementById('ipe-sp-generate-btn');
     if(spGenerateBtn) spGenerateBtn.disabled = !effectiveProviderId || !spPlanned;
+    /* Atlas Redesign Phase 2 (Disabled state): same condition already used
+       above to disable the buttons — only the visible reason is new. */
+    var thumbReason = document.getElementById('ipe-thumb-generate-reason');
+    if(thumbReason) thumbReason.innerHTML = (!window.AtlasStateSystem) ? '' :
+      (!effectiveProviderId ? AtlasStateSystem.disabledReason('이미지 생성 방식이 설정되지 않았습니다. 위 안내를 확인해주세요.')
+        : (!thumbPlanned ? AtlasStateSystem.disabledReason('먼저 [썸네일 크리에이티브 5개 기획]을 눌러주세요.', 'info') : ''));
+    var spReason = document.getElementById('ipe-sp-generate-reason');
+    if(spReason) spReason.innerHTML = (!window.AtlasStateSystem) ? '' :
+      (!effectiveProviderId ? AtlasStateSystem.disabledReason('이미지 생성 방식이 설정되지 않았습니다. 위 안내를 확인해주세요.')
+        : (!spPlanned ? AtlasStateSystem.disabledReason('먼저 [상세페이지 9장 기획]을 눌러주세요.', 'info') : ''));
 
     var thumbProgress = document.getElementById('ipe-thumb-progress');
     if(thumbProgress) thumbProgress.innerHTML = progressLineHtml(st.thumbnailQueue, '썸네일');
@@ -632,7 +706,7 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     if(advancedInfo){
       var openai = window.AtlasOpenAIImageProvider;
       var cache = openai && openai.getStatusCache ? openai.getStatusCache() : {};
-      advancedInfo.innerHTML = '<div style="font-size:11px;color:var(--text3)">'
+      advancedInfo.innerHTML = '<div style="font-size:11px;color:var(--a2-text-faint)">'
         + 'Provider 상태: '+(cache.configured?'준비됨':'미설정')+' · 모델: '+x(cache.model||'-')+' · 품질: '+x(cache.quality||'-')+'<br>'
         + '예상 생성 장수: 썸네일 '+(st.creativeDirector.thumbnailConcepts||[]).length+'장 · 상세페이지 '+(st.creativeDirector.salesPageScenes||[]).length+'장<br>'
         + '사용량: 오늘 '+x(cache.dailyUsed)+'/'+x(cache.dailyLimit)+' · 이번 달 '+x(cache.monthlyUsed)+'/'+x(cache.monthlyLimit)
@@ -641,27 +715,43 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
 
     thumbWrap.innerHTML = thumbPlanned
       ? st.creativeDirector.thumbnailConcepts.map(thumbnailCardHtml).join('')
-      : '<div style="font-size:12px;color:var(--text3)">아직 기획되지 않았습니다. [썸네일 크리에이티브 5개 기획]을 눌러주세요.</div>';
+      : '<div style="font-size:12px;color:var(--a2-text-faint)">아직 기획되지 않았습니다. [썸네일 크리에이티브 5개 기획]을 눌러주세요.</div>';
 
     var thumbSelected = st.thumbnail.selectedResultId;
     var thumbOverlayBtn = document.getElementById('ipe-thumb-overlay-actions');
     if(thumbOverlayBtn){
-      thumbOverlayBtn.innerHTML = thumbSelected
-        ? '<button class="btn-sec" onclick="AtlasImageProductionUI.applyThumbnailOverlay()">한글 오버레이 적용</button>'
+      if(thumbSelected){
+        var tCopy = approvedThumbnailCopy();
+        thumbOverlayBtn.innerHTML = '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.applyThumbnailOverlay()">한글 오버레이 적용</button>'
+          + '<details style="margin-top:8px"><summary style="font-size:11px;color:var(--a2-text-faint);cursor:pointer">카피만 변경</summary>'
+          + '<div style="margin-top:6px;display:grid;gap:6px;max-width:340px">'
+          + '<input class="a2-input" id="ipe-thumb-copy-headline" placeholder="헤드라인" value="'+x(tCopy.headline)+'"/>'
+          + '<input class="a2-input" id="ipe-thumb-copy-subheadline" placeholder="서브헤드라인" value="'+x(tCopy.subheadline)+'"/>'
+          + '<input class="a2-input" id="ipe-thumb-copy-badge" placeholder="배지" value="'+x(tCopy.badge)+'"/>'
+          + '<input class="a2-input" id="ipe-thumb-copy-cta" placeholder="CTA" value="'+x(tCopy.cta)+'"/>'
+          + '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.applyThumbnailOverlayWithCopy()">카피만 변경 적용(재생성 없음)</button>'
+          + '</div></details>'
           + (st.thumbnail.finalComposite ? (
-              '<div style="margin-top:8px"><img src="'+x(st.thumbnail.finalComposite.dataUrl)+'" style="width:200px;border-radius:8px;border:1px solid var(--border)"/></div>'
-              + '<div style="margin-top:6px"><button class="btn-sec" onclick="AtlasImageProductionUI.downloadThumbnail(\'png\')">PNG 다운로드</button> '
-              + '<button class="btn-sec" onclick="AtlasImageProductionUI.downloadThumbnail(\'jpg\')">JPG 다운로드</button></div>'
-            ) : '')
-        : '<div style="font-size:11px;color:var(--text3)">먼저 위에서 후보 이미지를 선택하세요.</div>';
+              '<div style="margin-top:8px"><img src="'+x(st.thumbnail.finalComposite.dataUrl)+'" style="width:200px;border-radius:8px;border:1px solid var(--a2-border)"/></div>'
+              + '<div style="margin-top:6px"><button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.downloadThumbnail(\'png\')">PNG 다운로드</button> '
+              + '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.downloadThumbnail(\'jpg\')">JPG 다운로드</button></div>'
+            ) : '');
+      } else {
+        thumbOverlayBtn.innerHTML = '<div style="font-size:11px;color:var(--a2-text-faint)">먼저 위에서 후보 이미지를 선택하세요.</div>';
+      }
     }
 
     spWrap.innerHTML = spPlanned
       ? st.creativeDirector.salesPageScenes.map(salesPageCardHtml).join('')
-      : '<div style="font-size:12px;color:var(--text3)">아직 기획되지 않았습니다. [상세페이지 9장 기획]을 눌러주세요.</div>';
+      : '<div style="font-size:12px;color:var(--a2-text-faint)">아직 기획되지 않았습니다. [상세페이지 9장 기획]을 눌러주세요.</div>';
 
     var zipBtn = document.getElementById('ipe-sp-zip-btn');
-    if(zipBtn) zipBtn.disabled = Object.keys(st.salesPage.finalComposites||{}).length===0;
+    var noComposites = Object.keys(st.salesPage.finalComposites||{}).length===0;
+    if(zipBtn) zipBtn.disabled = noComposites;
+    /* Atlas Redesign Phase 2 (Disabled state): same noComposites condition. */
+    var zipReason = document.getElementById('ipe-sp-zip-reason');
+    if(zipReason) zipReason.innerHTML = (noComposites && window.AtlasStateSystem)
+      ? AtlasStateSystem.disabledReason('아직 한글 오버레이가 적용된 상세페이지가 없습니다. 각 카드에서 [한글 오버레이 적용]을 먼저 눌러주세요.', 'info') : '';
   };
 
 })(window.AtlasImageProductionUI);

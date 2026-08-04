@@ -185,20 +185,20 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var sec = s.secondaryCategories && s.secondaryCategories.length ? s.secondaryCategories.join(', ') : '없음';
     var ev = s.categoryEvidence && s.categoryEvidence.length ? s.categoryEvidence.join(', ') : '없음(neutral)';
     var sources = s.evidenceSources && s.evidenceSources.length ? s.evidenceSources.join(', ') : '없음';
-    return x(s.primaryCategory)+' <span style="font-weight:400;color:var(--text3)">(confidence '+s.categoryConfidence+')</span><br>'
+    return x(s.primaryCategory)+' <span style="font-weight:400;color:var(--a2-text-faint)">(confidence '+s.categoryConfidence+')</span><br>'
       +'<span style="font-weight:400;font-size:12px">2차 후보: '+x(sec)+'<br>매칭 근거: '+x(ev)+'<br>evidenceSources: '+x(sources)+'<br>'+x(s.confidenceNote)+'</span>';
   }
   function renderRecommendedThumbnailPrompt(vps){
     var rec = vps.thumbnailPrompts.filter(function(p){return p.recommended;})[0] || vps.thumbnailPrompts[0];
-    return x(rec.variantLabel)+' <span style="font-weight:400;color:var(--text3)">('+rec.normalizedScore+'/100)</span><br>'
+    return x(rec.variantLabel)+' <span style="font-weight:400;color:var(--a2-text-faint)">('+rec.normalizedScore+'/100)</span><br>'
       +'<span style="font-weight:400;font-size:12px">Base Art Direction: '+x(rec.baseArtDirection)+' → Effective: '+x(rec.effectiveArtDirection)+'</span><br>'
       +'<span style="font-weight:400;font-size:12px">'+x(rec.prompt)+'</span>';
   }
   function renderThumbnailCandidateList(vps){
     return '<ul class="aip-cautions">'+vps.thumbnailPrompts.slice().sort(function(a,b){return b.normalizedScore-a.normalizedScore;}).map(function(p){
       return '<li>'+(p.recommended?'✅ ':'')+x(p.variantLabel)+' — '+p.normalizedScore+'/100'
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Art Direction: '+x(p.effectiveArtDirection)+(p.effectiveArtDirection!==p.baseArtDirection?' (대표 스타일과 다름)':'')+'</div>'
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">'+x(p.reasons[0])+'</div></li>';
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Art Direction: '+x(p.effectiveArtDirection)+(p.effectiveArtDirection!==p.baseArtDirection?' (대표 스타일과 다름)':'')+'</div>'
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">'+x(p.reasons[0])+'</div></li>';
     }).join('')+'</ul>';
   }
   function renderStyleRanking(vps){
@@ -212,9 +212,9 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
       var safeAreaMatch = p.prompt.match(/Reserve[^.]*\./);
       var safeAreaLabel = p.safeArea ? (p.safeArea.anchor+' / '+p.safeArea.proportion+' (약 '+p.safeArea.approxPercent+'%)') : (safeAreaMatch?safeAreaMatch[0]:'');
       return '<li>'+p.pageNumber+'장 · '+x(p.role)+' — '+p.score+'점'
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Art Direction: '+x(p.effectiveArtDirection)+(p.effectiveArtDirection!==p.baseArtDirection?' (대표 스타일과 다름)':'')+'</div>'
-        +(safeAreaLabel?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Safe Area: '+x(safeAreaLabel)+'</div>'):'')
-        +(p.consistencyCarryover?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Consistency Carryover: '+x(p.consistencyCarryover.join(', '))+'</div>'):'')
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Art Direction: '+x(p.effectiveArtDirection)+(p.effectiveArtDirection!==p.baseArtDirection?' (대표 스타일과 다름)':'')+'</div>'
+        +(safeAreaLabel?('<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Safe Area: '+x(safeAreaLabel)+'</div>'):'')
+        +(p.consistencyCarryover?('<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Consistency Carryover: '+x(p.consistencyCarryover.join(', '))+'</div>'):'')
         +'</li>';
     }).join('')+'</ul>';
   }
@@ -258,14 +258,14 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
       var evalu = (cc.thumbnailBriefs.filter(function(x2){return x2.conceptId===b.conceptId;})[0]||{}).evaluation;
       var cam = b.cameraLanguage, comp = b.compositionPattern;
       return '<li>'+(b.recommended?'✅ ':'')+'<b>'+x(b.conceptName)+'</b>'+(evalu?(' — '+evalu.normalizedScore+'/100 · '+x(evalu.tierLabel)):'')+' — '+x(b.bigIdea)
-        +(b.visualEvent?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Visual Event: '+x(b.visualEvent)+'</div>'):'')
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">장면: '+x(b.sceneStory)+'</div>'
-        +(b.sceneSkeleton&&b.sceneSkeleton.length?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Scene Skeleton: '+x(b.sceneSkeleton.join(' · '))+'</div>'):'')
-        +(cam?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Camera: '+x(cam.angle)+' · '+x(cam.lens)+' · '+x(cam.style)+'</div>'):'')
-        +(comp?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Composition: '+x(comp.pattern)+' — '+x(comp.description)+'</div>'):'')
-        +(evalu&&evalu.creativeQuality?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Creative Quality: Diversity '+evalu.creativeQuality.visualDiversity+'/10 · Clarity '+evalu.creativeQuality.narrativeClarity+'/10 · Memorability '+evalu.creativeQuality.sceneMemorability+'/10 · Confidence '+evalu.creativeQuality.claudeDesignGenerationConfidence+'/10</div>'):'')
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">피사체 역할: '+x(b.subjectRole)+' · 상품 역할: '+x(b.productRole)+' · risk: '+x(b.risk)+'</div>'
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">차별화: '+x(b.differentiation)+'</div></li>';
+        +(b.visualEvent?('<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Visual Event: '+x(b.visualEvent)+'</div>'):'')
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">장면: '+x(b.sceneStory)+'</div>'
+        +(b.sceneSkeleton&&b.sceneSkeleton.length?('<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Scene Skeleton: '+x(b.sceneSkeleton.join(' · '))+'</div>'):'')
+        +(cam?('<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Camera: '+x(cam.angle)+' · '+x(cam.lens)+' · '+x(cam.style)+'</div>'):'')
+        +(comp?('<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Composition: '+x(comp.pattern)+' — '+x(comp.description)+'</div>'):'')
+        +(evalu&&evalu.creativeQuality?('<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Creative Quality: Diversity '+evalu.creativeQuality.visualDiversity+'/10 · Clarity '+evalu.creativeQuality.narrativeClarity+'/10 · Memorability '+evalu.creativeQuality.sceneMemorability+'/10 · Confidence '+evalu.creativeQuality.claudeDesignGenerationConfidence+'/10</div>'):'')
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">피사체 역할: '+x(b.subjectRole)+' · 상품 역할: '+x(b.productRole)+' · risk: '+x(b.risk)+'</div>'
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">차별화: '+x(b.differentiation)+'</div></li>';
     }).join('')+'</ul>';
   }
   /* Phase 12.4 §12: Visual Diversity Validator 결과(campaignVisualDiversity)를
@@ -277,7 +277,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var nameById = {};
     cc.bigIdeas.forEach(function(b){ nameById[b.conceptId] = b.conceptName; });
     var rows = dv.pairs.map(function(p){
-      return '<li>'+x(nameById[p.aId]||p.aId)+' ↔ '+x(nameById[p.bId]||p.bId)+' — 유사도 '+(Math.round(p.similarity*1000)/10)+'%'+(p.tooSimilar?' <b style="color:#c0392b">(80% 이상 — 자동 Reject)</b>':'')+'</li>';
+      return '<li>'+x(nameById[p.aId]||p.aId)+' ↔ '+x(nameById[p.bId]||p.bId)+' — 유사도 '+(Math.round(p.similarity*1000)/10)+'%'+(p.tooSimilar?' <b style="color:var(--a2-danger)">(80% 이상 — 자동 Reject)</b>':'')+'</li>';
     }).join('');
     return '<div style="font-weight:400;font-size:12px">임계치: '+(dv.threshold*100)+'% · 결과: '+(dv.ok?'전부 충분히 다름':'유사 쌍 발견, '+dv.rejectedConceptIds.length+'개 Concept 자동 Reject')+'</div>'
       +'<ul class="aip-cautions">'+rows+'</ul>';
@@ -290,9 +290,9 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     }
     var rec = cc.bigIdeas.filter(function(b){return b.conceptId===cc.recommendedConceptId;})[0];
     var evalu = (cc.thumbnailBriefs.filter(function(b){return b.conceptId===cc.recommendedConceptId;})[0]||{}).evaluation;
-    return '<b>'+x(rec.conceptName)+'</b> <span style="font-weight:400;color:var(--text3)">('+(evalu?evalu.normalizedScore:'-')+'/100, '+x(evalu?evalu.tierLabel:'')+')</span><br>'
+    return '<b>'+x(rec.conceptName)+'</b> <span style="font-weight:400;color:var(--a2-text-faint)">('+(evalu?evalu.normalizedScore:'-')+'/100, '+x(evalu?evalu.tierLabel:'')+')</span><br>'
       +'<span style="font-weight:400;font-size:12px">'+x(rec.sceneStory)+'</span>'
-      +(evalu?('<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:4px">강점: '+x(evalu.strengths.join(', ')||'없음')+'</div>'):'');
+      +(evalu?('<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:4px">강점: '+x(evalu.strengths.join(', ')||'없음')+'</div>'):'');
   }
   function renderSubjectDirection(cc){
     var s = cc.thumbnailBriefs[0].subject;
@@ -314,14 +314,14 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
   function renderThumbnailBriefs(cc){
     return '<ul class="aip-cautions">'+cc.thumbnailBriefs.map(function(b){
       return '<li>'+(b.evaluation&&b.evaluation.recommended?'✅ ':'')+'<b>'+x(b.campaignConcept)+'</b>'+(b.evaluation?(' — '+b.evaluation.normalizedScore+'/100'):'')
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">'+x(b.visualStory)+'</div></li>';
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">'+x(b.visualStory)+'</div></li>';
     }).join('')+'</ul>';
   }
   function renderSalesStoryboard(cc){
     return '<ul class="aip-cautions">'+cc.salesPageStoryboard.map(function(p){
       return '<li>'+p.pageNumber+'장 · <b>'+x(p.role)+'</b> — '+x(p.narrativeBeat)
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">'+x(p.visualScene)+'</div>'
-        +'<div style="font-weight:400;font-size:12px;color:var(--text3);margin-top:2px">Art Direction: '+x(p.effectiveArtDirection)+'</div></li>';
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">'+x(p.visualScene)+'</div>'
+        +'<div style="font-weight:400;font-size:12px;color:var(--a2-text-faint);margin-top:2px">Art Direction: '+x(p.effectiveArtDirection)+'</div></li>';
     }).join('')+'</ul>';
   }
   function renderCampaignMasterBrief(cc){
@@ -436,18 +436,23 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
       + card('Claude Design Production Brief', creativeCampaign?(
           renderClaudeDesignProductionBrief(creativeCampaign)
           +'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
-          +'<button class="btn-sec" onclick="AtlasAIPlanner.copyBrief(\'master\')">Claude Design 제작 Brief 복사</button>'
-          +'<button class="btn-sec" onclick="AtlasAIPlanner.downloadBrief(\'master\')">Campaign Master Brief 다운로드</button>'
-          +'<button class="btn-sec" onclick="AtlasAIPlanner.downloadBrief(\'thumbnail\')">Selected Thumbnail Brief 다운로드</button>'
-          +'<button class="btn-sec" onclick="AtlasAIPlanner.downloadBrief(\'salesPage\')">Sales Page 9-Page Brief 다운로드</button>'
-          +'<button class="btn-sec" onclick="AtlasAIPlanner.copyBrief(\'production\')">Asset Production Brief 복사</button>'
-          +'<button class="btn-sec" onclick="AtlasAIPlanner.downloadBrief(\'production\')">Claude Design 프로젝트용 Brief 다운로드</button>'
+          +'<button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.copyBrief(\'master\')">Claude Design 제작 Brief 복사</button>'
+          +'<button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.downloadBrief(\'master\')">Campaign Master Brief 다운로드</button>'
+          +'<button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.downloadBrief(\'thumbnail\')">Selected Thumbnail Brief 다운로드</button>'
+          +'<button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.downloadBrief(\'salesPage\')">Sales Page 9-Page Brief 다운로드</button>'
+          +'<button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.copyBrief(\'production\')">Asset Production Brief 복사</button>'
+          +'<button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.downloadBrief(\'production\')">Claude Design 프로젝트용 Brief 다운로드</button>'
           +'</div>'
         ):x(NEEDS_SELECTION_TEXT), '', creativeCampaign?'실제 Claude Design 생성 API 연결은 없습니다 — 이 Brief를 Claude Design에 직접 붙여넣어 사용하세요.':'')
       + card('주의사항', '<ul class="aip-cautions">'+cautions.map(function(c){return '<li>'+x(c)+'</li>';}).join('')+'</ul>', 'aip-card-full');
 
     var approveBtn=document.getElementById('aip-approve-btn');
     if(approveBtn) approveBtn.disabled=!sel;
+    /* Atlas Redesign Phase 2 (Disabled state): same !sel condition already
+       used above — only the visible reason is new. */
+    var approveReason=document.getElementById('aip-approve-reason');
+    if(approveReason) approveReason.innerHTML = (!sel && window.AtlasStateSystem)
+      ? AtlasStateSystem.disabledReason('먼저 위에서 Brand Pack 후보를 하나 선택해주세요.', 'info') : '';
 
     renderReasonAccordionContent();
     /* Phase 14: Image Production UI — Creative Campaign 결과가 갱신될 때마다(Brand Pack
@@ -520,6 +525,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     renderCandidates();
     renderReport();
     if(typeof atlasSetWorkspaceStage==='function')atlasSetWorkspaceStage('planner',{coach:'AI Planner가 정리한 기획안을 확인하고 Brand Pack을 선택한 뒤 승인하세요.'});
+    if(typeof atlasSetSimpleStep==='function')atlasSetSimpleStep(2);
     window.scrollTo(0,0);
   };
 
@@ -719,29 +725,29 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var el = document.getElementById('cfe-results-body');
     if(!el) return;
     if(result.evaluationStatus!=='evaluated'){
-      el.innerHTML = '<div style="font-size:12px;color:var(--text3)">평가 상태: <b>'+x2(result.evaluationStatus)+'</b><br>'+(result.errors||[]).map(function(e){return x2(e);}).join('<br>')+'</div>';
+      el.innerHTML = '<div style="font-size:12px;color:var(--a2-text-faint)">평가 상태: <b>'+x2(result.evaluationStatus)+'</b><br>'+(result.errors||[]).map(function(e){return x2(e);}).join('<br>')+'</div>';
       return;
     }
     var combined = result.combined || {};
     var html = '';
     html += '<div style="font-size:14px;font-weight:800">Creative Score: '+result.automatedScore+'/100 (coverage '+result.coveragePercent+'%) · Grade: '+x2(result.grade)+'</div>';
-    if(result.hardFail) html += '<div style="color:#c0392b;font-weight:700;font-size:12px;margin-top:4px">Hard Fail: '+result.hardFailReasons.map(function(r){return x2(r.label);}).join(', ')+'</div>';
-    html += '<div style="font-size:11px;color:var(--text3);margin-top:4px">Automated Score: '+result.automatedScore+' · User Review Score: '+(combined.userReviewScore!=null?combined.userReviewScore:'없음')+(combined.divergenceWarning?(' — '+x2(combined.divergenceWarning)):'')+'<br>Combined Decision 규칙: '+x2(combined.rule||'')+'</div>';
+    if(result.hardFail) html += '<div style="color:var(--a2-danger);font-weight:700;font-size:12px;margin-top:4px">Hard Fail: '+result.hardFailReasons.map(function(r){return x2(r.label);}).join(', ')+'</div>';
+    html += '<div style="font-size:11px;color:var(--a2-text-faint);margin-top:4px">Automated Score: '+result.automatedScore+' · User Review Score: '+(combined.userReviewScore!=null?combined.userReviewScore:'없음')+(combined.divergenceWarning?(' — '+x2(combined.divergenceWarning)):'')+'<br>Combined Decision 규칙: '+x2(combined.rule||'')+'</div>';
     html += '<table style="width:100%;font-size:11px;margin-top:10px;border-collapse:collapse">';
     result.breakdown.forEach(function(b){
-      html += '<tr style="border-top:1px solid var(--border)"><td style="padding:4px 4px">'+x2(b.category)+'</td><td style="padding:4px 4px">'+(b.status==='evaluated'?(b.score+'/'+b.maxScore):x2(b.status))+'</td><td style="padding:4px 4px;color:var(--text3)">'+(b.status==='evaluated'?'':x2(b.reason||''))+'</td></tr>';
+      html += '<tr style="border-top:1px solid var(--a2-border)"><td style="padding:4px 4px">'+x2(b.category)+'</td><td style="padding:4px 4px">'+(b.status==='evaluated'?(b.score+'/'+b.maxScore):x2(b.status))+'</td><td style="padding:4px 4px;color:var(--a2-text-faint)">'+(b.status==='evaluated'?'':x2(b.reason||''))+'</td></tr>';
     });
     html += '</table>';
     if(result.diagnoses.length){
       html += '<div style="font-weight:700;font-size:12px;margin-top:12px">Visual Diagnosis</div>';
       html += '<ul class="aip-cautions">'+result.diagnoses.map(function(d){
-        return '<li><b>['+x2(d.priority)+'] '+x2(d.category)+'</b>: '+x2(d.diagnosis)+'<div style="font-size:11px;color:var(--text3)">원인: '+x2(d.cause)+'<br>Specific Fix: '+x2(d.specificFix)+'<br>Target: '+x2(d.measurableTarget)+'</div></li>';
+        return '<li><b>['+x2(d.priority)+'] '+x2(d.category)+'</b>: '+x2(d.diagnosis)+'<div style="font-size:11px;color:var(--a2-text-faint)">원인: '+x2(d.cause)+'<br>Specific Fix: '+x2(d.specificFix)+'<br>Target: '+x2(d.measurableTarget)+'</div></li>';
       }).join('')+'</ul>';
     }
     html += '<div style="font-weight:700;font-size:12px;margin-top:12px">Retry Prompt</div>';
     html += '<textarea id="cfe-retry-prompt-text" readonly style="width:100%;min-height:140px;font-size:11px;font-family:monospace;margin-top:4px">'+x2(result.retryPrompt)+'</textarea>';
-    html += '<div style="margin-top:6px"><button class="btn-sec" onclick="AtlasAIPlanner.creativeFeedback.copyRetryPrompt()">Retry Prompt 복사</button></div>';
-    if(result._duplicateWarning) html += '<div style="font-size:11px;color:#c0392b;margin-top:6px">'+x2(result._duplicateWarning)+'</div>';
+    html += '<div style="margin-top:6px"><button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.creativeFeedback.copyRetryPrompt()">Retry Prompt 복사</button></div>';
+    if(result._duplicateWarning) html += '<div style="font-size:11px;color:var(--a2-danger);margin-top:6px">'+x2(result._duplicateWarning)+'</div>';
     el.innerHTML = html;
     cfRenderUserReviewForm();
   }
@@ -766,7 +772,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
       html += '<label style="font-size:11px">'+x2(USER_REVIEW_LABEL[f])+'<br><input type="number" min="1" max="10" id="cfe-review-'+f+'" style="width:56px" /></label>';
     });
     html += '</div><textarea id="cfe-review-notes" placeholder="메모" style="width:100%;min-height:40px;margin-top:6px;font-size:11px"></textarea>';
-    html += '<div style="margin-top:6px"><button class="btn-sec" onclick="AtlasAIPlanner.creativeFeedback.saveUserReview()">사용자 평가 저장</button></div>';
+    html += '<div style="margin-top:6px"><button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.creativeFeedback.saveUserReview()">사용자 평가 저장</button></div>';
     el.innerHTML = html;
   }
   AIP.creativeFeedback.saveUserReview = function(){
@@ -787,14 +793,14 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     var el = document.getElementById('cfe-history-body');
     if(!el) return;
     var entry = cfEntry();
-    if(!entry || !entry.versions.length){ el.innerHTML = '<div style="font-size:11px;color:var(--text3)">이 Concept의 Creative History가 아직 없습니다.</div>'; return; }
+    if(!entry || !entry.versions.length){ el.innerHTML = '<div style="font-size:11px;color:var(--a2-text-faint)">이 Concept의 Creative History가 아직 없습니다.</div>'; return; }
     var best = AtlasCreativeFeedbackEngine.bestVersionSelector(entry.versions, entry.manualBestVersionNumber);
     var html = '<div style="font-weight:700;font-size:12px">Creative History('+entry.versions.length+'개 Version)</div>';
-    html += '<div style="font-size:11px;color:var(--text3);margin-bottom:4px">Best Version: '+(best.bestVersionNumber||'없음')+' — '+x2(best.reason)+'</div>';
+    html += '<div style="font-size:11px;color:var(--a2-text-faint);margin-bottom:4px">Best Version: '+(best.bestVersionNumber||'없음')+' — '+x2(best.reason)+'</div>';
     html += '<ul class="aip-cautions">'+entry.versions.map(function(v){
       var isBest = best.bestVersionNumber===v.versionNumber;
       return '<li>'+(isBest?'⭐ ':'')+'Version '+v.versionNumber+' — Score '+((v.evaluation&&v.evaluation.automatedScore)!=null?v.evaluation.automatedScore:'N/A')+'/100, '+((v.evaluation&&v.evaluation.grade)||'')
-        +' <button class="btn-sec" style="font-size:10px;padding:2px 6px" onclick="AtlasAIPlanner.creativeFeedback.setManualBest('+v.versionNumber+')">Best Version으로 지정</button></li>';
+        +' <button class="a2-btn a2-btn-secondary" style="font-size:10px;padding:2px 6px" onclick="AtlasAIPlanner.creativeFeedback.setManualBest('+v.versionNumber+')">Best Version으로 지정</button></li>';
     }).join('')+'</ul>';
     el.innerHTML = html;
   }

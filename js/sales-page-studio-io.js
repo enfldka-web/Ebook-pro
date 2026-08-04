@@ -31,10 +31,19 @@
       {icon:'😤',title:'정보 과부하',desc:'무엇이 맞는지 알 수 없습니다'},
       {icon:'😞',title:'결과가 없다',desc:'열심히 해도 변화가 없습니다'}
     ];
+    /* 실제 생성 스키마(js/incremental-ebook-engine.js)의 sales.pains는 문자열 배열
+       ("pains":["고통1","고통2",...])이다. 이전 코드는 {icon,title,desc} 객체 형태만
+       가정해 p.title/p.icon을 읽었으므로, 실제 AI가 생성한 문자열 pains가 들어오면
+       전부 빈 줄이 되어 "문제 공감" 카드가 항상 빈 상태로 렌더링되는 버그가 있었다
+       (실제 생성된 콘텐츠가 조용히 사라짐). 문자열/객체 두 형태를 모두 안전하게 다룬다. */
     var painsBody = pains.map(function(p){
-      var t = (p.icon?p.icon+' ':'')+(p.title||'');
-      return p.desc ? (t+' — '+p.desc) : t;
-    }).join('\n');
+      if(typeof p === 'string') return p;
+      if(p && typeof p === 'object'){
+        var t = (p.icon?p.icon+' ':'')+(p.title||p.text||'');
+        return p.desc ? (t+' — '+p.desc) : t;
+      }
+      return '';
+    }).filter(Boolean).join('\n');
 
     var learnings = (sales.learnings && sales.learnings.length) ? sales.learnings
       : chapters.map(function(c){return c.title;}).filter(Boolean);

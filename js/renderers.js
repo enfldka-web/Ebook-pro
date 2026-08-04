@@ -11,7 +11,7 @@ function copyPrompt(id,btn){
   if(!el)return;
   navigator.clipboard.writeText(el.textContent||'').then(function(){
     var orig=btn?btn.textContent:'';
-    if(btn){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent=orig;},1500);}
+    if(btn){btn.textContent='복사됨';setTimeout(function(){btn.textContent=orig;},1500);}
   }).catch(function(){showToast('error','복사 실패');});
 }
 
@@ -31,22 +31,29 @@ var COVER_THEMES=[
 ];
 function getRandomTheme(arr){return arr[Math.floor(Math.random()*arr.length)];}
 
+/* Atlas Redesign Phase 2: Success/Error/Info toast now backed by
+   .atlas-toast(-success/-error/-info) tokens instead of hardcoded inline
+   colors (css/styles.css) — same behavior, message/duration logic unchanged. */
 function showToast(type,msg,dur){
   var t=document.getElementById('toast');
   if(!t){
-    t=document.createElement('div');t.id='toast';
-    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:12px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:all 0.3s;pointer-events:none;max-width:380px;text-align:center;white-space:nowrap';
+    t=document.createElement('div');t.id='toast';t.className='atlas-toast';
     document.body.appendChild(t);
   }
-  var colors={success:'rgba(16,185,129,.95)',error:'rgba(239,68,68,.95)',info:'rgba(99,102,241,.95)'};
-  t.style.background=colors[type]||colors.info;
-  t.style.color='#fff';
+  var tone=(type==='success'||type==='error')?type:'info';
+  t.className='atlas-toast atlas-toast-'+tone;
   t.textContent=msg||'';
-  t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';
   clearTimeout(t._to);
-  t._to=setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(10px)';},dur||3000);
+  requestAnimationFrame(function(){t.classList.add('show');});
+  t._to=setTimeout(function(){t.classList.remove('show');},dur||3000);
 }
 
+
+/* Atlas Premium Ebook Output Design, Phase 2: real icons only (no emoji in
+   actual exported/previewed ebook content) via AtlasIcons.svg(), which is
+   loaded before this file (index.html script order). Silent no-op fallback
+   keeps this safe even if that ever changes. */
+function ebIcon(name,size){return (typeof AtlasIcons!=='undefined'&&AtlasIcons.svg)?AtlasIcons.svg(name,{size:size||14}):'';}
 
 function renderCvEbook(e){
   var c=e.copyright||{},h='';
@@ -56,7 +63,7 @@ function renderCvEbook(e){
   h+='<div class="pg cvr" style="background:'+th.bg+'">';
   h+='<div class="ccirc" style="width:560px;height:560px;top:-180px;right:-180px"></div>';
   h+='<div class="ccirc" style="width:380px;height:380px;bottom:-140px;left:-140px"></div>';
-  h+='<div class="ccat" style="background:'+th.catBg+';border:1px solid '+th.catBorder+';color:'+th.accentLight+'">📚 '+x(e.category)+'</div>';
+  h+='<div class="ccat" style="background:'+th.catBg+';border:1px solid '+th.catBorder+';color:'+th.accentLight+'">'+ebIcon('book',12)+' '+x(e.category)+'</div>';
   h+='<div class="ctit">'+x(e.title)+'</div>';
   h+='<div class="csub">'+x(e.subtitle)+'</div>';
   h+='<div class="cdiv" style="background:'+th.divBg+'"></div>';
@@ -73,47 +80,62 @@ function renderCvEbook(e){
   h+='</div></div></div>';
   // 저자 서문
   if(e.preface){
-    h+='<div class="pg inn"><div class="ey">PREFACE</div><div class="sh">저자 서문</div>';
+    h+='<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' PREFACE</div><div class="sh">저자 서문</div>';
     h+='<div class="chb">'+x(cleanText(e.preface))+'</div></div>';
   }
   // 저자 소개
   var bio=e.authorBio||e.author_bio||e.bio||'(저자 소개 정보가 없습니다)';
   h+='<div class="pg apg"><div class="ah">저자 소개</div>';
-  h+='<div class="ac"><div class="aa">✍️</div><div style="flex:1">';
+  h+='<div class="ac"><div class="aa">'+ebIcon('user',28)+'</div><div style="flex:1">';
   h+='<div class="an">'+x(e.author)+'</div>';
   h+='<div class="ar">'+x((e.category||'').toUpperCase())+' AUTHOR</div>';
   h+='<div class="ab">'+renderText(bio)+'</div>';
   h+='</div></div></div>';
   // 목차
   var chs=e.chapters||[];
-  h+='<div class="pg inn"><div class="ey">CONTENTS</div><div class="sh">목차</div>';
+  h+='<div class="pg inn"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">목차</div>';
   for(var i=0;i<chs.length;i++){
-    h+='<div class="ti" style="padding:14px 0;border-bottom:1px solid #f1f5f9">';
-    h+='<span class="tn" style="font-size:12px;min-width:50px;color:#6366f1;font-weight:700">CH.'+pad(chs[i].number)+'</span>';
-    h+='<span class="tt" style="font-size:15px;color:#1a1a2e;font-weight:500">'+x(chs[i].title)+'</span>';
+    h+='<div class="ti">';
+    h+='<span class="tn">CH.'+pad(chs[i].number)+'</span>';
+    h+='<span class="tt">'+x(chs[i].title)+'</span>';
     h+='</div>';
   }
-  h+='<div class="ti" style="padding:14px 0;border-bottom:1px solid #f1f5f9"><span class="tn" style="min-width:50px;color:#6366f1">✦</span><span class="tt" style="font-size:15px;color:#1a1a2e">결론</span></div>';
-  h+='<div class="ti" style="padding:14px 0"><span class="tn" style="min-width:50px;color:#6366f1">✦</span><span class="tt" style="font-size:15px;color:#1a1a2e">부록</span></div>';
+  h+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span></div>';
+  h+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span></div>';
   h+='</div>';
   // 서론
   if(e.intro){
-    h+='<div class="pg inn"><div class="ey">INTRODUCTION</div><div class="sh">서론</div>';
+    h+='<div class="pg inn"><div class="ey">'+ebIcon('compass',12)+' INTRODUCTION</div><div class="sh">서론</div>';
     h+='<div class="chb">'+renderText(e.intro)+'</div>';
-    if(e.targetReader){h+='<div class="kpb" style="margin-top:0"><h4>📌 이 책이 필요한 독자</h4><p style="font-size:13px;color:#334155;line-height:1.9">'+x(e.targetReader)+'</p></div>';}
+    if(e.targetReader){h+='<div class="tgtb"><div class="tgtb-ic">'+ebIcon('target',16)+'</div><div><h4>이 책이 필요한 독자</h4><p>'+x(e.targetReader)+'</p></div></div>';}
     h+='</div>';
   }
   // 챕터
   for(var i=0;i<chs.length;i++){
     var ch=chs[i];
     h+='<div class="pg inn">';
-    h+='<div class="cb"><span class="cp">CHAPTER '+pad(ch.number)+'</span><span class="cl">본문</span></div>';
+    h+='<div class="cb"><div class="cp">'+ebIcon('book',14)+' CHAPTER '+pad(ch.number)+'</div><div class="cl">'+x(e.category||'')+'</div></div>';
     h+='<div class="cht">'+x(ch.title)+'</div>';
-    h+='<div class="chb" style="line-height:2.1">'+renderText(ch.content)+'</div>';
-    if(ch.actionBox&&ch.actionBox.length){h+='<div class="kpb" style="border-color:#ef4444;background:linear-gradient(135deg,#fff5f5,#fef2f2)"><h4 style="color:#dc2626">🔥 지금 바로 실행</h4>'+(Array.isArray(ch.actionBox)?ch.actionBox:[ch.actionBox]).map(function(a,ai){return '<div class="kpi" style="margin-bottom:10px"><div class="kpd" style="background:#dc2626"></div><span style="font-weight:600">'+(ai+1)+'. '+x(a)+'</span></div>';}).join('')+'</div>';}
+    h+='<div class="chb">'+renderText(ch.content)+'</div>';
+    // Comparison Table — real ch.comparisonTable (genuine AI output, optional per chapter)
+    if(ch.comparisonTable&&ch.comparisonTable.headers&&ch.comparisonTable.headers.length&&ch.comparisonTable.rows&&ch.comparisonTable.rows.length){
+      var ctab=ch.comparisonTable;
+      h+='<div class="ctable"><h4>'+ebIcon('briefcase',14)+' '+x(ctab.title||'비교')+'</h4><div class="ctable-scroll"><table><thead><tr>'+ctab.headers.map(function(hd){return '<th>'+x(hd)+'</th>';}).join('')+'</tr></thead><tbody>'+ctab.rows.map(function(row){return '<tr>'+row.map(function(cell){return '<td>'+x(cell)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>';
+    }
+    // Framework — real ch.framework (genuine AI output, optional per chapter)
+    if(ch.framework&&ch.framework.steps&&ch.framework.steps.length){
+      var fw=ch.framework;
+      h+='<div class="fwb"><h4>'+ebIcon('compass',14)+' 프레임워크</h4><div class="fwb-name">'+x(fw.name||'')+'</div><div class="fwgrid">'+fw.steps.map(function(st,si){return '<div class="fwcard"><div class="fwcard-num">'+pad(si+1)+'</div><div class="fwcard-title">'+x(st.title||'')+'</div><p>'+x(st.description||'')+'</p></div>';}).join('')+'</div></div>';
+    }
+    // Action Box — 오늘의 실행 (real actionBox field, one or more concrete actions)
+    if(ch.actionBox&&ch.actionBox.length){
+      var actions=Array.isArray(ch.actionBox)?ch.actionBox:[ch.actionBox];
+      h+='<div class="actb"><h4>'+ebIcon('rocket',15)+' 오늘의 실행</h4>'+actions.map(function(a,ai){return '<div class="actb-row"><div class="actb-num">'+(ai+1)+'</div><span>'+x(a)+'</span></div>';}).join('')+'</div>';
+    }
+    // Copy-paste template block (already strong, kept — icon swapped for emoji)
     if(ch.copyBox&&ch.copyBox.length){
       h+='<div class="prompt-box">';
-      h+='<div class="prompt-box-header"><div class="prompt-box-title">✔ 그대로 복사해서 쓰세요</div></div>';
+      h+='<div class="prompt-box-header"><div class="prompt-box-title">'+ebIcon('checkCircle',13)+' 그대로 복사해서 쓰세요</div></div>';
       var boxes=Array.isArray(ch.copyBox)?ch.copyBox:[{label:'프롬프트 템플릿',prompt:ch.copyBox}];
       boxes.forEach(function(item,idx){
         var pid='prompt-'+Math.random().toString(36).substr(2,6);
@@ -127,29 +149,56 @@ function renderCvEbook(e){
       });
       h+='</div>';
     }
-    if(ch.warningBox&&ch.warningBox.length){h+='<div class="acb" style="background:#fffbeb;border-color:#fde68a"><h4 style="color:#d97706">⚠ 초보자 주의사항</h4>'+ch.warningBox.map(function(w,wi){return '<div class="aci" style="margin-bottom:9px"><span style="font-weight:700;color:#d97706">'+(wi+1)+'.</span>'+x(w)+'</div>';}).join('')+'</div>';}
-    if(ch.keyPoints&&ch.keyPoints.length){h+='<div class="kpb"><h4>💡 핵심 포인트</h4>'+ch.keyPoints.map(function(kp,ki){return '<div class="kpi" style="margin-bottom:10px"><div class="kpd"></div><span>'+(ki+1)+'. '+x(kp)+'</span></div>';}).join('')+'</div>';}
-    if(ch.actionItems&&ch.actionItems.length){h+='<div class="acb"><h4>✅ 즉시 실천 체크리스트</h4>'+ch.actionItems.map(function(a,ai){return '<div class="aci" style="margin-bottom:8px"><span style="font-weight:700;min-width:20px">'+(ai+1)+'.</span>'+x(a)+'</div>';}).join('')+'</div>';}
+    // Warning Box — 초보자 주의사항
+    if(ch.warningBox&&ch.warningBox.length){
+      h+='<div class="warnb"><h4>'+ebIcon('alertTriangle',14)+' 초보자 주의사항</h4>'+ch.warningBox.map(function(w,wi){return '<div class="warnb-row"><span class="warnb-num">'+(wi+1)+'.</span><span>'+x(w)+'</span></div>';}).join('')+'</div>';
+    }
+    // Tip box — 핵심 포인트 (real keyPoints, its own honest role)
+    if(ch.keyPoints&&ch.keyPoints.length){
+      h+='<div class="tipb"><h4>'+ebIcon('sparkle',14)+' 핵심 포인트</h4>'+ch.keyPoints.map(function(kp){return '<div class="tipb-row"><div class="tipb-dot"></div><span>'+x(kp)+'</span></div>';}).join('')+'</div>';
+    }
+    // Timeline — real ch.timeline (genuine AI output, optional per chapter — a
+    // described process/journey, distinct from the actionItems checklist below)
+    if(ch.timeline&&ch.timeline.length){
+      h+='<div class="tlb"><h4>'+ebIcon('calendar',14)+' 타임라인</h4>'+ch.timeline.map(function(tl,ti){
+        var stageLbl=tl.stage?x(tl.stage)+' · ':'';
+        return '<div class="tlrow"><div class="tldot">'+(ti+1)+'</div><div class="tllabel">'+stageLbl+x(tl.label||'')+'</div><div class="tltext">'+x(tl.description||'')+'</div></div>';
+      }).join('')+'</div>';
+    }
+    // Checklist — 즉시 실천 체크리스트 (real actionItems)
+    if(ch.actionItems&&ch.actionItems.length){
+      h+='<div class="cklist"><h4>'+ebIcon('checkCircle',14)+' 즉시 실천 체크리스트</h4>'+ch.actionItems.map(function(a){return '<div class="cklrow"><div class="ckl-check">'+ebIcon('checkCircle',11)+'</div><span>'+x(a)+'</span></div>';}).join('')+'</div>';
+    }
+    // Chapter Summary — real ch.summary (genuine AI-written recap, required per chapter)
+    if(ch.summary){
+      h+='<div class="chsum"><h4>'+ebIcon('library',14)+' 이 장 요약</h4><p>'+x(ch.summary)+'</p></div>';
+    }
+    var chNext=chs[i+1];
+    h+='<div class="chnx">';
+    h+='<span class="chnx-done">'+ebIcon('checkCircle',13)+' CHAPTER '+pad(ch.number)+' 완료</span>';
+    h+=chNext?'<span class="chnx-next">다음 챕터 · CH.'+pad(chNext.number)+' <b>'+x(chNext.title)+'</b> →</span>':'<span class="chnx-next">마지막 챕터 · 이어서 결론으로</span>';
+    h+='</div>';
     h+='</div>';
   }
   // 결론
-  h+='<div class="pg inn" style="background:#fafaf9"><div class="ey">CONCLUSION</div><div class="sh">결론</div>';
+  h+='<div class="pg inn" style="background:#fafaf9"><div class="ey">'+ebIcon('crown',12)+' CONCLUSION</div><div class="sh">결론</div>';
   var conclusionHtml=e.conclusion&&e.conclusion.length>10&&e.conclusion.charAt(0)!=='['?renderText(e.conclusion):'<p>이 전자책을 통해 다양한 전략과 방법을 살펴봤습니다. 꾸준히 실천하며 성장해 나가시길 진심으로 응원합니다. 작은 것부터 하나씩 시작하면 반드시 변화가 찾아올 것입니다.</p>';
-  h+='<div class="chb" style="line-height:2.1">'+conclusionHtml+'</div>';
-  h+='<div class="concl" style="margin-top:32px"><p>이 책을 완독한 당신은 이미 99%를 앞서 있습니다</p><small>지금 바로 첫 번째 실천을 시작하세요</small></div></div>';
+  h+='<div class="chb">'+conclusionHtml+'</div>';
+  h+='<div class="impactb"><div class="impactb-mark">&ldquo;</div><p>이 책을 완독한 당신은 이미 99%를 앞서 있습니다</p><small>지금 바로 첫 번째 실천을 시작하세요</small></div></div>';
   // 부록
   if(e.appendices&&e.appendices.length){
     for(var i=0;i<e.appendices.length;i++){
-      h+='<div class="pg inn"><div class="ey">APPENDIX '+(i+1)+'</div><div class="sh">'+x(e.appendices[i].title)+'</div>';
-      h+='<div class="chb" style="line-height:2.1">'+x(cleanText(e.appendices[i].content||''))+'</div></div>';
+      h+='<div class="pg inn"><div class="ey">'+ebIcon('file',12)+' APPENDIX '+(i+1)+'</div><div class="sh">'+x(e.appendices[i].title)+'</div>';
+      h+='<div class="chb">'+x(cleanText(e.appendices[i].content||''))+'</div></div>';
     }
   }
   // 뒷표지
-  h+='<div class="pg bkpg"><div style="font-size:36px">📘</div><h3>'+x(e.title)+'</h3>';
+  h+='<div class="pg bkpg"><div class="bkpg-ic">'+ebIcon('book',36)+'</div><h3>'+x(e.title)+'</h3>';
   h+='<p>이 전자책이 도움이 되셨다면 주변에 공유해주세요.</p>';
   h+='<p style="font-size:12px;color:rgba(255,255,255,.22)">'+x(c.contact||'')+'</p>';
   h+='<div class="bkc">ⓒ '+x(c.year||'2025')+' '+x(e.author)+' · '+x(c.publisher||'독립 출판')+' · ALL RIGHTS RESERVED</div></div>';
   document.getElementById('cv-edoc').innerHTML=h;
+  if(typeof atlasUpdateResultHeader==='function')atlasUpdateResultHeader(e);
 }
 
 
@@ -517,7 +566,11 @@ function applyKmongComplianceFix(){
 }
 
 function renderKmongListing(e){
-  var host=document.getElementById('cv-listing-body');if(!host||!e)return;
+  /* Phase 17.1: STEP4(cv-result-state)의 "등록 자료" 패널도 동일한 결과를
+     보여줘야 하므로, 새 Engine 없이 같은 계산 결과를 두 host(구버전 cv-sales-state의
+     cv-listing-body + 신규 cv-result-listing-body)에 함께 렌더링한다. */
+  var hosts=[document.getElementById('cv-listing-body'),document.getElementById('cv-result-listing-body')].filter(Boolean);
+  if(!hosts.length||!e)return;
   var d=buildKmongListing(e),scan=scanKmongCompliance(e);
   var issueHtml=scan.issues.length?scan.issues.slice(0,8).map(function(it){
     var c=it.level==='high'?'#fca5a5':'#fcd34d';
@@ -532,13 +585,15 @@ function renderKmongListing(e){
   var faqText=d.faqs.map(function(f,i){return (i+1)+'. '+f.q+'\n'+f.a;}).join('\n\n');
   var learnText=d.learning.map(function(v){return '• '+v;}).join('\n');
   var includeText=d.included.map(function(v){return '• '+v;}).join('\n');
-  host.innerHTML='<div style="background:linear-gradient(160deg,#090b16,#11162a);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px;margin-bottom:18px">'
+  var summary3Text=d.learning.slice(0,3).map(function(v){return '• '+v;}).join('\n');
+  var html='<div style="background:linear-gradient(160deg,#090b16,#11162a);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px;margin-bottom:18px">'
     +'<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:14px"><div><div style="font-size:11px;color:#818cf8;font-weight:800;letter-spacing:1.6px">ATLAS EBOOK SALES KIT</div><div style="font-size:17px;color:#fff;font-weight:900;margin-top:3px">전자책 판매자료 자동 정리</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">등록 전 직접 검토하고 필요한 부분만 수정해 사용하세요.</div></div><div style="display:flex;flex-wrap:wrap;gap:6px"><button onclick="atlasCopyText(atlasListingText(buildKmongListing(APP.ebook)),this)" style="padding:8px 13px;border:0;border-radius:100px;background:#6366f1;color:#fff;font-size:10px;font-weight:800;cursor:pointer">전체 복사</button><button onclick="downloadKmongListing(&quot;txt&quot;)" style="padding:8px 13px;border:1px solid rgba(255,255,255,.16);border-radius:100px;background:rgba(255,255,255,.06);color:#fff;font-size:10px;font-weight:800;cursor:pointer">TXT</button><button onclick="downloadKmongListing(&quot;json&quot;)" style="padding:8px 13px;border:1px solid rgba(255,255,255,.16);border-radius:100px;background:rgba(255,255,255,.06);color:#fff;font-size:10px;font-weight:800;cursor:pointer">JSON</button></div></div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">'
-    +field('서비스 제목',d.serviceTitle,'serviceTitle',false)+field('한 줄 소개',d.oneLine,'oneLine',false)+field('추천 카테고리',d.category,'category',false)+field('검색 키워드',d.keywords.join(', '),'keywords',false)+field('추천 대상',d.target,'target',true)+field('서비스 설명',d.solution,'solution',true)+field('배울 수 있는 내용',learnText,'learning',true)+field('제공 내용',includeText,'included',true)+field('제공 안내',d.delivery,'delivery',true)+field('구매 전 안내',d.buyerNotice,'buyerNotice',true)+field('FAQ',faqText,'faqs',true)
+    +field('서비스 제목',d.serviceTitle,'serviceTitle',false)+field('한 줄 소개',d.oneLine,'oneLine',false)+field('추천 카테고리',d.category,'category',false)+field('검색 키워드',d.keywords.join(', '),'keywords',false)+field('추천 대상',d.target,'target',true)+field('서비스 설명',d.solution,'solution',true)+field('핵심 요약 3줄',summary3Text,'summary3',true)+field('배울 수 있는 내용',learnText,'learning',true)+field('제공 내용',includeText,'included',true)+field('결제 후 안내',d.delivery,'delivery',true)+field('구매 전 안내',d.buyerNotice,'buyerNotice',true)+field('FAQ',faqText,'faqs',true)
     +'</div>'
     +'<div style="margin-top:16px;padding:14px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09)"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:9px;margin-bottom:10px"><div><span style="font-size:11px;color:#94a3b8;font-weight:800">크몽 표현 위험도</span><span style="margin-left:8px;font-size:20px;color:'+(scan.score>=90?'#6ee7b7':scan.score>=70?'#fcd34d':'#fca5a5')+';font-weight:900">'+scan.score+'점</span><span style="margin-left:6px;font-size:10px;color:#64748b">'+scan.status+'</span></div><button onclick="applyKmongComplianceFix()" style="padding:7px 12px;border:1px solid rgba(251,191,36,.30);border-radius:100px;background:rgba(251,191,36,.08);color:#fcd34d;font-size:10px;font-weight:800;cursor:pointer">위험 표현 다시 정리</button></div><div style="display:grid;gap:7px">'+issueHtml+'</div><div style="font-size:9px;color:#64748b;line-height:1.6;margin-top:9px">※ 자동 검사는 등록 승인을 보장하지 않습니다. 플랫폼 정책과 실제 서비스 내용은 등록 직전에 반드시 직접 확인하세요.</div></div>'
     +'</div>';
+  hosts.forEach(function(host){ host.innerHTML=html; });
 }
 
 
