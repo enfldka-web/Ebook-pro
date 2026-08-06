@@ -1,7 +1,7 @@
 // ════════════════════════════════════════
 // DATA & STATE
 // ════════════════════════════════════════
-var APP={user:null,ebook:null,editMode:false,salesEditMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'input',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,plannerReport:null,brandProfile:null,marketingCopy:null,thumbnailBlueprint:null,salesPageBlueprint:null,ebookBlueprint:null,ebookProgress:null};
+var APP={user:null,ebook:null,editMode:false,salesEditMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'input',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,plannerReport:null,brandProfile:null,marketingCopy:null,thumbnailBlueprint:null,salesPageBlueprint:null,ebookBlueprint:null,ebookProgress:null,thumbnailThemeId:null};
 
 // ════════════════════════════════════════
 // ATLAS v0.7 SMART PREMIUM ENGINE
@@ -61,12 +61,12 @@ function atlasSetSimpleStep(step){
 }
 function atlasCollectDraft(){
  function val(id){var e=document.getElementById(id);return e?e.value:'';}
- return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'input',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,ebookProgress:ebookProgressLightweight(APP.ebookProgress),thumbnailStudio:APP.thumbnailStudio||null,salesPageStudio:APP.salesPageStudio||null,brandTheme:APP.brandTheme||null,plannerReport:APP.plannerReport||null,brandProfile:APP.brandProfile||null,marketingCopy:APP.marketingCopy||null,thumbnailBlueprint:APP.thumbnailBlueprint||null,salesPageBlueprint:APP.salesPageBlueprint||null,ebookBlueprint:APP.ebookBlueprint||null,creativeCampaign:APP.creativeCampaign||null};
+ return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'input',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,ebookProgress:ebookProgressLightweight(APP.ebookProgress),thumbnailStudio:APP.thumbnailStudio||null,salesPageStudio:APP.salesPageStudio||null,brandTheme:APP.brandTheme||null,plannerReport:APP.plannerReport||null,brandProfile:APP.brandProfile||null,marketingCopy:APP.marketingCopy||null,thumbnailBlueprint:APP.thumbnailBlueprint||null,salesPageBlueprint:APP.salesPageBlueprint||null,ebookBlueprint:APP.ebookBlueprint||null,creativeCampaign:APP.creativeCampaign||null,thumbnailThemeId:APP.thumbnailThemeId||null};
 }
 function atlasSaveDraft(show){try{localStorage.setItem(atlasProjectStorageKey(),JSON.stringify(atlasCollectDraft()));if(show)showToast('success','현재 프로젝트를 저장했습니다.');}catch(e){if(show)showToast('error','프로젝트 저장에 실패했습니다.');}}
 function atlasLoadDraft(show){
  try{var raw=localStorage.getItem(atlasProjectStorageKey());if(!raw){if(show)showToast('info','저장된 프로젝트가 없습니다.');return;}var d=JSON.parse(raw);
- APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.plannerReport=d.plannerReport||null;APP.brandProfile=d.brandProfile||null;APP.marketingCopy=d.marketingCopy||null;APP.thumbnailBlueprint=d.thumbnailBlueprint||null;APP.salesPageBlueprint=d.salesPageBlueprint||null;APP.ebookBlueprint=d.ebookBlueprint||null;APP.creativeCampaign=d.creativeCampaign||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;APP._ebookProgressLightweightHint=d.ebookProgress||null;APP.ebookProgress=null;
+ APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.plannerReport=d.plannerReport||null;APP.brandProfile=d.brandProfile||null;APP.marketingCopy=d.marketingCopy||null;APP.thumbnailBlueprint=d.thumbnailBlueprint||null;APP.salesPageBlueprint=d.salesPageBlueprint||null;APP.ebookBlueprint=d.ebookBlueprint||null;APP.creativeCampaign=d.creativeCampaign||null;APP.thumbnailThemeId=d.thumbnailThemeId||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;APP._ebookProgressLightweightHint=d.ebookProgress||null;APP.ebookProgress=null;
  if(d.thumbnailStudio){APP.thumbnailStudio=d.thumbnailStudio;}else{delete APP.thumbnailStudio;}
  if(typeof ThumbnailStudio!=='undefined'&&typeof ThumbnailStudio.init==='function')ThumbnailStudio.init();
  if(d.salesPageStudio){APP.salesPageStudio=d.salesPageStudio;}else{delete APP.salesPageStudio;}
@@ -873,19 +873,89 @@ JSON 키는 영어로 유지하고 모든 값은 한국어로 작성합니다.
 - 과장보다 명확성, 감정보다 구체성, 홍보 문구보다 구매 판단에 필요한 정보를 우선합니다.
 - 상황으로 공감하고 해결 과정과 결과물 구성을 명료하게 제시합니다.`;
 
+/* Atlas V3 Phase 1 — 이전에는 제목 생성 호출이 두 곳(openTitleStudio/
+   generateTitlesFromSmartAnalysis)에 각각 비슷하지만 다른 규칙 문구를 손으로
+   따로 갖고 있었다(파이프라인 점검에서 확인된 drift 위험). 하나의 상수로
+   합쳐 두 호출 모두 참조하게 한다. 두 호출 다 system 파라미터로 짧은 한 줄
+   문자열을 썼는데(정책/품질 규칙이 전혀 없는 경우도 있었다), 이제는 다른 모든
+   생성 호출과 동일하게 ATLAS_SYSTEM_PROMPT를 system으로 쓰고, 제목만의 규칙은
+   이 상수로 user 프롬프트 쪽에 얹는다. */
+var TITLE_GENERATION_RULES = `[제목 후보 규칙]
+- 과장, 보장, 구체적인 수익 금액, 100%, 무조건, 누구나 성공 표현을 금지합니다.
+- 궁금증·문제공감·실전 효용·신뢰·검색 의도를 균형 있게 사용합니다.
+- 입력에 없는 판매 실적이나 경험을 창작하지 않습니다.
+- 정확히 12개 후보를 생성합니다.
+- 12개는 서로 뚜렷하게 달라야 합니다 — 같은 문장을 단어만 바꾼 유사 문구를 반복하지 마세요. 같은 type 안의 두 후보도 서로 다른 소재·각도·문장 구조를 써야 합니다.
+- "완벽 가이드", "모든 것을 알려드립니다", "총정리" 같은 상투적인 AI 생성 문구를 피하고, 분석된 실제 주제·독자·문제에서 나온 구체적인 표현을 씁니다.
+- 제목은 한국어 14~32자 권장, 부제는 18~48자 권장입니다.
+- scores.total은 다른 점수를 종합해 100점 만점으로 현실적으로 평가합니다.`;
+
+/* Atlas V3 Phase 1 — 결정적(비 AI) 제목 유사도 체크. 새 AI 호출을 추가하지
+   않고, 이미 받은 12개 후보 안에서 "사실상 같은 제목"을 코드로 감지한다.
+   정확한 자연어 유사도 알고리즘이 아니라 실무적인 휴리스틱이다 — 공백을
+   지우고 조사·어미 없이 남는 글자(2자 이상 한글/영문/숫자 토큰)의 자카드
+   유사도가 0.6 이상이면 "근접 중복"으로 본다. 프로덕션 동작을 바꾸지 않는다
+   (후보를 삭제·재생성하지 않는다) — 테스트와, 필요 시 콘솔 경고에만 쓰인다. */
+/* 흔한 조사만 꼬리에서 제거하는 가벼운 정규화 — 완전한 형태소 분석기가
+   아니라, "부업으로"와 "부업을"처럼 같은 어간에 다른 조사가 붙어 서로 다른
+   토큰으로 갈리는 것만 줄이기 위한 실무적 보정이다. */
+var ATLAS_KOREAN_PARTICLES = ['으로써','으로서','에게서','이라는','라는','으로','에서','에게','까지','부터','한테','이랑','이나','으나','이라','라서','이라서','이지만','지만','와','과','은','는','이','가','을','를','의','에','도','만','랑','나'];
+function atlasStripKoreanParticle(token){
+  for(var i=0;i<ATLAS_KOREAN_PARTICLES.length;i++){
+    var p=ATLAS_KOREAN_PARTICLES[i];
+    if(token.length>p.length+1 && token.slice(-p.length)===p) return token.slice(0,-p.length);
+  }
+  return token;
+}
+function atlasTitleTokens(s){
+  return (String(s||'').match(/[가-힣a-zA-Z0-9]{2,}/g)||[]).map(function(t){return atlasStripKoreanParticle(t.toLowerCase());});
+}
+function atlasTitleSimilarity(a,b){
+  var ta=atlasTitleTokens(a), tb=atlasTitleTokens(b);
+  if(!ta.length||!tb.length)return 0;
+  var setA={},setB={};ta.forEach(function(t){setA[t]=1;});tb.forEach(function(t){setB[t]=1;});
+  var union=Object.keys(Object.assign({},setA,setB));
+  var inter=Object.keys(setA).filter(function(t){return setB[t];});
+  return union.length ? inter.length/union.length : 0;
+}
+function atlasFindNearDuplicateTitles(titles, threshold){
+  threshold = threshold==null ? 0.6 : threshold;
+  var pairs=[];
+  for(var i=0;i<titles.length;i++){
+    for(var j=i+1;j<titles.length;j++){
+      var sim = atlasTitleSimilarity((titles[i]&&titles[i].title)||titles[i], (titles[j]&&titles[j].title)||titles[j]);
+      if(sim>=threshold) pairs.push({i:i,j:j,similarity:sim});
+    }
+  }
+  return pairs;
+}
+
+/* Atlas V3 Phase 1 — 이전에는 "과장 표현 금지" 정규식이 sanitizeKmongSalesClaims()
+   (여기), safeTitleText()(제목 후처리), atlasQualityScores()(js/bootstrap.js 품질
+   점수)에 각각 손으로 따로 작성돼 있어 서로 다른 커버리지를 가졌다 — 예를 들어
+   품질 점수의 정책 검사 정규식에는 "누구나"가 빠져 있어, sanitizeKmongSalesClaims가
+   여전히 정리할 표현이 있는데도 "정책 안전도 100"으로 표시될 수 있었다(실제
+   파이프라인 점검에서 확인된 drift). 하나의 배열로 통합해 세 곳 모두 항상 같은
+   패턴을 검사하게 한다. */
+var ATLAS_BANNED_CLAIM_PATTERNS=[
+  [/100\s*%/gi,'높은 완성도'],
+  [/무조건|반드시\s*성공|확실한\s*수익|수익\s*보장|매출\s*보장|자동\s*수익|평생\s*수익/gi,'체계적인 실행'],
+  [/누구나\s*(?:쉽게|가능|성공)?/gi,'초보자도 단계적으로'],
+  [/(?:월|한\s*달|하루|일주일|주간|연간)\s*\d[\d,]*(?:\.\d+)?\s*(?:만|억|천)?\s*원(?:\s*(?:벌기|버는|수익|매출|달성|만들기))?/gi,'꾸준한 수익 구조'],
+  [/\d[\d,]*(?:\.\d+)?\s*(?:만|억|천)?\s*원\s*(?:수익|매출|달성|벌기|버는)/gi,'수익화 성과'],
+  [/\d+(?:\.\d+)?\s*%\s*(?:증가|상승|개선|수익|매출)/gi,'의미 있는 개선']
+];
+/* 감지 전용(치환 없이 "이 텍스트에 금지 표현이 있는가"만 boolean으로 반환) —
+   atlasQualityScores()의 정책 안전도 점수가 이 배열을 그대로 재사용한다. */
+function atlasContainsBannedClaim(text){
+  var s=String(text||'');
+  return ATLAS_BANNED_CLAIM_PATTERNS.some(function(pair){ pair[0].lastIndex=0; return pair[0].test(s); });
+}
 function sanitizeKmongSalesClaims(ebook){
   if(!ebook||typeof ebook!=='object')return ebook;
-  var forbiddenWords=[
-    [/100\s*%/gi,'높은 완성도'],
-    [/무조건|반드시\s*성공|확실한\s*수익|수익\s*보장|매출\s*보장|자동\s*수익|평생\s*수익/gi,'체계적인 실행'],
-    [/누구나\s*(?:쉽게|가능|성공)?/gi,'초보자도 단계적으로'],
-    [/(?:월|한\s*달|하루|일주일|주간|연간)\s*\d[\d,]*(?:\.\d+)?\s*(?:만|억|천)?\s*원(?:\s*(?:벌기|버는|수익|매출|달성|만들기))?/gi,'꾸준한 수익 구조'],
-    [/\d[\d,]*(?:\.\d+)?\s*(?:만|억|천)?\s*원\s*(?:수익|매출|달성|벌기|버는)/gi,'수익화 성과'],
-    [/\d+(?:\.\d+)?\s*%\s*(?:증가|상승|개선|수익|매출)/gi,'의미 있는 개선']
-  ];
   function clean(v){
     if(typeof v==='string'){
-      forbiddenWords.forEach(function(pair){v=v.replace(pair[0],pair[1]);});
+      ATLAS_BANNED_CLAIM_PATTERNS.forEach(function(pair){v=v.replace(pair[0],pair[1]);});
       return v.replace(/\s{2,}/g,' ').trim();
     }
     if(Array.isArray(v))return v.map(clean);
@@ -911,8 +981,16 @@ function backToInputs(){
   atlasSetSimpleStep(1);
   checkCvReady();window.scrollTo(0,0);
 }
+/* Atlas V3 Phase 1: 제목·부제 문맥에서는 sanitizeKmongSalesClaims()처럼 완곡한
+   문구로 치환하면 어색하므로(예: "체계적인 실행"이 제목 안에 자연스럽게 안
+   들어감) 같은 ATLAS_BANNED_CLAIM_PATTERNS를 쓰되 빈 문자열로 제거만 한다 —
+   커버리지는 항상 sanitizeKmongSalesClaims()/atlasContainsBannedClaim()과
+   동일하게 유지된다(이전에는 이 함수만 별도로 손으로 작성한 더 좁은 정규식을
+   썼다). */
 function safeTitleText(v){
-  return String(v||'').replace(/100\s*%/gi,'').replace(/(?:월|하루|일주일|연간)\s*\d[\d,]*\s*(?:만|억|천)?\s*원/gi,'').replace(/무조건|보장|자동수익|누구나\s*성공/gi,'').replace(/\s{2,}/g,' ').trim();
+  var s=String(v||'');
+  ATLAS_BANNED_CLAIM_PATTERNS.forEach(function(pair){ pair[0].lastIndex=0; s=s.replace(pair[0],''); });
+  return s.replace(/\s{2,}/g,' ').trim();
 }
 async function fileToApiBlock(f){
   var ext=(f.name.split('.').pop()||'').toLowerCase();
@@ -963,13 +1041,13 @@ function skipSmartInterview(){APP.interviewAnswers={};generateTitlesFromSmartAna
 function submitSmartInterview(){if(!validateSmartInterview())return;generateTitlesFromSmartAnalysis(false);}
 async function generateTitlesFromSmartAnalysis(skipped){
   var btn=document.getElementById('si-submit-btn');var old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ 제목 설계 중...';}
-  var prompt=`당신은 한국 전자책 상품의 제목과 후킹을 설계하는 편집자입니다. 앞선 자료 분석과 사용자 답변을 반영해 판매용 전자책 제목 후보를 만드세요.\n\n[앞선 분석]\n${JSON.stringify(APP.smartAnalysis||APP.titleAnalysis||{})}\n\n[사용자 답변]\n${skipped?'사용자가 추가 질문을 건너뛰고 자료만으로 진행함':smartInterviewAnswerText()}\n\n[규칙]\n- 과장, 보장, 구체적인 수익 금액, 100%, 무조건 표현 금지\n- 궁금증·문제공감·실전 효용·신뢰·검색 의도를 균형 있게 사용\n- 입력에 없는 판매 실적이나 경험을 창작하지 않음\n- 정확히 12개 후보 생성\n\n유효한 JSON만 반환:\n{"analysis":{"topic":"","target":"","pain":"","angle":"","sourceSummary":""},"titles":[{"title":"","subtitle":"","type":"궁금증형|문제공감형|실전형|검색형|신뢰형|프리미엄형","reason":"","scores":{"hook":0,"trust":0,"search":0,"policy":0,"total":0}}]}`;
+  var prompt=`당신은 한국 전자책 상품의 제목과 후킹을 설계하는 편집자입니다. 앞선 자료 분석과 사용자 답변을 반영해 판매용 전자책 제목 후보를 만드세요.\n\n[앞선 분석]\n${JSON.stringify(APP.smartAnalysis||APP.titleAnalysis||{})}\n\n[사용자 답변]\n${skipped?'사용자가 추가 질문을 건너뛰고 자료만으로 진행함':smartInterviewAnswerText()}\n\n${TITLE_GENERATION_RULES}\n\n유효한 JSON만 반환:\n{"analysis":{"topic":"","target":"","pain":"","angle":"","sourceSummary":""},"titles":[{"title":"","subtitle":"","type":"궁금증형|문제공감형|실전형|검색형|신뢰형|프리미엄형","reason":"","scores":{"hook":0,"trust":0,"search":0,"policy":0,"total":0}}]}`;
   try{
     var content=await buildApiContent(prompt);
-    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:'유효한 JSON 객체 하나만 반환하세요.',messages:[{role:'user',content:content}]});
+    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:ATLAS_SYSTEM_PROMPT,messages:[{role:'user',content:content}]});
     var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');
-    var clean=raw.replace(/```json|```/g,'').trim();clean=clean.substring(clean.indexOf('{'),clean.lastIndexOf('}')+1);
-    var obj=JSON.parse(clean);APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');atlasSetSimpleStep(2);window.scrollTo(0,0);
+    var obj=window.AtlasIncrementalEbookEngine.robustJsonParse(raw,'{','}','titles-interview');
+    APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');atlasSetSimpleStep(2);window.scrollTo(0,0);
   }catch(e){
     showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);
   }finally{
@@ -989,14 +1067,14 @@ async function openTitleStudio(isRetry){
 [분석 원칙]
 - 주제 입력, PLR, 여러 문서와 링크를 구분해 핵심 주제·독자·문제·차별화 각도를 찾습니다.
 - 자료를 단순 번역하거나 짜깁기하지 않고 한국 독자에게 맞는 새 상품 각도를 제안합니다.
-- 입력에 없는 판매실적·경험·통계는 만들지 않습니다.
-- 구체적인 수익 금액, 기간 내 성공, 보장, 100%, 무조건, 누구나 성공 표현은 제목과 부제에 사용하지 않습니다.
 - 후킹은 과장 대신 궁금증, 문제 공감, 구체적 효용, 신뢰, 실전성을 사용합니다.
 
 [스마트 인터뷰 판단]
 - 자료가 충분하면 interview.needed=false로 하고 질문을 만들지 않습니다.
 - 독자, 목적, 차별화 방향 등 결과 품질에 치명적인 정보가 빠졌을 때만 질문합니다.
 - 질문은 최대 5개이며, 답을 몰라도 진행 가능한 사소한 질문은 만들지 않습니다.
+
+${TITLE_GENERATION_RULES}
 
 [출력]
 유효한 JSON 하나만 반환하세요.
@@ -1006,16 +1084,13 @@ async function openTitleStudio(isRetry){
  "titles":[
   {"title":"제목","subtitle":"부제목","type":"궁금증형|문제공감형|실전형|검색형|신뢰형|프리미엄형","reason":"왜 좋은지","scores":{"hook":0,"trust":0,"search":0,"policy":0,"total":0}}
  ]
-}
-- titles는 정확히 12개를 생성합니다.
-- 제목은 한국어 14~32자 권장, 부제는 18~48자 권장입니다.
-- total은 다른 점수를 종합해 100점 만점으로 현실적으로 평가합니다.`;
+}`;
   try{
     var content=await buildApiContent(prompt);
-    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:'반드시 유효한 JSON 객체 하나만 반환하세요. 입력 자료의 저작권을 존중하고 검증되지 않은 성과를 창작하지 마세요.',messages:[{role:'user',content:content}]});
+    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:ATLAS_SYSTEM_PROMPT,messages:[{role:'user',content:content}]});
     var raw=(data.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');
-    var clean=raw.replace(/```json|```/g,'').trim();clean=clean.substring(clean.indexOf('{'),clean.lastIndexOf('}')+1);
-    var obj=JSON.parse(clean);APP.smartAnalysis=obj.analysis||{};APP.titleAnalysis=obj.analysis||{};var iv=obj.interview||{};APP.interviewContext=iv.reason||'';APP.interviewQuestions=(iv.questions||[]).slice(0,5).map(normalizeInterviewQuestion);APP.interviewAnswers={};
+    var obj=window.AtlasIncrementalEbookEngine.robustJsonParse(raw,'{','}','titles-initial');
+    APP.smartAnalysis=obj.analysis||{};APP.titleAnalysis=obj.analysis||{};var iv=obj.interview||{};APP.interviewContext=iv.reason||'';APP.interviewQuestions=(iv.questions||[]).slice(0,5).map(normalizeInterviewQuestion);APP.interviewAnswers={};
     if(iv.needed&&APP.interviewQuestions.length){APP.titleCandidates=[];renderSmartInterview(iv.reason);}
     else{APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.selectedTitleIndex=0;document.getElementById('cv-upload-state').style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title',{coach:'자료가 충분해 추가 질문 없이 프리미엄 제목 후보를 완성했습니다.'});atlasSetSimpleStep(2);window.scrollTo(0,0);}
   }catch(e){
@@ -1578,22 +1653,196 @@ function downloadDocx(e){
         .replace(/>/g,'&gt;')
         .replace(/"/g,'&quot;');
     }
+    // Editorial Composition Engine (final Phase 1B step): mirrors
+    // js/renderers.js's atlasSplitLongParagraph — a genuinely long paragraph
+    // is split at real sentence boundaries into two or more, same words,
+    // just given room to breathe (Preview == Export reading-rhythm parity).
+    function splitLongParagraph(text,maxLen){
+      maxLen=maxLen||220;
+      if(text.length<=maxLen)return [text];
+      var sentences=text.match(/[^.!?]+[.!?]+(?:['"’”)]*)\s*|[^.!?]+$/g)||[text];
+      var chunks=[],cur='';
+      sentences.forEach(function(sent){
+        if(cur&&(cur.length+sent.length)>maxLen){chunks.push(cur.trim());cur=sent;}
+        else{cur+=sent;}
+      });
+      if(cur.trim())chunks.push(cur.trim());
+      return chunks.length?chunks:[text];
+    }
     // 텍스트를 단락 배열로 분리 (빈줄 기준)
-    function textToParas(s,size,color){
-      var clean=ct(s);
-      var lines=clean.split('\n');
-      var out='';
+    // V3 Phase 1B: 미리보기 renderText()가 실제 번호/글머리 기호 줄에
+    // hanging-indent 타이포그래피를 적용하는 것과 동일하게, DOCX도 같은
+    // 줄에 대해 굵은 번호/글머리 기호 + hanging indent 단락을 만든다
+    // (Preview == Export 원칙).
+    // V3 Phase 1B 보정(원문 전체 재검토): "**...**"로 감싼 한 줄 전체는
+    // 미리보기의 굵은 강조 문장(.thst)과 동일하게 큰 굵은 글씨 단락으로,
+    // 따옴표로 감싼 한 줄 전체는 미리보기의 인용/대화 블록(.qtb)과 동일하게
+    // 왼쪽 세로선 + 이탤릭 단락으로 만든다. ct()가 "**"를 지우기 전에 원문
+    // 줄 단위로 먼저 검사해야 하므로, 여기서는 줄바꿈 정리만 먼저 하고
+    // "**" 제거는 일반 단락으로 떨어지는 경우에만 적용한다.
+    // V3 Phase 1B DOCX 보정: js/renderers.js의 renderTextBlocks()와 동일하게
+    // textToParaBlocks()는 각 줄을 {type, xml} 객체 배열로 반환한다 — 챕터
+    // 루프가 Editorial Composition Engine의 목록-보호 분할 지점을 미리보기와
+    // 동일한 방식으로 계산할 수 있도록 하기 위함(문자열이 아니라 타입 태그로
+    // 검사). textToParas()는 이 배열을 이어붙이는 얇은 래퍼로 남아 preface/
+    // intro/appendix 등 분할이 필요 없는 기존 호출부는 그대로 동작한다.
+    function textToParaBlocks(s,size,color){
+      var pre=String(s||'').replace(/#{1,6}\s/g,'').replace(/\n{3,}/g,'\n\n');
+      var lines=pre.split('\n');
+      var blocks=[];
       lines.forEach(function(line){
         var t=line.trim();
-        if(!t){out+='<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr></w:p>';return;}
-        out+='<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
-          +'<w:r><w:rPr>'
-          +'<w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/>'
-          +(color?'<w:color w:val="'+color+'"/>':'')
-          +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
-          +'</w:rPr><w:t xml:space="preserve">'+esc(t)+'</w:t></w:r></w:p>';
+        if(!t){blocks.push({type:'empty',xml:'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr></w:p>'});return;}
+        var mBold=t.match(/^\*\*(.+)\*\*$/);
+        var mQuote=!mBold&&t.match(/^["“](.+)["”]$/);
+        var mNum=!mBold&&!mQuote&&t.match(/^(\d{1,2})[).]\s+(.+)$/);
+        var mBul=!mBold&&!mQuote&&!mNum&&t.match(/^[-•·]\s+(.+)$/);
+        if(mBold){
+          blocks.push({type:'bold',xml:'<w:p><w:pPr><w:spacing w:before="140" w:after="140"/></w:pPr>'
+            +'<w:r><w:rPr><w:b/><w:sz w:val="'+((size||24)+4)+'"/><w:szCs w:val="'+((size||24)+4)+'"/><w:color w:val="1a1a2e"/>'
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+            +'</w:rPr><w:t xml:space="preserve">'+esc(mBold[1])+'</w:t></w:r></w:p>'});
+          return;
+        }
+        if(mQuote){
+          blocks.push({type:'quote',xml:'<w:p><w:pPr><w:spacing w:before="80" w:after="80"/><w:ind w:left="360"/>'
+            +'<w:pBdr><w:left w:val="single" w:sz="12" w:space="8" w:color="C7D2FE"/></w:pBdr></w:pPr>'
+            +'<w:r><w:rPr><w:i/><w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/><w:color w:val="475569"/>'
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+            +'</w:rPr><w:t xml:space="preserve">'+esc(mQuote[1])+'</w:t></w:r></w:p>'});
+          return;
+        }
+        if(mNum||mBul){
+          var marker=mNum?mNum[1]+'.':'•';
+          var rest=mNum?mNum[2]:mBul[1];
+          blocks.push({type:mNum?'num':'bul',xml:'<w:p><w:pPr><w:spacing w:before="60" w:after="60"/><w:ind w:left="420" w:hanging="420"/></w:pPr>'
+            +'<w:r><w:rPr><w:b/><w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/><w:color w:val="6366f1"/>'
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+            +'</w:rPr><w:t xml:space="preserve">'+esc(marker)+'\t</w:t></w:r>'
+            +'<w:r><w:rPr><w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/>'
+            +(color?'<w:color w:val="'+color+'"/>':'')
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+            +'</w:rPr><w:t xml:space="preserve">'+esc(rest)+'</w:t></w:r></w:p>'});
+          return;
+        }
+        splitLongParagraph(t.replace(/\*\*/g,'')).forEach(function(chunk){
+          blocks.push({type:'plain',xml:'<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
+            +'<w:r><w:rPr>'
+            +'<w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/>'
+            +(color?'<w:color w:val="'+color+'"/>':'')
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+            +'</w:rPr><w:t xml:space="preserve">'+esc(chunk)+'</w:t></w:r></w:p>'});
+        });
+      });
+      return blocks;
+    }
+    function textToParas(s,size,color){
+      return textToParaBlocks(s,size,color).map(function(b){return b.xml;}).join('');
+    }
+    function plainPara(text,indent,size,color){
+      return '<w:p><w:pPr><w:spacing w:before="0" w:after="80"/>'+(indent?'<w:ind w:left="'+indent+'"/>':'')+'</w:pPr>'
+        +'<w:r><w:rPr><w:sz w:val="'+(size||21)+'"/><w:szCs w:val="'+(size||21)+'"/>'
+        +'<w:color w:val="'+(color||'3A3F5C')+'"/>'
+        +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+        +'</w:rPr><w:t xml:space="preserve">'+esc(String(text||''))+'</w:t></w:r></w:p>';
+    }
+    // V3 Phase 1B DOCX parity fix: real editorial components the Preview
+    // renderer (js/renderers.js) already shows but downloadDocx silently
+    // dropped — framework, comparisonTable, timeline, warningBox, copyBox.
+    // Each is a no-op when its real field is absent (Never-Guess: nothing
+    // fabricated to fill a slot), matching the Preview's own optional-field
+    // handling exactly.
+    function docxComparisonTable(ctab){
+      var out=label(ctab.title||'비교','9333EA');
+      var headerCells=ctab.headers.map(function(hd){
+        return '<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F7F6FE"/></w:tcPr>'
+          +'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="4C1D95"/>'
+          +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+          +'<w:t xml:space="preserve">'+esc(String(hd||''))+'</w:t></w:r></w:p></w:tc>';
+      }).join('');
+      var bodyRows=ctab.rows.map(function(row){
+        return '<w:tr>'+row.map(function(cell){
+          return '<w:tc><w:tcPr></w:tcPr><w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr>'
+            +'<w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/>'
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+            +'<w:t xml:space="preserve">'+esc(String(cell==null?'':cell))+'</w:t></w:r></w:p></w:tc>';
+        }).join('')+'</w:tr>';
+      }).join('');
+      var gridCols=new Array(ctab.headers.length).fill('<w:gridCol/>').join('');
+      out+='<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>'
+        +'<w:top w:val="single" w:sz="4" w:color="EEF0FB"/><w:left w:val="single" w:sz="4" w:color="EEF0FB"/>'
+        +'<w:bottom w:val="single" w:sz="4" w:color="EEF0FB"/><w:right w:val="single" w:sz="4" w:color="EEF0FB"/>'
+        +'<w:insideH w:val="single" w:sz="4" w:color="F5F5FB"/><w:insideV w:val="single" w:sz="4" w:color="F5F5FB"/>'
+        +'</w:tblBorders></w:tblPr><w:tblGrid>'+gridCols+'</w:tblGrid>'
+        +'<w:tr>'+headerCells+'</w:tr>'+bodyRows+'</w:tbl>';
+      out+=emptyLine(1);
+      return out;
+    }
+    function docxFramework(fw){
+      var out=label(fw.name||'프레임워크','6366F1');
+      (fw.steps||[]).forEach(function(st,si){
+        out+='<w:p><w:pPr><w:spacing w:before="80" w:after="20"/></w:pPr>'
+          +'<w:r><w:rPr><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="1a1a2e"/>'
+          +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+          +'<w:t xml:space="preserve">'+esc(String(si+1).padStart(2,'0')+'. '+(st.title||''))+'</w:t></w:r></w:p>';
+        out+=plainPara(st.description||'',240);
       });
       return out;
+    }
+    function docxTimeline(items){
+      var out=label('타임라인','0E7490');
+      (items||[]).forEach(function(tl,ti){
+        var stageLbl=tl.stage?(tl.stage+' · '):'';
+        out+='<w:p><w:pPr><w:spacing w:before="80" w:after="20"/></w:pPr>'
+          +'<w:r><w:rPr><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="0E7490"/>'
+          +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+          +'<w:t xml:space="preserve">'+esc((ti+1)+'. '+stageLbl+(tl.label||''))+'</w:t></w:r></w:p>';
+        out+=plainPara(tl.description||'',240);
+      });
+      return out;
+    }
+    function docxWarningBox(items){
+      var out='<w:p><w:pPr><w:spacing w:before="100" w:after="20"/><w:shd w:val="clear" w:color="auto" w:fill="FFFBEB"/></w:pPr>'
+        +'<w:r><w:rPr><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="B45309"/>'
+        +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+        +'<w:t xml:space="preserve">초보자 주의사항</w:t></w:r></w:p>';
+      (items||[]).forEach(function(w,wi){
+        out+='<w:p><w:pPr><w:spacing w:before="20" w:after="20"/><w:ind w:left="200"/><w:shd w:val="clear" w:color="auto" w:fill="FFFBEB"/></w:pPr>'
+          +'<w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="78350F"/>'
+          +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+          +'<w:t xml:space="preserve">'+esc((wi+1)+'. '+w)+'</w:t></w:r></w:p>';
+      });
+      out+='<w:p><w:pPr><w:spacing w:before="0" w:after="80"/></w:pPr></w:p>';
+      return out;
+    }
+    function docxCopyBox(boxes){
+      var out='<w:p><w:pPr><w:spacing w:before="100" w:after="20"/><w:shd w:val="clear" w:color="auto" w:fill="DCFCE7"/>'
+        +'<w:pBdr><w:left w:val="single" w:sz="18" w:space="6" w:color="16A34A"/></w:pBdr></w:pPr>'
+        +'<w:r><w:rPr><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="16A34A"/>'
+        +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+        +'<w:t xml:space="preserve">그대로 복사해서 쓰세요</w:t></w:r></w:p>';
+      boxes.forEach(function(item,idx){
+        var txt=typeof item==='string'?item:(item.prompt||item.template||item.text||'');
+        var lbl=typeof item==='string'?('프롬프트 '+(idx+1)):(item.label||item.title||('프롬프트 '+(idx+1)));
+        out+='<w:p><w:pPr><w:spacing w:before="60" w:after="10"/><w:ind w:left="200"/><w:shd w:val="clear" w:color="auto" w:fill="DCFCE7"/></w:pPr>'
+          +'<w:r><w:rPr><w:b/><w:sz w:val="19"/><w:szCs w:val="19"/><w:color w:val="15803D"/>'
+          +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+          +'<w:t xml:space="preserve">'+esc((idx+1)+'. '+lbl)+'</w:t></w:r></w:p>';
+        String(txt).split('\n').forEach(function(line){
+          out+='<w:p><w:pPr><w:spacing w:before="0" w:after="10"/><w:ind w:left="200"/><w:shd w:val="clear" w:color="auto" w:fill="DCFCE7"/></w:pPr>'
+            +'<w:r><w:rPr><w:sz w:val="19"/><w:szCs w:val="19"/><w:color w:val="166534"/>'
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+            +'<w:t xml:space="preserve">'+esc(line)+'</w:t></w:r></w:p>';
+        });
+      });
+      out+='<w:p><w:pPr><w:spacing w:before="0" w:after="80"/></w:pPr></w:p>';
+      return out;
+    }
+    function docxSummary(text){
+      return label('이 장 요약','64748B')+plainPara(text,0,21,'374151');
+    }
+    function pageBreak(){
+      return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
     }
     function heading(text,level){
       var sz={1:52,2:40,3:32,4:28};
@@ -1690,18 +1939,63 @@ function downloadDocx(e){
     }
     body+=divider();
 
-    // ── 챕터
+    // ── 챕터 (V3 Phase 1B: 각 장은 새 페이지에서 시작 — 미리보기의 장 오프너
+    // 페이지 리듬과 동일한 "장은 항상 새 페이지에서 시작" 원칙을 DOCX에도 적용)
+    // V3 Phase 1B DOCX 파리티 보정: 미리보기(js/renderers.js renderCvEbook)가
+    // 실제로 보여주는 편집 요소(framework/comparisonTable/timeline/warningBox/
+    // copyBox/summary)를 DOCX에서도 동일한 순서로 내보낸다 — 이전에는 이
+    // 다섯 요소가 DOCX에서 통째로 누락되어 있었다(Preview == Export 위반,
+    // 검증 후 확인된 실제 결함). 순서는 미리보기와 정확히 동일하게 유지:
+    // 본문 전반부 → (comparisonTable → framework → timeline, 존재하는 것만,
+    // Editorial Composition Engine과 동일한 "목록 중간에서 자르지 않는" 분할
+    // 규칙 적용) → 본문 후반부 → actionBox → copyBox → warningBox →
+    // keyPoints → actionItems → summary. 실제 데이터가 없는 필드는 미리보기와
+    // 마찬가지로 완전히 생략한다(아무것도 지어내지 않음).
     for(var i=0;i<chs.length;i++){
       var ch=chs[i];
+      body+=pageBreak();
       body+=heading('CHAPTER '+String(ch.number||i+1).padStart(2,'0'),3);
       body+=heading(ch.title||'',2);
-      body+=textToParas(ch.content||'',24);
+
+      var bodyBlocks=textToParaBlocks(ch.content||'',24);
+      var midDocx='';
+      if(ch.comparisonTable&&ch.comparisonTable.headers&&ch.comparisonTable.headers.length&&ch.comparisonTable.rows&&ch.comparisonTable.rows.length){
+        midDocx+=docxComparisonTable(ch.comparisonTable);
+      }
+      if(ch.framework&&ch.framework.steps&&ch.framework.steps.length){
+        midDocx+=docxFramework(ch.framework);
+      }
+      if(ch.timeline&&ch.timeline.length){
+        midDocx+=docxTimeline(ch.timeline);
+      }
+      function docxBlockType(b){return (b.type==='num'||b.type==='bul')?b.type:'other';}
+      var mid=Math.ceil(bodyBlocks.length/2);
+      while(mid<bodyBlocks.length&&docxBlockType(bodyBlocks[mid])!=='other'&&docxBlockType(bodyBlocks[mid])===docxBlockType(bodyBlocks[mid-1])){
+        mid++;
+      }
+      if(midDocx&&bodyBlocks.length>=2&&mid<bodyBlocks.length){
+        body+=bodyBlocks.slice(0,mid).map(function(b){return b.xml;}).join('');
+        body+=midDocx;
+        body+=bodyBlocks.slice(mid).map(function(b){return b.xml;}).join('');
+      }else{
+        body+=bodyBlocks.map(function(b){return b.xml;}).join('');
+        body+=midDocx;
+      }
 
       // actionBox
       if(ch.actionBox){
         var ab=Array.isArray(ch.actionBox)?ch.actionBox:[ch.actionBox];
         body+=label('🔥 지금 바로 실행','dc2626');
         ab.forEach(function(a,ai){body+=bullet(a,'  '+(ai+1)+'.');});
+      }
+      // copyBox
+      if(ch.copyBox&&ch.copyBox.length){
+        var boxes=Array.isArray(ch.copyBox)?ch.copyBox:[{label:'프롬프트 템플릿',prompt:ch.copyBox}];
+        body+=docxCopyBox(boxes);
+      }
+      // warningBox
+      if(ch.warningBox&&ch.warningBox.length){
+        body+=docxWarningBox(ch.warningBox);
       }
       // keyPoints
       if(ch.keyPoints&&ch.keyPoints.length){
@@ -1713,10 +2007,15 @@ function downloadDocx(e){
         body+=label('✅ 즉시 실천 체크리스트','059669');
         ch.actionItems.forEach(function(a){body+=bullet(a,'  □');});
       }
+      // summary
+      if(ch.summary){
+        body+=docxSummary(ch.summary);
+      }
       body+=divider();
     }
 
     // ── 결론
+    body+=pageBreak();
     body+=heading('CONCLUSION  |  결론',2);
     var conclusionContent=e.conclusion||'';
     if(!conclusionContent||conclusionContent.length<100||conclusionContent.charAt(0)==='['){
@@ -1738,11 +2037,13 @@ function downloadDocx(e){
       e.appendices.forEach(function(ap,ai){
         var apContent=ap.content||'';
         if(!apContent||apContent.length<50||apContent.charAt(0)==='['){apContent='';}
+        body+=pageBreak();
         body+=heading('APPENDIX '+(ai+1)+'  |  '+ct(ap.title||''),3);
         body+=textToParas(apContent,23);
         body+=divider();
       });
     }else{
+      body+=pageBreak();
       body+=heading('APPENDIX 1  |  핵심 실천 체크리스트',3);
       var apText='이 전자책의 핵심 내용을 실천하기 위한 체크리스트입니다. 각 항목을 완료하면 체크하세요.\n\n';
       (e.chapters||[]).forEach(function(ch){

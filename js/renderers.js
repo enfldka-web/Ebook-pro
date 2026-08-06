@@ -1,10 +1,81 @@
 function pad(n){return String(n||0).padStart(2,'0');}
 
+/* Atlas V3 Phase 1B: renderText now gives real numbered ("1) ..."/"1. ...")
+   and bulleted ("- .../· ...") lines their own hanging-indent typography
+   instead of flattening every line into an identical <p>. This only fires on
+   markers already present in the real AI-generated text — nothing is
+   invented, it is a presentation upgrade for structure that already exists
+   (e.g. numbered decision criteria, bulleted checklists inside chapter body
+   or appendix content).
+
+   V3 Phase 1B refinement (full-book re-study of the Master Reference):
+   the reference repeats a bold, standalone "thesis statement" sentence
+   several times per book to punctuate a key idea, and separately uses a
+   left-border italic block for quoted/illustrative dialogue. Atlas already
+   silently destroys the first signal today — cleanText() strips any
+   "**bold**" markdown before it ever reaches the DOM, which is a real,
+   already-possible signal in AI-written text (LLMs commonly emphasize a key
+   sentence this way even unprompted), just discarded instead of honored.
+   Detection happens on a whole trimmed line BEFORE the generic ** strip, so
+   the emphasis and quote checks below run first; whatever doesn't match
+   still gets its trailing ** cleaned in the plain-paragraph fallback exactly
+   as before. Nothing is fabricated — both devices are no-ops on real text
+   that never contains them (the overwhelming case, and the entirety of
+   old/backward-compat projects).
+
+   Editorial Composition Engine (final Phase 1B step): a genuinely long
+   paragraph (the model occasionally writes one dense 300+ character block)
+   reads as a wall of text. atlasSplitLongParagraph() breaks such a
+   paragraph into two or more <p> tags at real sentence boundaries — same
+   words, same order, just given room to breathe. It never fires on
+   paragraphs that are already a normal length (the overwhelming majority),
+   so this is a safety net, not a rewrite. renderTextBlocks() exposes each
+   rendered unit (paragraph/thesis/quote/list-row) as a separate array entry
+   instead of one joined string, so renderCvEbook() can interleave real
+   structural components (framework/table/timeline) between the first and
+   second half of a chapter's body prose instead of stacking every optional
+   block after a single wall of paragraphs — see the chapter loop below. */
+function atlasSplitLongParagraph(text,maxLen){
+  maxLen=maxLen||220;
+  if(text.length<=maxLen)return [text];
+  var sentences=text.match(/[^.!?]+[.!?]+(?:['"’”)]*)\s*|[^.!?]+$/g)||[text];
+  var chunks=[],cur='';
+  sentences.forEach(function(sent){
+    if(cur&&(cur.length+sent.length)>maxLen){chunks.push(cur.trim());cur=sent;}
+    else{cur+=sent;}
+  });
+  if(cur.trim())chunks.push(cur.trim());
+  return chunks.length?chunks:[text];
+}
+function renderTextBlocks(s){
+  if(!s)return [];
+  s=String(s).replace(/#{1,6}\s/g,'').replace(/\n{3,}/g,'\n\n');
+  var lines=s.split('\n').filter(function(l){return l.trim();});
+  var blocks=[];
+  lines.forEach(function(l){
+    var t=l.trim();
+    var mBold=t.match(/^\*\*(.+)\*\*$/);
+    var mQuote=!mBold&&t.match(/^["“](.+)["”]$/);
+    var mNum=!mBold&&!mQuote&&t.match(/^(\d{1,2})[).]\s+(.+)$/);
+    var mBul=!mBold&&!mQuote&&!mNum&&t.match(/^[-•·]\s+(.+)$/);
+    if(mBold){
+      blocks.push('<div class="thst">'+x(mBold[1])+'</div>');
+    }else if(mQuote){
+      blocks.push('<div class="qtb">'+x(mQuote[1])+'</div>');
+    }else if(mNum){
+      blocks.push('<div class="chb-nrow"><span class="chb-nnum">'+x(mNum[1])+'</span><span class="chb-ntext">'+x(mNum[2])+'</span></div>');
+    }else if(mBul){
+      blocks.push('<div class="chb-brow"><span class="chb-bdot"></span><span class="chb-ntext">'+x(mBul[1])+'</span></div>');
+    }else{
+      atlasSplitLongParagraph(t.replace(/\*\*/g,'')).forEach(function(chunk){
+        blocks.push('<p>'+x(chunk)+'</p>');
+      });
+    }
+  });
+  return blocks;
+}
 function renderText(s){
-  if(!s)return '';
-  s=cleanText(s);
-  return s.split('\n').filter(function(l){return l.trim();})
-    .map(function(l){return '<p>'+x(l)+'</p>';}).join('');
+  return renderTextBlocks(s).join('');
 }
 function copyPrompt(id,btn){
   var el=document.getElementById('prompt-'+id);
@@ -16,7 +87,6 @@ function copyPrompt(id,btn){
 }
 
 function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function cleanText(s){return String(s||'').replace(/\*\*/g,'').replace(/#{1,6}\s/g,'').replace(/\n{3,}/g,'\n\n');}
 
 
 var COVER_THEMES=[
@@ -55,77 +125,145 @@ function showToast(type,msg,dur){
    keeps this safe even if that ever changes. */
 function ebIcon(name,size){return (typeof AtlasIcons!=='undefined'&&AtlasIcons.svg)?AtlasIcons.svg(name,{size:size||14}):'';}
 
+/* Atlas V3 Phase 1B: page-footer running header/number device. Every
+   "reading" page (not the cover/opener/dark art pages, which carry their own
+   closing design — same restraint the reference book itself shows) gets a
+   consistent 3-column footer: book title on the left, a real copyright line
+   in the center, a sequential page indicator on the right — matching the
+   reference's own 3-column footer (re-studied across the full 45 pages, not
+   the 2-column version an earlier pass assumed). Built entirely from data
+   already known when rendering (title, real copyright year/author, loop
+   position, total footer-bearing page count) — nothing invented. */
+function pgFooter(bookTitle,copyrightLine,idx,total){
+  return '<div class="pgft"><span class="pgft-l">'+x(bookTitle)+'</span><span class="pgft-c">'+x(copyrightLine)+'</span><span class="pgft-r">'+idx+' / '+total+'</span></div>';
+}
+
 function renderCvEbook(e){
-  var c=e.copyright||{},h='';
+  var c=e.copyright||{};
+  var chs=e.chapters||[];
+  var apps=e.appendices||[];
   // 랜덤 표지 테마
   var th=getRandomTheme(COVER_THEMES);
-  // 표지
-  h+='<div class="pg cvr" style="background:'+th.bg+'">';
-  h+='<div class="ccirc" style="width:560px;height:560px;top:-180px;right:-180px"></div>';
-  h+='<div class="ccirc" style="width:380px;height:380px;bottom:-140px;left:-140px"></div>';
-  h+='<div class="ccat" style="background:'+th.catBg+';border:1px solid '+th.catBorder+';color:'+th.accentLight+'">'+ebIcon('book',12)+' '+x(e.category)+'</div>';
-  h+='<div class="ctit">'+x(e.title)+'</div>';
-  h+='<div class="csub">'+x(e.subtitle)+'</div>';
-  h+='<div class="cdiv" style="background:'+th.divBg+'"></div>';
-  h+='<div class="caut">지은이 <strong>'+x(e.author)+'</strong></div>';
-  h+='<div class="cyr">'+x(c.year||'2025')+'</div></div>';
+  // 이 책에서 러닝 푸터(페이지 번호)가 붙는 "읽기" 페이지 총 개수를 먼저 계산
+  var footerTotal=1/*저작권*/+(e.preface?1:0)+1/*목차*/+(e.intro?1:0)+chs.length/*챕터 본문*/+1/*결론*/+apps.length;
+  var footerIdx=0;
+  var footerCopyright='ⓒ '+(c.year||'2025')+' '+e.author;
+  function nextFooter(){footerIdx++;return pgFooter(e.title,footerCopyright,footerIdx,footerTotal);}
+
+  var pages=[];
+  // 표지 — 고유 아트워크 페이지, 러닝 푸터 없음(원문 참고서도 표지엔 페이지 번호가 없다)
+  pages.push('<div class="pg cvr" style="background:'+th.bg+'">'
+    +'<div class="ccirc" style="width:560px;height:560px;top:-180px;right:-180px"></div>'
+    +'<div class="ccirc" style="width:380px;height:380px;bottom:-140px;left:-140px"></div>'
+    +'<div class="ccat" style="background:'+th.catBg+';border:1px solid '+th.catBorder+';color:'+th.accentLight+'">'+ebIcon('book',12)+' '+x(e.category)+'</div>'
+    +'<div class="ctit">'+x(e.title)+'</div>'
+    +'<div class="csub">'+x(e.subtitle)+'</div>'
+    +'<div class="cdiv" style="background:'+th.divBg+'"></div>'
+    +'<div class="caut">지은이 <strong>'+x(e.author)+'</strong></div>'
+    +'<div class="cyr">'+x(c.year||'2025')+'</div></div>');
   // 저작권
-  h+='<div class="pg cpg"><div class="cinn"><div class="clbl">저작권 및 법적 고지</div><div class="ctxt">';
-  h+='<p><strong>제목:</strong> '+x(e.title)+'</p>';
-  h+='<p><strong>저자:</strong> '+x(e.author)+'</p>';
-  h+='<p><strong>출판:</strong> '+x(c.publisher||'독립 출판')+' · '+x(c.year||'2025')+'</p><br>';
-  h+='<p>'+x(c.notice)+'</p><br><p><strong>면책 조항:</strong> '+x(c.disclaimer)+'</p>';
-  h+='<br><p><strong>연락처:</strong> '+x(c.contact)+'</p>';
-  h+='<br><p>이 전자책은 저작권법의 보호를 받습니다. PLR 원본을 한국 시장에 맞게 재창작하였습니다.</p>';
-  h+='</div></div></div>';
+  pages.push('<div class="pg cpg"><div class="cinn"><div class="clbl">저작권 및 법적 고지</div><div class="ctxt">'
+    +'<p><strong>제목:</strong> '+x(e.title)+'</p>'
+    +'<p><strong>저자:</strong> '+x(e.author)+'</p>'
+    +'<p><strong>출판:</strong> '+x(c.publisher||'독립 출판')+' · '+x(c.year||'2025')+'</p><br>'
+    +'<p>'+x(c.notice)+'</p><br><p><strong>면책 조항:</strong> '+x(c.disclaimer)+'</p>'
+    +'<br><p><strong>연락처:</strong> '+x(c.contact)+'</p>'
+    +'<br><p>이 전자책은 저작권법의 보호를 받습니다. PLR 원본을 한국 시장에 맞게 재창작하였습니다.</p>'
+    +'</div>'+nextFooter()+'</div></div>');
   // 저자 서문
   if(e.preface){
-    h+='<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' PREFACE</div><div class="sh">저자 서문</div>';
-    h+='<div class="chb">'+x(cleanText(e.preface))+'</div></div>';
+    pages.push('<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' PREFACE</div><div class="sh">저자 서문</div>'
+      +'<div class="chb">'+renderText(e.preface)+'</div>'+nextFooter()+'</div>');
   }
-  // 저자 소개
+  // 저자 소개 — 커버와 같은 계열의 아트워크 페이지, 러닝 푸터 없음
   var bio=e.authorBio||e.author_bio||e.bio||'(저자 소개 정보가 없습니다)';
-  h+='<div class="pg apg"><div class="ah">저자 소개</div>';
-  h+='<div class="ac"><div class="aa">'+ebIcon('user',28)+'</div><div style="flex:1">';
-  h+='<div class="an">'+x(e.author)+'</div>';
-  h+='<div class="ar">'+x((e.category||'').toUpperCase())+' AUTHOR</div>';
-  h+='<div class="ab">'+renderText(bio)+'</div>';
-  h+='</div></div></div>';
+  pages.push('<div class="pg apg"><div class="ah">저자 소개</div>'
+    +'<div class="ac"><div class="aa">'+ebIcon('user',28)+'</div><div style="flex:1">'
+    +'<div class="an">'+x(e.author)+'</div>'
+    +'<div class="ar">'+x((e.category||'').toUpperCase())+' AUTHOR</div>'
+    +'<div class="ab">'+renderText(bio)+'</div>'
+    +'</div></div></div>');
   // 목차
-  var chs=e.chapters||[];
-  h+='<div class="pg inn"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">목차</div>';
+  var toc='<div class="pg inn"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">목차</div>';
   for(var i=0;i<chs.length;i++){
-    h+='<div class="ti">';
-    h+='<span class="tn">CH.'+pad(chs[i].number)+'</span>';
-    h+='<span class="tt">'+x(chs[i].title)+'</span>';
-    h+='</div>';
+    toc+='<div class="ti">'
+      +'<span class="tn">CH.'+pad(chs[i].number)+'</span>'
+      +'<span class="tt">'+x(chs[i].title)+'</span>'
+      +'</div>';
   }
-  h+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span></div>';
-  h+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span></div>';
-  h+='</div>';
+  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span></div>';
+  toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span></div>';
+  toc+=nextFooter()+'</div>';
+  pages.push(toc);
   // 서론
   if(e.intro){
-    h+='<div class="pg inn"><div class="ey">'+ebIcon('compass',12)+' INTRODUCTION</div><div class="sh">서론</div>';
-    h+='<div class="chb">'+renderText(e.intro)+'</div>';
-    if(e.targetReader){h+='<div class="tgtb"><div class="tgtb-ic">'+ebIcon('target',16)+'</div><div><h4>이 책이 필요한 독자</h4><p>'+x(e.targetReader)+'</p></div></div>';}
-    h+='</div>';
+    var introHtml='<div class="pg inn"><div class="ey">'+ebIcon('compass',12)+' INTRODUCTION</div><div class="sh">서론</div>'
+      +'<div class="chb">'+renderText(e.intro)+'</div>';
+    if(e.targetReader){introHtml+='<div class="tgtb"><div class="tgtb-ic">'+ebIcon('target',16)+'</div><div><h4>이 책이 필요한 독자</h4><p>'+x(e.targetReader)+'</p></div></div>';}
+    introHtml+=nextFooter()+'</div>';
+    pages.push(introHtml);
   }
-  // 챕터
+  // 챕터 — 각 장은 두 페이지로 구성: (1) 장 오프너(제목만, 러닝 푸터 없음 —
+  // 원문 참고서의 장 시작 페이지와 동일한 절제된 여백 구성), (2) 본문 페이지
+  // (기존에 장 도입부에 있던 "CHAPTER 0N · 카테고리" 이야블은 이제 본문
+  // 페이지 상단의 러닝 헤더 역할을 한다).
   for(var i=0;i<chs.length;i++){
     var ch=chs[i];
-    h+='<div class="pg inn">';
+    pages.push('<div class="pg chop">'
+      +'<div class="chop-eyebrow">'+ebIcon('book',12)+' CHAPTER</div>'
+      +'<div class="chop-num">'+pad(ch.number)+'</div>'
+      +'<div class="chop-title">'+x(ch.title)+'</div>'
+      +'<div class="chop-div"></div>'
+      +'<div class="chop-cat">'+x(e.category||'')+'</div>'
+      +'</div>');
+    var h='<div class="pg inn">';
     h+='<div class="cb"><div class="cp">'+ebIcon('book',14)+' CHAPTER '+pad(ch.number)+'</div><div class="cl">'+x(e.category||'')+'</div></div>';
-    h+='<div class="cht">'+x(ch.title)+'</div>';
-    h+='<div class="chb">'+renderText(ch.content)+'</div>';
-    // Comparison Table — real ch.comparisonTable (genuine AI output, optional per chapter)
+    // Editorial Composition Engine (final Phase 1B step): structural
+    // "explanation" components — comparisonTable/framework/timeline — used
+    // to stack after the ENTIRE body as one more box in a wall of boxes,
+    // identical rhythm every chapter regardless of length. They now land
+    // between the first and second half of the chapter's real body
+    // paragraphs (renderTextBlocks(), not renderText()) whenever at least
+    // one of them exists, so a long explanatory chapter reads as
+    // explanation → concrete reference → continued explanation instead of
+    // prose-wall-then-box-wall. A chapter with none of these three fields
+    // (a purely narrative chapter) renders its body as a single block
+    // exactly as before — composition only changes shape where there is
+    // real structural content to place, nothing is invented to fill a slot.
+    var bodyBlocks=renderTextBlocks(ch.content);
+    var midComponents='';
     if(ch.comparisonTable&&ch.comparisonTable.headers&&ch.comparisonTable.headers.length&&ch.comparisonTable.rows&&ch.comparisonTable.rows.length){
       var ctab=ch.comparisonTable;
-      h+='<div class="ctable"><h4>'+ebIcon('briefcase',14)+' '+x(ctab.title||'비교')+'</h4><div class="ctable-scroll"><table><thead><tr>'+ctab.headers.map(function(hd){return '<th>'+x(hd)+'</th>';}).join('')+'</tr></thead><tbody>'+ctab.rows.map(function(row){return '<tr>'+row.map(function(cell){return '<td>'+x(cell)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>';
+      midComponents+='<div class="ctable"><h4>'+ebIcon('briefcase',14)+' '+x(ctab.title||'비교')+'</h4><div class="ctable-scroll"><table><thead><tr>'+ctab.headers.map(function(hd){return '<th>'+x(hd)+'</th>';}).join('')+'</tr></thead><tbody>'+ctab.rows.map(function(row){return '<tr>'+row.map(function(cell){return '<td>'+x(cell)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>';
     }
-    // Framework — real ch.framework (genuine AI output, optional per chapter)
     if(ch.framework&&ch.framework.steps&&ch.framework.steps.length){
       var fw=ch.framework;
-      h+='<div class="fwb"><h4>'+ebIcon('compass',14)+' 프레임워크</h4><div class="fwb-name">'+x(fw.name||'')+'</div><div class="fwgrid">'+fw.steps.map(function(st,si){return '<div class="fwcard"><div class="fwcard-num">'+pad(si+1)+'</div><div class="fwcard-title">'+x(st.title||'')+'</div><p>'+x(st.description||'')+'</p></div>';}).join('')+'</div></div>';
+      midComponents+='<div class="fwb"><h4>'+ebIcon('compass',14)+' 프레임워크</h4><div class="fwb-name">'+x(fw.name||'')+'</div><div class="fwgrid">'+fw.steps.map(function(st,si){return '<div class="fwcard"><div class="fwcard-num">'+pad(si+1)+'</div><div class="fwcard-title">'+x(st.title||'')+'</div><p>'+x(st.description||'')+'</p></div>';}).join('')+'</div></div>';
+    }
+    if(ch.timeline&&ch.timeline.length){
+      midComponents+='<div class="tlb"><h4>'+ebIcon('calendar',14)+' 타임라인</h4>'+ch.timeline.map(function(tl,ti){
+        var stageLbl=tl.stage?x(tl.stage)+' · ':'';
+        return '<div class="tlrow"><div class="tldot">'+(ti+1)+'</div><div class="tllabel">'+stageLbl+x(tl.label||'')+'</div><div class="tltext">'+x(tl.description||'')+'</div></div>';
+      }).join('')+'</div>';
+    }
+    // 분할 지점은 목록(번호/글머리) 중간을 자르지 않도록 같은 종류의 목록
+    // 행이 이어지는 동안은 뒤로 미룬다 — "논리적 흐름 보존" 요구사항.
+    // 목록이 본문 끝까지 이어져 안전한 분할 지점이 없으면 분할하지 않는다.
+    function atlasBlockType(b){
+      if(b.indexOf('chb-nrow')>=0)return 'num';
+      if(b.indexOf('chb-brow')>=0)return 'bul';
+      return 'other';
+    }
+    var mid=Math.ceil(bodyBlocks.length/2);
+    while(mid<bodyBlocks.length&&atlasBlockType(bodyBlocks[mid])!=='other'&&atlasBlockType(bodyBlocks[mid])===atlasBlockType(bodyBlocks[mid-1])){
+      mid++;
+    }
+    if(midComponents&&bodyBlocks.length>=2&&mid<bodyBlocks.length){
+      h+='<div class="chb">'+bodyBlocks.slice(0,mid).join('')+'</div>'
+        +midComponents
+        +'<div class="chb">'+bodyBlocks.slice(mid).join('')+'</div>';
+    }else{
+      h+='<div class="chb">'+bodyBlocks.join('')+'</div>'+midComponents;
     }
     // Action Box — 오늘의 실행 (real actionBox field, one or more concrete actions)
     if(ch.actionBox&&ch.actionBox.length){
@@ -157,14 +295,6 @@ function renderCvEbook(e){
     if(ch.keyPoints&&ch.keyPoints.length){
       h+='<div class="tipb"><h4>'+ebIcon('sparkle',14)+' 핵심 포인트</h4>'+ch.keyPoints.map(function(kp){return '<div class="tipb-row"><div class="tipb-dot"></div><span>'+x(kp)+'</span></div>';}).join('')+'</div>';
     }
-    // Timeline — real ch.timeline (genuine AI output, optional per chapter — a
-    // described process/journey, distinct from the actionItems checklist below)
-    if(ch.timeline&&ch.timeline.length){
-      h+='<div class="tlb"><h4>'+ebIcon('calendar',14)+' 타임라인</h4>'+ch.timeline.map(function(tl,ti){
-        var stageLbl=tl.stage?x(tl.stage)+' · ':'';
-        return '<div class="tlrow"><div class="tldot">'+(ti+1)+'</div><div class="tllabel">'+stageLbl+x(tl.label||'')+'</div><div class="tltext">'+x(tl.description||'')+'</div></div>';
-      }).join('')+'</div>';
-    }
     // Checklist — 즉시 실천 체크리스트 (real actionItems)
     if(ch.actionItems&&ch.actionItems.length){
       h+='<div class="cklist"><h4>'+ebIcon('checkCircle',14)+' 즉시 실천 체크리스트</h4>'+ch.actionItems.map(function(a){return '<div class="cklrow"><div class="ckl-check">'+ebIcon('checkCircle',11)+'</div><span>'+x(a)+'</span></div>';}).join('')+'</div>';
@@ -178,26 +308,32 @@ function renderCvEbook(e){
     h+='<span class="chnx-done">'+ebIcon('checkCircle',13)+' CHAPTER '+pad(ch.number)+' 완료</span>';
     h+=chNext?'<span class="chnx-next">다음 챕터 · CH.'+pad(chNext.number)+' <b>'+x(chNext.title)+'</b> →</span>':'<span class="chnx-next">마지막 챕터 · 이어서 결론으로</span>';
     h+='</div>';
+    h+=nextFooter();
     h+='</div>';
+    pages.push(h);
   }
   // 결론
-  h+='<div class="pg inn" style="background:#fafaf9"><div class="ey">'+ebIcon('crown',12)+' CONCLUSION</div><div class="sh">결론</div>';
+  var concl='<div class="pg inn" style="background:#fafaf9"><div class="ey">'+ebIcon('crown',12)+' CONCLUSION</div><div class="sh">결론</div>';
   var conclusionHtml=e.conclusion&&e.conclusion.length>10&&e.conclusion.charAt(0)!=='['?renderText(e.conclusion):'<p>이 전자책을 통해 다양한 전략과 방법을 살펴봤습니다. 꾸준히 실천하며 성장해 나가시길 진심으로 응원합니다. 작은 것부터 하나씩 시작하면 반드시 변화가 찾아올 것입니다.</p>';
-  h+='<div class="chb">'+conclusionHtml+'</div>';
-  h+='<div class="impactb"><div class="impactb-mark">&ldquo;</div><p>이 책을 완독한 당신은 이미 99%를 앞서 있습니다</p><small>지금 바로 첫 번째 실천을 시작하세요</small></div></div>';
-  // 부록
-  if(e.appendices&&e.appendices.length){
-    for(var i=0;i<e.appendices.length;i++){
-      h+='<div class="pg inn"><div class="ey">'+ebIcon('file',12)+' APPENDIX '+(i+1)+'</div><div class="sh">'+x(e.appendices[i].title)+'</div>';
-      h+='<div class="chb">'+x(cleanText(e.appendices[i].content||''))+'</div></div>';
+  concl+='<div class="chb">'+conclusionHtml+'</div>';
+  concl+='<div class="impactb"><div class="impactb-mark">&ldquo;</div><p>이 책을 완독한 당신은 이미 99%를 앞서 있습니다</p><small>지금 바로 첫 번째 실천을 시작하세요</small></div>';
+  concl+=nextFooter()+'</div>';
+  pages.push(concl);
+  // 부록 — renderText로 통일해 본문/서론과 같은 문단·목록 타이포그래피를 적용
+  if(apps.length){
+    for(var i=0;i<apps.length;i++){
+      var apHtml='<div class="pg inn"><div class="ey">'+ebIcon('file',12)+' APPENDIX '+(i+1)+'</div><div class="sh">'+x(apps[i].title)+'</div>';
+      apHtml+='<div class="chb">'+renderText(apps[i].content||'')+'</div>';
+      apHtml+=nextFooter()+'</div>';
+      pages.push(apHtml);
     }
   }
-  // 뒷표지
-  h+='<div class="pg bkpg"><div class="bkpg-ic">'+ebIcon('book',36)+'</div><h3>'+x(e.title)+'</h3>';
-  h+='<p>이 전자책이 도움이 되셨다면 주변에 공유해주세요.</p>';
-  h+='<p style="font-size:12px;color:rgba(255,255,255,.22)">'+x(c.contact||'')+'</p>';
-  h+='<div class="bkc">ⓒ '+x(c.year||'2025')+' '+x(e.author)+' · '+x(c.publisher||'독립 출판')+' · ALL RIGHTS RESERVED</div></div>';
-  document.getElementById('cv-edoc').innerHTML=h;
+  // 뒷표지 — 표지와 같은 계열의 아트워크 페이지, 러닝 푸터 없음
+  pages.push('<div class="pg bkpg"><div class="bkpg-ic">'+ebIcon('book',36)+'</div><h3>'+x(e.title)+'</h3>'
+    +'<p>이 전자책이 도움이 되셨다면 주변에 공유해주세요.</p>'
+    +'<p style="font-size:12px;color:rgba(255,255,255,.22)">'+x(c.contact||'')+'</p>'
+    +'<div class="bkc">ⓒ '+x(c.year||'2025')+' '+x(e.author)+' · '+x(c.publisher||'독립 출판')+' · ALL RIGHTS RESERVED</div></div>');
+  document.getElementById('cv-edoc').innerHTML=pages.join('');
   if(typeof atlasUpdateResultHeader==='function')atlasUpdateResultHeader(e);
 }
 

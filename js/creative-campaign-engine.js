@@ -1274,6 +1274,38 @@ window.AtlasCreativeCampaignEngine = window.AtlasCreativeCampaignEngine || {};
     };
   };
 
+  /* V3 Phase 2 Round 7: Quantified Promise Extractor — 썸네일 이미지 프롬프트가
+     지금까지 category+archetype 조합에서만 나와, 서로 다른 두 전자책이 완전히
+     동일한 프롬프트를 받는 것이 확인된 핵심 병목이었다. productTruth.corePromise/
+     coreProblem은 이미 이 책의 실제 마케팅 문구(input.topic, mc.hook/headline)를
+     담고 있는 유일한 진짜 책별 데이터지만 한국어 자유 문장이라 번역 없이는 영문
+     이미지 프롬프트에 안전하게 넣을 수 없다(오번역 위험, Never Guess). 대신
+     숫자+단위처럼 폐쇄형이라 안전하게 치환 가능한 부분만 뽑아 이미지가 "이 책만의
+     실제 숫자"를 반영하게 한다 — 카테고리 템플릿이 아니라 이 상품의 진짜 약속에서
+     나온 신호. 숫자를 못 찾으면 hasSignal:false를 반환하고 아무것도 지어내지
+     않는다(Round 5 "Never fabricate evidence" 원칙 유지). */
+  var QUANTITY_UNIT_EN = {
+    '시간':'hours', '개월':'months', '가지':'items', '단계':'steps', '퍼센트':'percent',
+    '만원':'units of 10,000 KRW', '억':'units of 100 million KRW', '퍼':'percent',
+    '주':'weeks', '개':'items', '권':'books', '장':'pages', '배':'times', '일':'days',
+    '년':'years', '분':'minutes', '%':'percent'
+  };
+  CCE.quantifiedPromiseSignal = function(productTruth){
+    var pt = productTruth || {};
+    var text = String(pt.corePromise||'')+' '+String(pt.coreProblem||'');
+    var re = /([0-9]{1,4})\s*(시간|개월|가지|단계|퍼센트|만원|억|퍼|주|개|권|장|배|일|년|분|%)/;
+    var m = re.exec(text);
+    if(!m) return { hasSignal:false };
+    var number = m[1];
+    var unitEn = QUANTITY_UNIT_EN[m[2]] || '';
+    return {
+      hasSignal: true,
+      number: number,
+      unitEn: unitEn,
+      phraseEn: 'a bold, simple numeric motif suggesting the figure '+number+(unitEn?(' in '+unitEn):'')+', worked subtly into the scene as a graphic shape, object count, or visual rhythm — never as literal readable text or digits'
+    };
+  };
+
   /* Phase 12.1: positioningStatement은 카테고리별로 손으로 작성한 자연스러운 한
      문장([누구에게]-[어떤 문제를]-[어떤 방식으로]-[어떤 변화로 연결하는지] 4단
      구조)을 그대로 쓴다 — 입력 필드를 프로그램으로 이어 붙이면 "모습를"류 조사
