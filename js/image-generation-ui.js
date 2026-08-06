@@ -17,6 +17,8 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
   var OE = window.AtlasOverlayEngine;
   var Registry = window.AtlasImageProviderRegistry;
   var CDA = window.AtlasCreativeDirectorAdapter;
+  var TTE = window.AtlasThumbnailThemeEngine;
+  var CE = window.AtlasThumbnailCompositionEngine;
 
   function x(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -50,6 +52,22 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     var productTruth = CCE.productTruthExtractor(input);
     var audienceInsight = CCE.audienceInsightDirector(input, ctx.category);
     return { productTruth: productTruth, audienceInsight: audienceInsight };
+  }
+
+  /* V3 Phase 2 Round 8: Commercial Concept Engine이 "이 책을 클릭하게 만드는
+     시각적 아이디어"를 판단할 때 쓰는 추가 실제 신호(마케팅 문구 전체 + 실제
+     챕터의 framework/timeline/comparisonTable) — 승인된 값을 그대로 읽기만
+     한다(재계산 없음, Ebook Engine 자체는 건드리지 않음).
+     V3 Phase 2 Round 9: topic/targetAudience 원문도 함께 넘긴다 — Product
+     Marketing Engine이 "이 책에 실제로 입력된 문구인지, 카테고리 기본값인지"를
+     구분하는 데 필요하다(productTruth/audienceInsight는 이미 카테고리 기본값으로
+     대체된 뒤라 그 구분이 사라져 있다). */
+  function commercialConceptSignals(){
+    var analysis = APP.titleAnalysis || APP.smartAnalysis || {};
+    return {
+      marketingCopy: APP.marketingCopy || {}, chapters: (APP.ebook && APP.ebook.chapters) || [],
+      topic: analysis.topic || '', targetAudience: analysis.target || ''
+    };
   }
 
   /* ── 초기화: 이 시점에는 아직 아무 것도 기획하지 않는다("Generate" 전에 사용자가
@@ -98,7 +116,7 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     var st = S.get(); if(!st) return;
     var ctx = campaignContext(); if(!ctx) return;
     var insight = productAndAudienceInsight(ctx);
-    var concepts = CDA.buildThumbnailConcepts(ctx.creativeCampaign, ctx.category, ctx.brandStrategy, insight.productTruth, insight.audienceInsight);
+    var concepts = CDA.buildThumbnailConcepts(ctx.creativeCampaign, ctx.category, ctx.brandStrategy, insight.productTruth, insight.audienceInsight, commercialConceptSignals());
 
     var attempts = 0;
     var validation = CDA.validateThumbnailConceptSet(concepts);
@@ -109,9 +127,44 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
       attempts++;
     }
 
+    /* V3 Phase 2 Round 2: 5개 Concept 전부에 현재 선택된 Thumbnail Theme을
+       적용한다 — CDA.buildThumbnailConcepts/replanThumbnailConcept는 테마를
+       전혀 모른 채(순수 Concept 다양성만 책임짐) card._baseEngineScene을
+       만들고, 실제 이미지 생성에 쓰이는 card._engineScene은 항상 이 원본에서
+       테마 규칙을 적용해 다시 계산한다(applyConceptsThumbnailTheme, 아래). */
     st.creativeDirector.thumbnailConcepts = concepts;
+    UI.applyThumbnailThemeToConcepts();
     st.creativeDirector.thumbnailPlanStatus = 'planned';
     st.creativeDirector.lastPlannedAt = Date.now();
+    UI.render();
+  };
+
+  /* ── V3 Phase 2 Round 2: Selectable Thumbnail Theme System ──
+     Theme은 Concept(문제 중심/상품 중심/...)과 다른 축이다 — Concept이 "어떤
+     각도로 보여줄까"라면 Theme은 "그 각도를 어떤 상업적 스타일로 조판할까"다.
+     구버전 저장본에는 APP.thumbnailThemeId가 없을 수 있으므로 TTE.getTheme이
+     항상 안전한 기본 테마로 떨어진다(js/thumbnail-theme-engine.js). */
+  UI.getSelectedThumbnailThemeId = function(){
+    if(typeof APP!=='undefined' && APP.thumbnailThemeId) return APP.thumbnailThemeId;
+    return TTE ? TTE.DEFAULT_THEME_ID : null;
+  };
+
+  /* 이미 기획된 모든 Concept의 card._engineScene을 "현재 선택된 테마"로 다시
+     계산한다 — 항상 손대지 않은 card._baseEngineScene에서 새로 계산하므로
+     테마를 여러 번 바꿔도 이전 테마 문구가 누적되지 않는다. */
+  UI.applyThumbnailThemeToConcepts = function(){
+    var st = S.get(); if(!st || !TTE) return;
+    var themeId = UI.getSelectedThumbnailThemeId();
+    (st.creativeDirector.thumbnailConcepts||[]).forEach(function(card){
+      if(card._baseEngineScene) card._engineScene = TTE.applyThemeToScene(card._baseEngineScene, themeId);
+    });
+  };
+
+  UI.selectThumbnailTheme = function(themeId){
+    if(typeof APP==='undefined' || !TTE || !TTE.getTheme(themeId)) return;
+    APP.thumbnailThemeId = TTE.getTheme(themeId).id;
+    UI.applyThumbnailThemeToConcepts();
+    if(typeof atlasSaveDraft==='function') atlasSaveDraft(false);
     UI.render();
   };
 
@@ -401,13 +454,32 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
   /* Phase 17.1: "카피만 변경" — customCopy가 있으면(사용자가 STEP4에서 직접 수정한
      문구) 그 값으로, 없으면 기존처럼 승인된 Marketing Copy로 오버레이한다. 이미지
      재생성 없이 같은 배경에 새 문구만 다시 입힌다 — Overlay Engine은 그대로 재사용. */
+  /* V3 Phase 2 — Thumbnail Intelligence Engine: uses composeThumbnailOverlayIntelligent
+     (js/atlas-overlay-engine.js) instead of the plain composeThumbnailOverlay —
+     real dominant-color/adaptive-safe-area image analysis, orphan-safe headline
+     wrapping, and Brand-Pack-aware badge/CTA geometry. applySalesPageOverlay
+     below is untouched and keeps calling composeSalesPageOverlay exactly as
+     before — Sales Page Engine is not part of this change. */
   UI.applyThumbnailOverlay = function(customCopy){
     var st = S.get();
     var result = (st.thumbnail.results||[]).filter(function(r){ return r.jobId===st.thumbnail.selectedResultId; })[0];
     if(!result) return;
+    var ctx = campaignContext();
+    /* V3 Phase 2 Round 2: 선택된 Thumbnail Theme의 레이아웃 규칙(안전 영역 선호,
+       타이틀 배율, 뱃지/CTA 표시 여부, 장식 제한, 여백 배율)이 Overlay 합성에도
+       반영된다 — "Intelligence는 테마 규칙 안에서 동작하되 테마 정체성을 지우지
+       않는다"는 요구사항. Brand Pack(brandStrategy)은 여전히 색과 무관한 모양
+       (코너 반경/자간)만 결정하고, 테마의 decorativeLimit이 그보다 우선한다. */
+    var themeId = UI.getSelectedThumbnailThemeId();
+    var themeOverlayOpts = TTE ? TTE.getOverlayOptions(themeId) : {};
+    // V3 Phase 2 Round 5 — Composition Engine: 같은 테마 안에서도 Concept마다
+    // 실제로 다른 Layout Family(패널 구조/텍스트 정렬)가 나오도록, 그 결과의
+    // jobId를 시드로 결정론적으로 하나를 고른다(같은 결과를 다시 열어도 구조가
+    // 흔들리지 않는다 — Round 1의 archetypeId 결정론 패턴과 동일한 원칙).
+    var layoutFamily = CE ? CE.pickLayoutFamily(themeId, result.jobId) : null;
     loadImageFromUrl(result.image.objectUrl, function(img){
-      var composite = OE.composeThumbnailOverlay(img, customCopy||approvedThumbnailCopy(), THUMB_SAFE_AREA_RECT, {});
-      st.thumbnail.finalComposite = { dataUrl: composite.dataUrl, width: composite.width, height: composite.height, sourceJobId: result.jobId, sourceType: result.image.sourceType };
+      var composite = OE.composeThumbnailOverlayIntelligent(img, customCopy||approvedThumbnailCopy(), THUMB_SAFE_AREA_RECT, Object.assign({ brandStrategy: ctx && ctx.brandStrategy, layoutFamily: layoutFamily }, themeOverlayOpts));
+      st.thumbnail.finalComposite = { dataUrl: composite.dataUrl, width: composite.width, height: composite.height, sourceJobId: result.jobId, sourceType: result.image.sourceType, themeId: themeOverlayOpts.themeId, layoutFamilyId: layoutFamily && layoutFamily.id };
       UI.render();
     });
   };
@@ -666,11 +738,36 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
       + '</div>';
   }
 
+  /* V3 Phase 2 Round 2: Thumbnail Theme 갤러리 — 사용자가 기술 용어 없이 "보이는
+     대로" 고를 수 있도록 실제 대표 미리보기 이미지(assets/thumbnail-themes/*.png,
+     Atlas 자체 오리지널 예시, 갤러리를 열 때마다 다시 만들지 않는 정적 파일)를
+     보여준다. 선택 상태가 명확히 보이도록 카드 테두리/배경을 바꾼다. */
+  function themeGalleryHtml(){
+    if(!TTE) return '';
+    var selectedId = UI.getSelectedThumbnailThemeId();
+    return '<div class="ipe-theme-gallery">' + TTE.THEMES.map(function(t){
+      var active = t.id===selectedId;
+      return '<button type="button" class="ipe-theme-card'+(active?' active':'')+'" onclick="AtlasImageProductionUI.selectThumbnailTheme(\''+t.id+'\')" aria-pressed="'+active+'">'
+        + '<img src="assets/thumbnail-themes/'+themeAssetFile(t.id)+'" alt="'+x(t.name)+' 미리보기" class="ipe-theme-card-img"/>'
+        + '<div class="ipe-theme-card-body">'
+        + '<div class="ipe-theme-card-name">'+x(t.nameKo)+(active?' <span class="ipe-theme-card-badge">선택됨</span>':'')+'</div>'
+        + '<div class="ipe-theme-card-oneliner">'+x(t.oneLiner)+'</div>'
+        + '<div class="ipe-theme-card-usecase">'+x(t.useCase)+'</div>'
+        + '</div></button>';
+    }).join('') + '</div>';
+  }
+  function themeAssetFile(themeId){
+    return { publisherPremium:'publisher-premium.png', problemSolver:'problem-solver.png', bestsellerEditorial:'bestseller-editorial.png', marketplaceImpact:'marketplace-impact.png' }[themeId] || 'problem-solver.png';
+  }
+
   UI.render = function(){
     var st = S.get(); if(!st) return;
     var thumbWrap = document.getElementById('ipe-thumb-list');
     var spWrap = document.getElementById('ipe-sp-list');
     if(!thumbWrap || !spWrap) return;
+
+    var themeGalleryWrap = document.getElementById('ipe-thumb-theme-gallery');
+    if(themeGalleryWrap) themeGalleryWrap.innerHTML = themeGalleryHtml();
 
     var statusBanner = document.getElementById('ipe-provider-status-banner');
     if(statusBanner) statusBanner.innerHTML = providerStatusBannerHtml() + limitExceededBannerHtml();

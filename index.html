@@ -471,7 +471,11 @@
               <div id="ipe-provider-select-wrap" style="margin-top:4px"></div>
             </details>
 
-            <div style="font-size:14px;font-weight:800;margin-top:18px;color:var(--a2-text)">썸네일 기획 → 생성 (652×488, 후보 5개)</div>
+            <div style="font-size:14px;font-weight:800;margin-top:18px;color:var(--a2-text)">1단계 · 썸네일 테마 선택</div>
+            <div style="font-size:12px;color:var(--a2-text-faint);margin-top:2px">마음에 드는 스타일을 하나 고르면, 아래 5개 썸네일 후보가 모두 그 스타일의 디자인 규칙으로 만들어집니다.</div>
+            <div id="ipe-thumb-theme-gallery" style="margin-top:10px"></div>
+
+            <div style="font-size:14px;font-weight:800;margin-top:18px;color:var(--a2-text)">2단계 · 썸네일 기획 → 생성 (652×488, 후보 5개)</div>
             <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
               <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.planThumbnailConcepts()">썸네일 크리에이티브 5개 기획</button>
               <button class="a2-btn a2-btn-primary" id="ipe-thumb-generate-btn" disabled onclick="AtlasImageProductionUI.generateThumbnails()">전체 이미지 생성</button>
@@ -719,6 +723,8 @@
 <script src="js/ebook-engine.js"></script>
 <script src="js/ai-visual-prompt-engine.js"></script>
 <script src="js/creative-campaign-engine.js"></script>
+<script src="js/commercial-concept-engine.js"></script>
+<script src="js/product-marketing-engine.js"></script>
 <script src="js/creative-feedback-engine.js"></script>
 <script src="shared/image-generation-contract.js"></script>
 <script src="shared/image-provider-registry.js"></script>
@@ -727,6 +733,8 @@
 <script src="js/image-provider-openai.js"></script>
 <script src="js/provider-neutral-prompt-composer.js"></script>
 <script src="js/atlas-overlay-engine.js"></script>
+<script src="js/thumbnail-theme-engine.js"></script>
+<script src="js/thumbnail-composition-engine.js"></script>
 <script src="js/image-engine.js"></script>
 <script src="js/creative-director-adapter.js"></script>
 <script src="js/image-generation-queue.js"></script>

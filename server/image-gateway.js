@@ -50,7 +50,12 @@ function createApp(opts){
     if(req.method==='OPTIONS') return res.sendStatus(204);
     next();
   });
-  app.use(express.json({ limit:'200kb' }));
+  /* 200kb는 이미지 생성 요청(프롬프트 텍스트만)에는 충분하지만, 같은 게이트웨이가
+     처리하는 /api/anthropic-gateway/generate는 업로드된 PDF/Word 문서에서 추출한
+     본문 전체를 요청 본문에 실어 보낸다 — 실제 전자책 원고 분량에서는 200kb를
+     쉽게 넘겨 Anthropic에 도달하기도 전에 Express가 413으로 거부한다(실제 발견된
+     버그). 로컬 단일 사용자 서버라 더 넉넉한 한도가 안전하다. */
+  app.use(express.json({ limit:'20mb' }));
   app.use(express.static(path.join(__dirname, '..')));
 
   /* API Key/Prompt 원문을 로그에 남기지 않는다 — 요청 메타데이터만 남긴다. */

@@ -28,6 +28,16 @@ window.AtlasCreativeDirectorAdapter = window.AtlasCreativeDirectorAdapter || {};
     'human-story':'상단 텍스트 공간', 'before-after':'좌측 상단 텍스트 공간', 'proof-or-process':'우측 하단 텍스트 공간'
   };
 
+  /* V3 Phase 2 Round 7: assetLabel은 실제 이미지 생성 Provider에게 보내는 영문
+     Scene의 일부라(js/provider-neutral-prompt-composer.js) card.strategyLabel(한국어,
+     UI 표시용)을 그대로 쓰면 "Do not render any Korean text" 지시와 정면으로
+     충돌하는 한국어가 프롬프트 안에 섞여 들어간다(발견된 버그) — 같은 5개 전략을
+     가리키는 영문 라벨을 별도로 둔다. */
+  var STRATEGY_LABEL_EN = {
+    'problem-led':'Problem-Led', 'product-hero':'Product Hero',
+    'human-story':'Human Story', 'before-after':'Before & After', 'proof-or-process':'Proof & Process'
+  };
+
   function cameraLabelFrom(cameraLanguage){
     if(!cameraLanguage) return '';
     return cameraLanguage.angle+'('+cameraLanguage.lens+', '+cameraLanguage.style+')';
@@ -37,8 +47,12 @@ window.AtlasCreativeDirectorAdapter = window.AtlasCreativeDirectorAdapter || {};
     return { name: compositionPattern.pattern, description: compositionPattern.description };
   }
 
-  /* ── Thumbnail Concept 5개 ── */
-  A.buildThumbnailConcepts = function(creativeCampaign, category, brandStrategy, productTruth, audienceInsight){
+  /* ── Thumbnail Concept 5개 ──
+     V3 Phase 2 Round 8: extraSignals({ marketingCopy, chapters })는 Commercial
+     Concept Engine(js/commercial-concept-engine.js)이 "무엇을 보여줄지"를 실제
+     책 신호로 판단하기 위한 추가 입력이다 — 선택 인자이며 없어도(구버전 호출부)
+     Concept Engine이 안전한 기본형(productHero)으로 떨어진다. */
+  A.buildThumbnailConcepts = function(creativeCampaign, category, brandStrategy, productTruth, audienceInsight, extraSignals){
     var CCE = window.AtlasCreativeCampaignEngine;
     var cr = (creativeCampaign && creativeCampaign.campaignConsistency) || {};
     var lighting = CCE.lightingColorDirector(brandStrategy, cr.recurringPalette||'', cr.recurringLighting||'', category);
@@ -46,6 +60,14 @@ window.AtlasCreativeDirectorAdapter = window.AtlasCreativeDirectorAdapter || {};
     var mockup = CCE.productMockupDirector(category, brandStrategy);
     var subject = CCE.subjectDirector(category);
 
+    /* V3 Phase 2 Round 8: 이 책의 5개 Concept 카드 전체에 걸쳐 이미 선택된
+       Commercial Concept Family를 누적한다 — 같은 책은 흔히 하나의 강한 신호
+       (예: 숫자 하나)만 갖고 있어, 점수만 보면 5장 전부가 같은 Family로
+       수렴할 수 있다(실제 확인된 문제). ACE.generateConcepts에 전달해 이미
+       쓰인 Family에는 소폭 감점을 줌으로써, 5개 카드가 실제로 서로 다른
+       Concept을 시도하도록 유도한다(강제 배제는 아님 — 근거가 압도적으로
+       강하면 다시 선택될 수 있다). */
+    var usedConceptFamilies = [];
     return A.STRATEGIES.map(function(strategyDef, index){
       var concept = CCE.buildConceptForArchetype(strategyDef.archetypeId, category, productTruth, audienceInsight);
       var mainSubject = concept.subjectRole==='product-led' ? mockup.mockupType : (subject.subjectRequired ? subject.subjectDescription : mockup.mockupType);
@@ -76,8 +98,17 @@ window.AtlasCreativeDirectorAdapter = window.AtlasCreativeDirectorAdapter || {};
       card.revisions.push(snapshotThumbnailRevision(card));
       /* 실제 이미지 생성에 쓰이는 영문 Scene은 archetypeId에만 매여 있어(Phase 14
          Director는 결정론적) 재기획으로 표시 문구가 바뀌어도 다시 계산할 필요가
-         없다 — 생성 다양성은 항상 이 값으로 보장된다. */
-      card._engineScene = A.buildThumbnailEngineScene(card, creativeCampaign, category, brandStrategy);
+         없다 — 생성 다양성은 항상 이 값으로 보장된다.
+         V3 Phase 2 Round 2: _baseEngineScene은 어떤 Thumbnail Theme도 적용되지
+         않은 원본을 보관한다 — js/thumbnail-theme-engine.js의 applyThumbnailToScene은
+         항상 이 원본에서 다시 계산하므로(누적 없음), 사용자가 테마를 여러 번
+         바꿔도 이전 테마의 문구가 섞이지 않는다. _engineScene은 "현재 선택된
+         테마가 적용된" 값이며, 최초에는 원본과 동일하다(테마 적용은
+         image-generation-ui.js UI.planThumbnailConcepts/selectThumbnailTheme가
+         맡는다 — 이 함수는 테마를 전혀 알지 못한다). */
+      card._baseEngineScene = A.buildThumbnailEngineScene(card, creativeCampaign, category, brandStrategy, productTruth, audienceInsight, extraSignals, usedConceptFamilies);
+      card._engineScene = card._baseEngineScene;
+      usedConceptFamilies.push(card._baseEngineScene.commercialConcept);
       return card;
     });
   };
@@ -150,28 +181,52 @@ window.AtlasCreativeDirectorAdapter = window.AtlasCreativeDirectorAdapter || {};
      한다(재계산 없음). Safe Area/Negative Prompt는 캠페인 전체가 공유하는 값이라
      (Phase 12.2 일관성 규칙) thumbnailBriefs[0]에서 그대로 가져온다 — Concept 마다
      conceptId가 다르더라도 값 자체는 캠페인 전체에서 동일하다. */
-  A.buildThumbnailEngineScene = function(card, creativeCampaign, category, brandStrategy){
+  A.buildThumbnailEngineScene = function(card, creativeCampaign, category, brandStrategy, productTruth, audienceInsight, extraSignals, usedFamilies){
     var CCE = window.AtlasCreativeCampaignEngine;
+    var ACE = window.AtlasCommercialConceptEngine;
     var IE = window.AtlasImageEngine;
     var sharedBrief = (creativeCampaign.thumbnailBriefs||[])[0] || {};
+    var labelEn = STRATEGY_LABEL_EN[card.strategyType] || 'Concept';
+
+    /* V3 Phase 2 Round 8: Prompt를 쓰기 전에 "무엇을 보여줄지"부터 결정한다 —
+       Book → Commercial Concept Engine → Creative Director → Art Director.
+       Round 7까지는 이 지점에서 곧바로 category+archetypeId 라이브러리 값을
+       읽었다(Prompt Builder가 아이디어까지 스스로 만드는 구조). 이제 그 결정은
+       ACE.run()이 먼저 내리고, 여기서는 그 결과(artDirection)를 그대로 옮겨
+       담기만 한다 — Prompt Builder는 여전히 손대지 않는다(번역만 계속함).
+       card._conceptDebug은 UI에 노출하지 않는 내부 값이다 — Round 8 검증/완료
+       보고에서 "어떤 Concept이 선택됐고 무엇이 왜 기각됐는지"를 그대로 확인할
+       수 있도록 보관한다. */
+    var input = Object.assign({ productTruth: productTruth, audienceInsight: audienceInsight }, extraSignals || {});
+    var direction = ACE.run(card.archetypeId, category, brandStrategy, input, usedFamilies);
+    card._conceptDebug = direction;
+
+    var quant = direction.signals.number;
+    var visualEvent = direction.artDirection.visualEvent;
+    /* numberHero Concept 자체가 이미 숫자를 시각적 중심으로 삼으므로, 다른
+       Concept이 선택됐을 때만 Round 7의 보조 숫자 신호를 덧붙인다(중복 방지). */
+    if(direction.concepts.selected.family !== 'numberHero' && quant.hasSignal){
+      visualEvent += '. Include '+quant.phraseEn;
+    }
     return {
       assetType: 'thumbnail',
       conceptId: card.conceptId,
-      conceptName: card.strategyLabel,
-      assetLabel: 'Thumbnail Concept — '+card.strategyLabel,
+      conceptName: labelEn,
+      assetLabel: 'Thumbnail Concept — '+labelEn,
       archetypeId: card.archetypeId,
-      visualEvent: CCE.sceneDirector(card.archetypeId, category),
-      mainSubject: CCE.mainSubjectEn({ subjectRole: card.subjectRole, archetypeId: card.archetypeId }, category),
-      productMockup: CCE.productMockupEn(category),
+      commercialConcept: direction.concepts.selected.family,
+      visualEvent: visualEvent,
+      mainSubject: direction.artDirection.mainSubject,
+      productMockup: direction.artDirection.productMockup,
       environment: CCE.environmentLibrary(category),
-      camera: CCE.cameraDirector(card.archetypeId),
-      composition: CCE.compositionDirectorV2(card.archetypeId),
-      lighting: CCE.lightingDirector(brandStrategy),
+      camera: direction.artDirection.camera,
+      composition: direction.artDirection.composition,
+      lighting: direction.artDirection.lighting,
       style: CCE.visualStyleDirector(card.archetypeId),
       palette: (sharedBrief.lightingAndColor && sharedBrief.lightingAndColor.paletteRole && sharedBrief.lightingAndColor.paletteRole.dominant) || '',
       safeArea: sharedBrief.safeArea || '',
       negativePrompt: sharedBrief.negativeInstructions || '',
-      emotionalDirection: card.targetEmotion || '',
+      emotionalDirection: direction.artDirection.emotion || card.targetEmotion || '',
       width: (IE && IE.THUMBNAIL_SIZE && IE.THUMBNAIL_SIZE.width) || 652,
       height: (IE && IE.THUMBNAIL_SIZE && IE.THUMBNAIL_SIZE.height) || 488
     };
