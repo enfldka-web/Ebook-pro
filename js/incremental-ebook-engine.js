@@ -445,6 +445,11 @@ ${KOREAN_LOCALIZATION_RULES}
       console.error('[incremental-ebook] ['+unitLabel+'] JSON 시작/끝 문자를 찾을 수 없습니다. 원문 전체:', raw);
       var eNotFound = new Error(unitLabel+': 응답에서 JSON을 찾을 수 없습니다.');
       eNotFound.rawResponseText = raw;
+      /* 사용자 화면에는 영문 JS 에러/개발자 콘솔 안내 없이 이 문구만 노출한다
+         (원문 전체는 기존처럼 console.error와 window.__atlasLastRawResponse에
+         그대로 남아있어 개발자는 그대로 확인 가능 — 숨기는 게 아니라 사용자
+         화면 문구만 쉬운 말로 분리한다). */
+      eNotFound.friendlyMessage = 'AI가 예상한 형식으로 응답하지 않았습니다. 대부분 일시적인 현상입니다.';
       throw eNotFound;
     }
     var candidate = clean.substring(s, e+1);
@@ -515,6 +520,10 @@ ${KOREAN_LOCALIZATION_RULES}
     var eFinal = new Error(unitLabel+': JSON 파싱 실패 — '+attempt5.err.message+' (개발자 콘솔의 window.__atlasLastRawResponse.'+unitLabel+' 에서 원문 전체를 확인할 수 있습니다)');
     eFinal.rawResponseText = raw;
     eFinal.parseErrorMessage = attempt5.err.message;
+    /* 사용자 화면용 쉬운 문구 — 위 e.message(영문 JS 에러+개발자 콘솔 안내)는
+       계속 console.error/window.__atlasLastRawResponse로 남아있으니 개발자는
+       그대로 원인 추적 가능. 화면에는 이 문구만 보여준다. */
+    eFinal.friendlyMessage = 'AI가 만든 내용의 형식이 깨져서 처리하지 못했습니다. 응답이 도중에 끊겼거나 형식 오류가 있었을 가능성이 높습니다.';
     throw eFinal;
   }
 

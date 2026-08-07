@@ -504,9 +504,9 @@ var TS_IMAGE_STYLES = [
     var studioState = document.getElementById('cv-thumbstudio-state');
     if(resultState) resultState.style.display = 'none';
     if(studioState) studioState.style.display = '';
-    if(typeof atlasSetWorkspaceStage==='function'){
-      atlasSetWorkspaceStage('sales', {coach:'Thumbnail Studio에서 후킹 문구·템플릿·색상을 선택해 썸네일을 만들어보세요.'});
-    }
+    /* Atlas Product Workflow Redesign (Round 12): Thumbnail Studio는 이제
+       주 6단계 흐름 밖(설정 → 고급 도구)에서만 열리는 보조 도구다 — 더 이상
+       존재하지 않는 'sales' 단계로 워크스페이스 배너를 바꾸지 않는다. */
     TS.render();
   };
 

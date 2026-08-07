@@ -255,14 +255,21 @@ window.AtlasCreativeDirectorAdapter = window.AtlasCreativeDirectorAdapter || {};
   var INFO_DENSITY_BY_ROLE = { hero:'낮음', pain:'중간', beforeAfter:'중간', solution:'중간', toc:'높음', benefits:'높음', targetAudience:'중간', faq:'높음', cta:'낮음' };
   var EMOTION_DIRECTION_BY_ROLE = { hero:'확신', pain:'공감', beforeAfter:'대비 인식', solution:'기대감', toc:'신뢰', benefits:'만족', targetAudience:'자기 확신', faq:'안심', cta:'행동 결심' };
 
-  A.buildSalesPageDirectorScenes = function(creativeCampaign, category, brandStrategy){
+  /* Atlas Product Workflow Redesign (Round 12): themeId(선택 인자, Stage4에서
+     고른 APP.thumbnailThemeId)가 있으면 Thumbnail Theme Engine의 동일한
+     creativeDirection(camera/style override)을 상세페이지 Scene에도 적용해
+     썸네일과 같은 시각 캠페인으로 이어지게 한다 — 없으면(구버전 호출부/themeId
+     미선택) 기존과 완전히 동일하게 동작한다(하위 호환). */
+  A.buildSalesPageDirectorScenes = function(creativeCampaign, category, brandStrategy, themeId){
     var CCE = window.AtlasCreativeCampaignEngine;
     var IE = window.AtlasImageEngine;
+    var TTE = window.AtlasThumbnailThemeEngine;
     var roleKeys = CCE.SALES_PAGE_ROLE_KEYS || [];
     var engineScenes = IE.buildSalesPageScenes(creativeCampaign, category, brandStrategy);
     return creativeCampaign.salesPageStoryboard.map(function(page, i){
       var roleKey = roleKeys[i];
       var engineScene = engineScenes[i];
+      if(TTE && themeId) engineScene = TTE.applyThemeToSalesPageScene(engineScene, themeId);
       return {
         pageNumber: page.pageNumber,
         revisionNumber: 1,
@@ -295,8 +302,15 @@ window.AtlasCreativeDirectorAdapter = window.AtlasCreativeDirectorAdapter || {};
      이미지 생성에도 쓰이는 값)와 Phase 12.2 shotType 기반 Korean 카메라 상세
      (원본 storyboard의 cameraDetail/roleComposition)를 서로 교대한다 — 새 텍스트를
      창작하지 않고 전부 CCE 원본 데이터다. */
-  A.replanSalesPageScene = function(page, creativeCampaign, category, brandStrategy){
+  /* Atlas Product Workflow Redesign (Round 12): themeId(선택 인자)가 있으면
+     재기획 뒤에도 Thumbnail Theme Engine의 camera/style override를 다시
+     적용한다 — 이 재적용이 없으면 §14 자동 재기획(다양성 조건 미달 시)이
+     상세페이지 Scene의 camera/style을 테마 override 이전 기본값으로 되돌려
+     버려 Stage4↔Stage5 테마 연속성이 조용히 깨진다(실제로 발견됨 — 자동
+     재기획은 흔하게 발생하므로 드문 경우가 아니다). */
+  A.replanSalesPageScene = function(page, creativeCampaign, category, brandStrategy, themeId){
     var CCE = window.AtlasCreativeCampaignEngine;
+    var TTE = window.AtlasThumbnailThemeEngine;
     var original = (creativeCampaign.salesPageStoryboard||[]).filter(function(p){ return p.pageNumber===page.pageNumber; })[0];
     page.revisions.push({ revisionNumber: page.revisionNumber||1, camera: page.camera, composition: page.composition, createdAt: Date.now() });
     page.revisionNumber = (page.revisionNumber||1) + 1;
@@ -310,7 +324,11 @@ window.AtlasCreativeDirectorAdapter = window.AtlasCreativeDirectorAdapter || {};
       page.camera = camera;
       page.composition = { name: composition.name, description: composition.description };
     }
-    if(page._engineScene){ page._engineScene.camera = CCE.salesPageCameraDirector(page.roleKey); page._engineScene.composition = CCE.salesPageCompositionDirector(page.roleKey); }
+    if(page._engineScene){
+      page._engineScene.camera = CCE.salesPageCameraDirector(page.roleKey);
+      page._engineScene.composition = CCE.salesPageCompositionDirector(page.roleKey);
+      if(TTE && themeId) page._engineScene = TTE.applyThemeToSalesPageScene(page._engineScene, themeId);
+    }
     return page;
   };
 

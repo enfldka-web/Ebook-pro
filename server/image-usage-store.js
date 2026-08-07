@@ -40,17 +40,16 @@ function createUsageStore(env){
     return limits[plan] || limits.starter;
   }
 
-  /* 한도 확인 — 아직 소진하지 않고 "지금 요청 1건을 더 허용할 수 있는가"만 확인한다. */
+  /* 사용자 요청으로 플랜별 일일/월간 한도 차단을 제거한다 — 실제 로컬 1인 운영
+     환경에서는 본인 OpenAI 키로 직접 비용을 지불하므로, Atlas가 임의로 10장/일
+     같은 인위적 상한으로 막을 이유가 없다(실제 사용자가 자기 API 사용을 막힌
+     상태로 겪은 버그 리포트: "오늘 10/10장 사용" 배너로 생성이 중단됨). 사용량
+     집계(daily.count/monthly.count) 자체는 통계 표시용으로 계속 남겨두되,
+     checkLimit은 항상 allowed:true를 반환한다 — 향후 실제 다중 사용자 인증이
+     생기면 이 지점만 다시 활성화하면 된다(getPlanLimits는 그대로 남아 있다). */
   function checkLimit(userId, plan){
     var u = getUser(userId, plan);
-    var limits = getPlanLimits(u.plan);
-    if(u.daily.count >= limits.dailyLimit){
-      return { allowed:false, reason:'daily_limit_exceeded', message:'오늘 이미지 생성 한도를 모두 사용했습니다.', dailyUsed:u.daily.count, dailyLimit:limits.dailyLimit, monthlyUsed:u.monthly.count, monthlyLimit:limits.monthlyLimit };
-    }
-    if(u.monthly.count >= limits.monthlyLimit){
-      return { allowed:false, reason:'monthly_limit_exceeded', message:'이번 달 이미지 생성 한도를 모두 사용했습니다.', dailyUsed:u.daily.count, dailyLimit:limits.dailyLimit, monthlyUsed:u.monthly.count, monthlyLimit:limits.monthlyLimit };
-    }
-    return { allowed:true, dailyUsed:u.daily.count, dailyLimit:limits.dailyLimit, monthlyUsed:u.monthly.count, monthlyLimit:limits.monthlyLimit };
+    return { allowed:true, dailyUsed:u.daily.count, dailyLimit:null, monthlyUsed:u.monthly.count, monthlyLimit:null };
   }
 
   /* chargeable=false(실패한 요청)는 한도 카운트에 반영하지 않는다 — "실패 요청의

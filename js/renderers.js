@@ -703,9 +703,13 @@ function applyKmongComplianceFix(){
 
 function renderKmongListing(e){
   /* Phase 17.1: STEP4(cv-result-state)의 "등록 자료" 패널도 동일한 결과를
-     보여줘야 하므로, 새 Engine 없이 같은 계산 결과를 두 host(구버전 cv-sales-state의
-     cv-listing-body + 신규 cv-result-listing-body)에 함께 렌더링한다. */
-  var hosts=[document.getElementById('cv-listing-body'),document.getElementById('cv-result-listing-body')].filter(Boolean);
+     보여줘야 하므로, 새 Engine 없이 같은 계산 결과를 host들에 함께 렌더링한다.
+     Atlas Product Workflow Redesign (Round 12): 등록 자료의 주 화면은 이제
+     Stage6(cv-listing-state)의 cv-listing-materials-body다 — cv-result-listing-body는
+     더 이상 HTML에 존재하지 않지만(구 Stage3 위치), filter(Boolean)이 안전하게
+     건너뛴다. cv-listing-body는 구버전 카드뉴스 도구(설정으로 이동됨)가 계속
+     쓸 수 있도록 남겨둔다. */
+  var hosts=[document.getElementById('cv-listing-body'),document.getElementById('cv-result-listing-body'),document.getElementById('cv-listing-materials-body')].filter(Boolean);
   if(!hosts.length||!e)return;
   var d=buildKmongListing(e),scan=scanKmongCompliance(e);
   var issueHtml=scan.issues.length?scan.issues.slice(0,8).map(function(it){
