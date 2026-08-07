@@ -15,6 +15,31 @@
 var express = require('express');
 var crypto = require('crypto');
 var path = require('path');
+var fs = require('fs');
+
+/* .env 로딩을 CLI 플래그(package.json의 --env-file-if-exists)에만 의존하지 않는다 —
+   실제 발견된 버그: `node server/image-gateway.js`를 직접 실행하면(=npm start를 거치지
+   않으면) 그 플래그가 아예 전달되지 않아 .env가 조용히 무시되고, API Key가 실제로
+   .env에 있어도 configured:false로 남는다. 새 의존성(dotenv) 없이, 이 파일이 시작될
+   때 직접 .env를 읽어 process.env에 채워 넣는다 — 어떤 방식으로 실행하든(node 직접
+   실행/npm start/다른 Node 버전) 항상 동작한다. 이미 셸에 설정된 실제 환경변수는
+   덮어쓰지 않는다(우선순위 유지, dotenv의 기본 동작과 동일). */
+(function loadDotEnvIfPresent(){
+  var envPath = path.join(__dirname, '..', '.env');
+  var raw;
+  try{ raw = fs.readFileSync(envPath, 'utf8'); }
+  catch(e){ return; } /* .env가 없으면 조용히 넘어간다 — 실제 셸 환경변수만으로 운영하는 경우도 있다 */
+  raw.split('\n').forEach(function(line){
+    line = line.replace(/\r$/, '').trim();
+    if(!line || line.charAt(0) === '#') return;
+    var eq = line.indexOf('=');
+    if(eq === -1) return;
+    var key = line.slice(0, eq).trim();
+    var value = line.slice(eq + 1).trim();
+    if(/^".*"$/.test(value) || /^'.*'$/.test(value)) value = value.slice(1, -1);
+    if(key && !(key in process.env)) process.env[key] = value;
+  });
+})();
 
 var Contract = require('../shared/image-generation-contract.js');
 var validator = require('./image-request-validator.js');
@@ -35,13 +60,29 @@ function createApp(opts){
   /* Atlas는 GitHub Pages 같은 정적 호스팅에서도 열릴 수 있다 — 그 페이지의 origin과
      이 로컬 Gateway(http://localhost:8910)는 서로 다른 origin이므로, 허용 목록에
      있는 Origin에서 온 요청에는 CORS 헤더를 붙여준다(신규 npm 의존성 없이 직접
-     구현 — 이 프로젝트는 의존성을 최소로 유지한다). */
+     구현 — 이 프로젝트는 의존성을 최소로 유지한다).
+
+     실제 버그 리포트(로컬 재현): Atlas 프론트엔드를 Gateway(8910)와 다른 포트의
+     로컬 정적 서버(예: localhost:8080)로 열면, js/atlas-gateway-base-url.js의
+     resolve()가 이제(수정됨) 항상 실제 Gateway origin(localhost:8910)을
+     정확히 가리키지만 — 이 허용 목록이 정확히 "https://enfldka-web.github.io"
+     문자열만 허용했기 때문에 localhost:8080에서 온 요청은 CORS로 차단되어
+     브라우저가 응답을 읽지 못했다(Settings가 "AI 서버가 실행되지 않았습니다"로
+     표시된 실제 두 번째 원인 — resolve() 하나만 고치는 것으로는 부족했다).
+     이 서버는 로컬 단일 사용자 서버이므로(주석 §83 참고), 어떤 포트로 열든
+     localhost/127.0.0.1에서 온 요청은 항상 신뢰할 수 있다 — 특정 포트 번호를
+     하드코딩하는 대신 "localhost/127.0.0.1 origin이면 전부 허용"으로 한 번에
+     해결한다(다른 사용자가 8080이 아닌 3000/5500 등 다른 포트를 써도 동작). */
   var CORS_ALLOWED_ORIGINS = (env.ATLAS_CORS_ALLOWED_ORIGINS || 'https://enfldka-web.github.io').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  var LOCAL_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+  function isAllowedOrigin(origin){
+    return !!origin && (LOCAL_ORIGIN_RE.test(origin) || CORS_ALLOWED_ORIGINS.indexOf(origin) !== -1);
+  }
 
   var app = express();
   app.use(function(req, res, next){
     var origin = req.headers.origin;
-    if(origin && CORS_ALLOWED_ORIGINS.indexOf(origin) !== -1){
+    if(isAllowedOrigin(origin)){
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');

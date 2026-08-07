@@ -24,7 +24,7 @@ window.AtlasImageProductionState = window.AtlasImageProductionState || {};
       providerStatusChecked: false,
       thumbnailQueue: null,
       salesPageQueue: null,
-      thumbnail: { concepts: [], results: [], selectedResultId: null, finalComposite: null },
+      thumbnail: { concepts: [], results: [], selectedResultId: null, finalComposite: null, overlayFontFamily: null },
       salesPage: { scenes: [], resultsByPage: {}, finalComposites: {} },
       /* Phase 15.2: Creative Director — Generate 전에 사용자가 먼저 보는 판매 전략
          기획(Concept-First Workflow). 레거시 저장본에는 없을 수 있으므로 S.get()이

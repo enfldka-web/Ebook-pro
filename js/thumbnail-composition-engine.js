@@ -43,28 +43,28 @@ window.AtlasThumbnailCompositionEngine = window.AtlasThumbnailCompositionEngine 
       {
         id: 'quietBottom', name: '차분한 하단 배치',
         panelSide: 'none', textAlign: 'left', supportingGraphic: 'none',
-        mockupType: 'book', mockupRect: { x: 0.60, y: 0.06, w: 0.34, h: 0.50 }
+        mockupType: 'book', mockupRect: { x: 0.58, y: 0.05, w: 0.40, h: 0.58 }
       },
       {
         id: 'framedCentered', name: '중앙 정렬 프레임',
         // 출판사 표지처럼: 사진은 위쪽 큰 영역에, 아래 여백 패널에 제목이
         // 가운데 정렬로 조용히 앉는다 — 목업이 항상 주인공, 텍스트는 캡션.
         panelSide: 'bottom', panelRatio: 0.30, panelColorMode: 'muted', textAlign: 'center', supportingGraphic: 'none',
-        mockupType: 'book', mockupRect: { x: 0.335, y: 0.07, w: 0.33, h: 0.54 }
+        mockupType: 'book', mockupRect: { x: 0.30, y: 0.06, w: 0.40, h: 0.62 }
       }
     ],
     problemSolver: [
       {
         id: 'boldBottom', name: '볼드 하단 배치',
         panelSide: 'none', textAlign: 'left', supportingGraphic: 'checkArrow',
-        mockupType: 'document', mockupRect: { x: 0.58, y: 0.05, w: 0.36, h: 0.42 }
+        mockupType: 'document', mockupRect: { x: 0.56, y: 0.04, w: 0.44, h: 0.50 }
       },
       {
         id: 'splitPanel', name: '좌우 분할 패널',
         // 문제(사진)는 왼쪽, 해결책(헤드라인+CTA)은 오른쪽 색 패널 — 실제
         // "문제→해결" 시각 흐름을 구조 자체로 표현한다.
         panelSide: 'right', panelRatio: 0.44, panelColorMode: 'accent', textAlign: 'left', supportingGraphic: 'dividerLine',
-        mockupType: 'document', mockupRect: { x: 0.06, y: 0.30, w: 0.40, h: 0.46 }
+        mockupType: 'document', mockupRect: { x: 0.05, y: 0.24, w: 0.46, h: 0.54 }
       }
     ],
     bestsellerEditorial: [
@@ -79,7 +79,12 @@ window.AtlasThumbnailCompositionEngine = window.AtlasThumbnailCompositionEngine 
         id: 'centeredBand', name: '중앙 띠 배치',
         // 앨범/베스트셀러 표지처럼 제목이 캔버스 정중앙 띠에 앉고, 위아래로
         // 이미지가 보인다 — 상단/하단 어느 쪽에도 치우치지 않는 대칭 구도.
-        panelSide: 'centerBand', panelRatio: 0.34, panelColorMode: 'muted', textAlign: 'center', supportingGraphic: 'spineLine',
+        // V3 Phase 2 Round 10: 0.34(166px)는 이 테마의 titleScale(1.65, 4개
+        // 테마 중 가장 큼)이 실제로 지배적으로 나오기엔 너무 좁은 예산이었다
+        // (실제 렌더링에서 확인 — 배지+헤드라인+서브헤드가 다른 Family의
+        // 0.38 Safe Area보다도 좁은 공간에 눌려 자동 축소됐다) — "타이포그래피
+        // 자체가 표지"라는 이 테마의 정체성에 맞게 띠 자체를 넓힌다.
+        panelSide: 'centerBand', panelRatio: 0.52, panelColorMode: 'muted', textAlign: 'center', supportingGraphic: 'spineLine',
         mockupType: 'none'
       }
     ],
@@ -87,7 +92,7 @@ window.AtlasThumbnailCompositionEngine = window.AtlasThumbnailCompositionEngine 
       {
         id: 'bottomTightCompact', name: '컴팩트 하단 배치',
         panelSide: 'none', textAlign: 'left', supportingGraphic: 'none',
-        mockupType: 'tablet', mockupRect: { x: 0.58, y: 0.045, w: 0.37, h: 0.38 }
+        mockupType: 'tablet', mockupRect: { x: 0.55, y: 0.04, w: 0.43, h: 0.44 }
       },
       {
         id: 'cornerCard', name: '코너 카드 배치',
@@ -95,7 +100,7 @@ window.AtlasThumbnailCompositionEngine = window.AtlasThumbnailCompositionEngine 
         // 좌하단에 둥근 카드 하나만 얹어 정보를 압축해서 보여준다.
         panelSide: 'corner', cornerAnchor: 'bottomLeft', cornerRatio: { w: 0.58, h: 0.4 },
         panelColorMode: 'accent', textAlign: 'left', supportingGraphic: 'cornerAccent',
-        mockupType: 'tablet', mockupRect: { x: 0.58, y: 0.05, w: 0.38, h: 0.38 }
+        mockupType: 'tablet', mockupRect: { x: 0.56, y: 0.04, w: 0.42, h: 0.42 }
       }
     ]
   };

@@ -58,7 +58,37 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
 
   var BRAND_PACK_ORDER = ['premium','studyNote','handwriting'];
 
-  AIP.state = { report:null, selectedBrandPackId:null, marketingCopy:null, thumbnailBlueprint:null, salesPageBlueprint:null, ebookBlueprint:null, visualPromptSet:null, creativeCampaign:null };
+  /* V3 Phase 2 Round 22: 사용자가 STEP2(Brand Pack, 3개)와 STEP4(썸네일 테마, 4개)가
+     서로 분리된 시스템이라 혼란스럽다고 지적했고, 선택 시점을 STEP2로 앞당겨 하나의
+     화면에서 스타일을 한 번만 고르길 원했다(이후 STEP4는 재선택 없이 바로 생성,
+     STEP5 상세페이지도 같은 스타일로 자동 연결 — 이 연결 자체는 이미 구현되어
+     있었다, js/thumbnail-theme-engine.js TTE.applyThemeToSalesPageScene 참고).
+     4개 썸네일 테마는(다른 곳에서 여러 번 명시된 대로) 이름/개수를 바꾸지 않는다
+     — 대신 "문체 톤"(BrandProfile/brandStrategy)을 계속 실제로 작동시키기 위해,
+     각 테마에 가장 정체성이 가까운 기존 Brand Pack 하나를 내부적으로만 매핑한다
+     (사용자에게는 노출되지 않음 — 화면에는 테마 4개만 보인다). 이 매핑이 없으면
+     전자책 실제 생성 프롬프트에 반영되던 문체 가이드라인(incremental-ebook-engine.js
+     ebookBlueprintGuidelines)이 사라진다.
+     - publisherPremium(출판사급 신뢰감) → premium(Authority, 단정적/전문가 톤)
+     - bestsellerEditorial(베스트셀러 권위) → premium(Authority)
+     - problemSolver(실전 가이드, 근거 중심) → studyNote(Trust, 근거 제시 톤)
+     - marketplaceImpact(친근한 실용 튜토리얼) → handwriting(Relationship, 다정한 권유형)
+
+     2026-08-07 갱신: 사용자 요구로 이 선택 화면 자체가 전자책 생성 이후로
+     옮겨졌다(AIP.open/atlasGoToThumbnailStage) — 그래서 이 매핑은 더 이상
+     "전자책 생성 프롬프트의 문체 가이드라인"에는 실제로 반영되지 않는다
+     (전자책은 이미 완성된 뒤이므로). 이제는 썸네일/상세페이지의 마케팅 카피
+     톤(Marketing Copy Engine)에만 실제로 쓰인다 — 사용자가 확인하고 선택한
+     트레이드오프다(전자책 문체는 기본 톤으로 생성). */
+  var THEME_TO_BRAND_PACK = {
+    publisherPremium: 'premium',
+    bestsellerEditorial: 'premium',
+    problemSolver: 'studyNote',
+    marketplaceImpact: 'handwriting'
+  };
+  var BRAND_PACK_TO_DEFAULT_THEME = { premium: 'publisherPremium', studyNote: 'problemSolver', handwriting: 'marketplaceImpact' };
+
+  AIP.state = { report:null, selectedBrandPackId:null, selectedThumbnailThemeId:null, marketingCopy:null, thumbnailBlueprint:null, salesPageBlueprint:null, ebookBlueprint:null, visualPromptSet:null, creativeCampaign:null };
 
   /* ── BrandProfile 생성(Read Only) ──
      docs/ATLAS_AI_ENGINE_SPECIFICATION.md §5 Immutable Rule: 생성된 이후 절대 수정하지 않는다.
@@ -103,7 +133,7 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
       productSummary: (analysis.topic?('주제: '+analysis.topic+'. '):'')+(title?('잠긴 제목: "'+title+'"'+(subtitle?' — '+subtitle:'')):'제목이 아직 잠기지 않았습니다.'),
       engine: engine,
       cautions: [
-        '이 기획안은 자동으로 확정되지 않습니다 — 승인해야 전자책 생성이 시작됩니다.',
+        '이 기획안은 자동으로 확정되지 않습니다 — 승인해야 썸네일·상세페이지 생성이 시작됩니다.',
         '승인 후 만들어지는 BrandProfile은 이후 수정할 수 없습니다. 다른 Brand Pack이 필요하면 이 화면으로 돌아와 다시 선택해야 합니다.',
         engine.strategy===null?'분석 근거가 충분하지 않아 자동 추천하지 않았습니다.':(!engine.autoRecommended?'Brand Pack이 자동 선택 기준을 충족하지 않아 자동 선택되지 않았습니다 — 아래 후보 중 직접 선택해주세요.':''),
         candidate.type?('선택한 제목 유형: '+candidate.type):''
@@ -116,23 +146,60 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
   function brandPackTagline(id){ var t=(typeof AtlasDesignSystem!=='undefined'&&AtlasDesignSystem.getTheme)?AtlasDesignSystem.getTheme(id):null; return t?t.tagline:''; }
   function brandPackPalette(id){ var t=(typeof AtlasDesignSystem!=='undefined'&&AtlasDesignSystem.getTheme)?AtlasDesignSystem.getTheme(id):null; return t?t.palette:[]; }
 
+  /* V3 Phase 2 Round 30: 파일 경로 계산 자체는 js/thumbnail-theme-engine.js
+     TTE.themeAssetBase/themeExampleFiles로 옮겨 STEP4(js/image-generation-ui.js)와
+     정확히 같은 목록을 공유한다 — 이 함수들은 그 결과를 이 화면의 HTML로만
+     옮겨 담는다(중복 계산 금지, 한 곳에서만 정의). */
+  function thumbnailThemeAssetBase(themeId){
+    var TTE=window.AtlasThumbnailThemeEngine;
+    return TTE ? TTE.themeAssetBase(themeId) : 'problem-solver';
+  }
+  function thumbnailThemeAssetFile(themeId){
+    return thumbnailThemeAssetBase(themeId)+'.png';
+  }
+  /* V3 Phase 2 Round 26: 테마당 예시 이미지 파일명은 대표 파일과 같은 표기(케밥
+     케이스, 예: publisher-premium-2.png)를 그대로 따른다 — 이전엔 camelCase
+     themeId를 그대로 붙여(publisherPremium-2.png) 사용자에게 안내한 케밥 케이스
+     파일명과 실제로 어긋나는 버그가 있었다(실제로 찾아냄). assets/thumbnail-themes/
+     {base}.png(대표 1장) 외에 {base}-2.png~{base}-5.png(있는 만큼만)를 두면 자동
+     표시된다 — 없는 파일은 onerror로 조용히 숨긴다(가짜로 5장인 척 채우지 않는다,
+     Never Guess). */
+  function thumbnailThemeExampleImages(themeId){
+    var TTE=window.AtlasThumbnailThemeEngine;
+    var files = TTE ? TTE.themeExampleFiles(themeId) : [thumbnailThemeAssetBase(themeId)+'.png'];
+    return files.map(function(f, i){
+      return '<img src="assets/thumbnail-themes/'+x(f)+'" class="aip-theme-row-img" alt="예시 '+(i+1)+'"'+(i>0?' onerror="this.remove()"':'')+'/>';
+    }).join('');
+  }
+
+  /* V3 Phase 2 Round 22: Brand Pack(3개) 카드 대신 썸네일 테마(4개, TTE.THEMES —
+     이름/개수는 절대 바꾸지 않는다) 카드를 보여준다. 카드를 클릭하면 선택과 동시에
+     AtlasImageProductionUI.selectThumbnailTheme()도 즉시 호출해 STEP4/5가 이 화면의
+     선택을 그대로 이어받는다(재선택 없음). */
+  /* V3 Phase 2 Round 26: 사용자가 첨부한 레퍼런스(테마 라벨 카드 1개 + 예시
+     이미지 5장이 항상 나란히 보이는 한 줄, 4개 테마 = 4줄)를 그대로 재현한다 —
+     이전의 "카드 그리드 + 접힌 예시 보기" 구조를 버리고, 테마마다 라벨 패널 +
+     5장 이미지가 항상 펼쳐진 한 줄로 보이게 한다. */
   function renderCandidates(){
     var wrap=document.getElementById('aip-candidates'); if(!wrap) return;
-    wrap.innerHTML=BRAND_PACK_ORDER.map(function(id){
-      var defaults=BRAND_PROFILE_DEFAULTS[id];
-      var selected=AIP.state.selectedBrandPackId===id;
-      var swatches=brandPackPalette(id).map(function(c){return '<span class="aip-swatch" style="background:'+x(c)+'"></span>';}).join('');
-      return '<div class="aip-candidate'+(selected?' selected':'')+'" onclick="AtlasAIPlanner.selectCandidate(\''+id+'\')">'
-        +'<div class="aip-candidate-head"><span class="aip-candidate-name">'+x(brandPackLabel(id))+'</span>'+(selected?'<span class="aip-candidate-check">✓ 선택됨</span>':'')+'</div>'
-        +'<div class="aip-candidate-tagline">'+x(brandPackTagline(id))+' · '+x(defaults.brandStrategy)+'</div>'
-        +'<div class="aip-swatches">'+swatches+'</div>'
-        +'<div class="aip-candidate-meta">CTA: '+x(defaults.ctaTone)+'</div>'
-        +'<div class="aip-candidate-meta">FAQ: '+x(defaults.faqStyle)+'</div>'
+    var TTE=window.AtlasThumbnailThemeEngine;
+    if(!TTE){ wrap.innerHTML=''; return; }
+    wrap.className='aip-theme-rows';
+    wrap.innerHTML=TTE.THEMES.map(function(t, i){
+      var selected=AIP.state.selectedThumbnailThemeId===t.id;
+      return '<div class="aip-theme-row'+(selected?' selected':'')+'" onclick="AtlasAIPlanner.selectCandidate(\''+t.id+'\')">'
+        +'<div class="aip-theme-row-label">'
+        +'<div class="aip-theme-row-index">'+(i+1)+'. '+x(t.name)+(selected?'<span class="aip-candidate-check">✓ 선택됨</span>':'')+'</div>'
+        +'<div class="aip-theme-row-name">'+x(t.nameKo)+'</div>'
+        +'<div class="aip-theme-row-oneliner">'+x(t.oneLiner)+'</div>'
+        +'<div class="aip-theme-row-usecase">'+x(t.useCase)+'</div>'
+        +'</div>'
+        +'<div class="aip-theme-row-examples">'+thumbnailThemeExampleImages(t.id)+'</div>'
         +'</div>';
     }).join('');
   }
 
-  var NEEDS_SELECTION_TEXT='Brand Pack 후보를 선택하면 표시됩니다.';
+  var NEEDS_SELECTION_TEXT='스타일 후보를 선택하면 표시됩니다.';
 
   /* 현재 선택된 Brand Pack 후보의 BrandProfile로 Marketing Copy Asset Pool(Phase 3)과
      Thumbnail Blueprint(Phase 4)를 계산한다. 후보를 바꿀 때마다 다시 계산되며, 매번
@@ -501,38 +568,59 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     if(arrow) arrow.style.transform = AIP.state.reasonOpen ? 'rotate(180deg)' : 'rotate(0deg)';
   };
 
-  AIP.selectCandidate=function(brandPackId){
-    AIP.state.selectedBrandPackId=brandPackId;
+  /* V3 Phase 2 Round 22: 인자는 이제 썸네일 테마 id다(예: 'publisherPremium') —
+     Brand Pack은 THEME_TO_BRAND_PACK 매핑으로 내부적으로만 함께 결정된다(문체
+     톤 계산용, 화면에는 노출 안 함). 선택 즉시 AtlasImageProductionUI에도 반영해
+     STEP4/5가 이 화면의 선택을 그대로 이어받는다(다시 고를 필요 없음). */
+  AIP.selectCandidate=function(themeId){
+    AIP.state.selectedThumbnailThemeId=themeId;
+    AIP.state.selectedBrandPackId=THEME_TO_BRAND_PACK[themeId]||'premium';
+    if(typeof AtlasImageProductionUI!=='undefined' && AtlasImageProductionUI.selectThumbnailTheme) AtlasImageProductionUI.selectThumbnailTheme(themeId);
     renderCandidates();
     renderReport();
   };
 
-  /* ── 화면 전환: 기존 Generate 흐름 변경 ──
-     기존: 제목 잠금 → startGenerate(true)
-     변경 후: 제목 잠금 → AIP.open()(Planner Report 확인) → 사용자 승인 → startGenerate(true) */
+  /* ── 화면 전환: 2026-08-07 사용자 요구로 순서 변경 ──
+     이전: 제목 잠금 → AIP.open()(스타일 선택) → 사용자 승인 → startGenerate(true)
+     변경 후: 제목 잠금 → startGenerate(true)(전자책은 기본 톤으로 바로 생성) →
+     전자책 완성 후 [썸네일 만들기] → AIP.open()(스타일 선택, 이 화면) → 승인 →
+     썸네일/상세페이지 생성 화면. 전자책 본문은 이미 완성된 뒤라 스타일 선택이
+     더 이상 전자책 생성을 트리거하지 않는다(ebookBlueprintGuidelines()는
+     APP.ebookBlueprint가 없으면 빈 문자열을 돌려주도록 이미 만들어져 있어(js/
+     incremental-ebook-engine.js) 전자책은 스타일 가이드 없이 안전하게 기본 톤으로
+     생성된다 — 별도 분기 추가 불필요, 사용자가 확인한 트레이드오프). */
   AIP.open=function(){
     AIP.state.report=buildPlannerReport();
     var engine=AIP.state.report.engine;
     /* engine.autoRecommended === true일 때만 추천 후보를 미리 선택해 둔다(원클릭 승인).
        신호가 없거나(strategy null) 자동 선택 기준을 채우지 못하면 아무것도 선택하지
-       않아, 사용자가 아래 후보 카드 중 하나를 직접 골라야만 승인 버튼이 활성화된다. */
-    AIP.state.selectedBrandPackId = engine.autoRecommended ? engine.recommendedBrandPackId : null;
+       않아, 사용자가 아래 후보 카드 중 하나를 직접 골라야만 승인 버튼이 활성화된다.
+       추천은 여전히 Brand Strategy Engine의 recommendedBrandPackId 기준으로 계산되고,
+       BRAND_PACK_TO_DEFAULT_THEME로 화면에 보이는 테마 하나로 변환해 미리 선택한다. */
+    var autoThemeId = engine.autoRecommended ? (BRAND_PACK_TO_DEFAULT_THEME[engine.recommendedBrandPackId]||null) : null;
+    AIP.state.selectedThumbnailThemeId = autoThemeId;
+    AIP.state.selectedBrandPackId = autoThemeId ? (THEME_TO_BRAND_PACK[autoThemeId]||engine.recommendedBrandPackId) : null;
+    if(autoThemeId && typeof AtlasImageProductionUI!=='undefined' && AtlasImageProductionUI.selectThumbnailTheme) AtlasImageProductionUI.selectThumbnailTheme(autoThemeId);
     AIP.state.reasonOpen=false;
     var titleState=document.getElementById('cv-title-state'); if(titleState)titleState.style.display='none';
+    var resultState=document.getElementById('cv-result-state'); if(resultState)resultState.style.display='none';
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='';
     var reasonBody=document.getElementById('aip-reason-body'); if(reasonBody)reasonBody.style.display='none';
     var reasonArrow=document.getElementById('aip-reason-arrow'); if(reasonArrow)reasonArrow.style.transform='rotate(0deg)';
     renderCandidates();
     renderReport();
-    if(typeof atlasSetWorkspaceStage==='function')atlasSetWorkspaceStage('planner',{coach:'AI Planner가 정리한 기획안을 확인하고 Brand Pack을 선택한 뒤 승인하세요.'});
-    if(typeof atlasSetSimpleStep==='function')atlasSetSimpleStep(2);
+    if(typeof atlasSetWorkspaceStage==='function')atlasSetWorkspaceStage('thumbnail',{coach:'마음에 드는 판매 스타일을 선택한 뒤 승인하면 썸네일 생성이 시작됩니다.'});
     window.scrollTo(0,0);
   };
 
-  AIP.backToTitle=function(){
+  /* 이전 이름 AIP.backToTitle — 순서 변경으로 이 화면의 "뒤로"는 항상 완성된
+     전자책 결과 화면이지 제목 화면이 아니다(이 화면은 이제 전자책 생성 이후에만
+     열림). index.html의 두 버튼 onclick도 이 새 이름으로 함께 바꿨다. */
+  AIP.backToEbookResult=function(){
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
-    var titleState=document.getElementById('cv-title-state'); if(titleState)titleState.style.display='';
-    if(typeof atlasSetWorkspaceStage==='function')atlasSetWorkspaceStage('title',{coach:'제목을 다시 선택하거나 그대로 다시 기획안으로 진행할 수 있습니다.'});
+    var resultState=document.getElementById('cv-result-state'); if(resultState)resultState.style.display='';
+    if(typeof atlasSetWorkspaceStage==='function')atlasSetWorkspaceStage('ebook',{coach:'전자책이 완성되면 [썸네일 만들기]로 다음 단계로 이동하세요.'});
+    window.scrollTo(0,0);
   };
 
   AIP.approve=function(){
@@ -543,7 +631,9 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     /* AIP.state.marketingCopy/thumbnailBlueprint/salesPageBlueprint/ebookBlueprint는
        이 sel로 renderReport()가 이미 계산해 둔 값이다(같은 BrandProfile 조합이면
        결과가 동일하므로) — 승인 시점에 다시 계산해 Reasoning Service에 중복 기록하지
-       않고 그대로 확정 저장한다. */
+       않고 그대로 확정 저장한다. ebookBlueprint는 이미 완성된 전자책 본문에는 더 이상
+       영향을 주지 않지만(전자책은 이미 생성됨), 이후 "챕터 다시 생성" 같은 재생성
+       경로가 참조할 수 있어 계속 저장해 둔다(해가 되지 않음). */
     APP.marketingCopy=AIP.state.marketingCopy;
     APP.thumbnailBlueprint=AIP.state.thumbnailBlueprint;
     APP.salesPageBlueprint=AIP.state.salesPageBlueprint;
@@ -551,12 +641,14 @@ window.AtlasAIPlanner = window.AtlasAIPlanner || {};
     APP.visualPromptSet=AIP.state.visualPromptSet;
     APP.creativeCampaign=AIP.state.creativeCampaign;
     var plannerState=document.getElementById('cv-planner-state'); if(plannerState)plannerState.style.display='none';
-    startGenerate(true);
+    if(typeof atlasShowThumbnailGenerationUI==='function')atlasShowThumbnailGenerationUI();
   };
 
   AIP.reset=function(){
     AIP.state.report=null;
     AIP.state.selectedBrandPackId=null;
+    AIP.state.selectedThumbnailThemeId=null;
+    if(typeof APP!=='undefined') APP.thumbnailThemeId=null;
     AIP.state.marketingCopy=null;
     AIP.state.thumbnailBlueprint=null;
     AIP.state.salesPageBlueprint=null;

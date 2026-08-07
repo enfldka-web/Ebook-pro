@@ -420,9 +420,9 @@ var SPS_THEMES = [
     }
     if(resultState) resultState.style.display = 'none';
     if(studioState) studioState.style.display = '';
-    if(typeof atlasSetWorkspaceStage==='function'){
-      atlasSetWorkspaceStage('sales', {coach:'Sales Page Studio에서 섹션을 구성하고 문구를 다듬어 상세페이지를 만들어보세요.'});
-    }
+    /* Atlas Product Workflow Redesign (Round 12): Sales Page Studio는 이제
+       주 6단계 흐름 밖(설정 → 고급 도구)에서만 열리는 보조 도구다 — 더 이상
+       존재하지 않는 'sales' 단계로 워크스페이스 배너를 바꾸지 않는다. */
     SPS.render();
   };
 

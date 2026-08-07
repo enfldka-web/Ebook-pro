@@ -632,11 +632,13 @@ window.AtlasOverlayEngine = window.AtlasOverlayEngine || {};
   function computeLayoutAtScaleIntelligent(copy, boxWidth, scale, measureFn, opts){
     var padding = Math.round(boxWidth*0.06*(opts.whitespaceScale||1));
     var innerWidth = boxWidth - padding*2;
-    var badgeSize = copy.badge ? Math.max(11, Math.round(boxWidth*0.022*scale)) : 0;
-    var subSize = copy.subheadline ? Math.max(10, Math.round(boxWidth*0.026*scale)) : 0;
-    var ctaSize = copy.cta ? Math.max(10, Math.round(boxWidth*0.024*scale)) : 0;
-    var ctaH = copy.cta ? Math.round(boxWidth*0.058*scale) : 0;
-    var headlineMax = Math.round((opts.maxFontSize||boxWidth*0.088)*scale);
+    /* V3 Phase 2 Round 9(상업적 재실행) — 뱃지/CTA도 헤드라인과 함께 더 굵고
+       크게: 기존 비율은 작은 UI 칩 수준이었다. */
+    var badgeSize = copy.badge ? Math.max(12, Math.round(boxWidth*0.027*scale)) : 0;
+    var subSize = copy.subheadline ? Math.max(10, Math.round(boxWidth*0.028*scale)) : 0;
+    var ctaSize = copy.cta ? Math.max(11, Math.round(boxWidth*0.028*scale)) : 0;
+    var ctaH = copy.cta ? Math.round(boxWidth*0.068*scale) : 0;
+    var headlineMax = Math.round((opts.maxFontSize||boxWidth*0.13)*scale);
     var headlineMin = Math.max(14, Math.round(boxWidth*0.028*Math.min(1,scale+0.3)));
     var fit = copy.headline ? OE.fitFontSizeBalanced(copy.headline, {
       maxWidth: innerWidth, maxLines: opts.maxLines||2, maxFontSize: Math.max(headlineMax, headlineMin), minFontSize: headlineMin
@@ -655,7 +657,15 @@ window.AtlasOverlayEngine = window.AtlasOverlayEngine || {};
 
   OE.fitOverlayLayoutIntelligent = function(copy, boxWidth, boxHeight, measureFn, opts){
     opts = opts || {};
-    var scaleSteps = [1, 0.92, 0.84, 0.76, 0.68, 0.6, 0.52, 0.45];
+    /* V3 Phase 2 Round 9(상업적 재실행) — 헤드라인을 상업적으로 지배적인
+       크기로 키운 뒤 실제 렌더링 결과를 검사한 결과, 긴 헤드라인이 캔버스
+       하단 밖으로 실제로 잘려나가는 진짜 결함이 나왔다(0.45가 가장 작은
+       스케일이었는데, 커진 기준 폰트 크기에서는 그것으로도 부족한 경우가
+       있었다 — "헤드라인은 절대 줄이지 않는다"는 기존 우선순위 자체는 맞지만
+       바닥값이 새 기준 크기를 못 따라갔다). 더 낮은 스케일 단계를 안전망으로
+       추가한다 — 대부분의 실제 카피는 여전히 훨씬 큰 스케일에서 맞아떨어지고,
+       이 낮은 단계는 극단적으로 긴 헤드라인일 때만 쓰인다. */
+    var scaleSteps = [1, 0.92, 0.84, 0.76, 0.68, 0.6, 0.52, 0.45, 0.38, 0.32, 0.26];
     var dropStages = [ {}, { cta:true }, { cta:true, subheadline:true } ];
     var best = null;
     for(var d=0; d<dropStages.length; d++){
@@ -907,6 +917,12 @@ window.AtlasOverlayEngine = window.AtlasOverlayEngine || {};
      때"는 그 지배색을, 아니면 기존처럼 가장 채도 높은 픽셀을 쓰며, (3) 헤드라인
      줄바꿈이 고아 단어를 만들지 않고, (4) Brand Pack이 뱃지/CTA의 모양(색은 절대
      아님)에 옅게 반영된다. */
+  /* V3 Phase 2 Round 30: 사용자가 "썸네일 글씨체도 수정되도록 해"라고 명시적으로
+     요청했다 — options.fontFamily가 있으면 이 합성 동안만 모듈 FONT_FAMILY를
+     바꿔서 그린다(이 함수는 끝까지 동기 실행이라 다른 합성과 겹칠 위험이 없다 —
+     비동기 양보 지점이 없으므로 안전). 모든 draw 호출이 이미 FONT_FAMILY를
+     그때그때 읽으므로 각 draw 호출마다 옵션을 일일이 전달하는 리팩터링 없이도
+     실제로 폰트가 바뀐다. */
   OE.composeThumbnailOverlayIntelligent = function(imageSource, approvedCopy, defaultSafeAreaRect, options){
     options = options || {};
     var width = options.width || 652;
@@ -914,6 +930,16 @@ window.AtlasOverlayEngine = window.AtlasOverlayEngine || {};
     var canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
     var ctx = canvas.getContext('2d');
+    var _prevFontFamily = FONT_FAMILY;
+    if(options.fontFamily) FONT_FAMILY = options.fontFamily;
+    try{
+      return composeThumbnailOverlayIntelligentBody(imageSource, approvedCopy, defaultSafeAreaRect, options, canvas, ctx, width, height);
+    } finally {
+      FONT_FAMILY = _prevFontFamily;
+    }
+  };
+
+  function composeThumbnailOverlayIntelligentBody(imageSource, approvedCopy, defaultSafeAreaRect, options, canvas, ctx, width, height){
     var copy = OE.pickOverlayCopy(approvedCopy);
     // V3 Phase 2 Round 2: 선택된 Thumbnail Theme이 뱃지/CTA를 아예 보여주지 않기로
     // 정했다면(예: publisherPremium의 "minimal decorative noise"), 그리기 단계가
@@ -1026,8 +1052,16 @@ window.AtlasOverlayEngine = window.AtlasOverlayEngine || {};
       if('letterSpacing' in ctx) ctx.letterSpacing = (geometry.letterSpacing||0)+'px';
       return ctx.measureText(text).width;
     };
+    /* V3 Phase 2 Round 9(상업적 재실행) — 실제 판매 중인 마켓플레이스 썸네일은
+       헤드라인이 프레임의 절반 이상을 지배한다(Master Thumbnail Reference
+       비교 결과 확인) — 기존 0.088 배율은 652px 캔버스에서 실제로 50~70px
+       수준(캔버스 높이의 15% 안팎)에 그쳐, 소프트웨어 UI 카드의 제목처럼
+       보였다(발견된 핵심 결함). 0.13으로 올려 테마별 titleScale과 곱했을 때
+       Bestseller Editorial 기준 2줄이 프레임 높이의 약 60~70%를 차지하도록
+       재보정했다 — 길이가 긴 헤드라인은 여전히 기존 자동 축소(scaleSteps)
+       안전장치가 처리한다. */
     var layout = OE.fitOverlayLayoutIntelligent(copy, px.w, px.h, measureFn, {
-      maxFontSize: width*0.088*(options.titleScale||1),
+      maxFontSize: width*0.13*(options.titleScale||1),
       maxLines: options.maxLines||2,
       whitespaceScale: options.whitespaceScale||1
     });
@@ -1060,13 +1094,14 @@ window.AtlasOverlayEngine = window.AtlasOverlayEngine || {};
       var badgeW = ctx.measureText(copy.badge).width + badgePadX*2 + (dotD ? dotD+dotGap : 0);
       var badgeX = textAlign==='center' ? px.x+(px.w-badgeW)/2 : px.x+layout.padding;
       ctx.fillStyle = badgeFillColor;
-      // V3 Phase 2 Round 3(품질 튜닝): 뱃지가 배경 위에 그냥 "붙어있는 평평한
-      // 스티커"처럼 보이지 않도록, 실제 인쇄/커머셜 디자인의 배지·알약 버튼처럼
-      // 아주 옅은 그림자로 살짝 뜬 느낌을 준다(색은 그대로, 짙기만 추가).
+      // V3 Phase 2 Round 9(상업적 재실행) — 이전의 넓고 부드러운 그림자는 소프트웨어
+      // UI 칩/Material 카드처럼 "떠 있는" 느낌을 줬다(사용자 실측 지적). 실제
+      // 커머셜 썸네일의 뱃지/스탬프는 얇고 또렷한 그림자만 쓴다 — 짙기는 유지하되
+      // 번짐/오프셋을 크게 줄여 인쇄물 라벨에 가깝게 만든다.
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,.22)';
-      ctx.shadowBlur = Math.max(2, Math.round(width*0.008));
-      ctx.shadowOffsetY = Math.max(1, Math.round(width*0.003));
+      ctx.shadowColor = 'rgba(0,0,0,.30)';
+      ctx.shadowBlur = Math.max(1, Math.round(width*0.003));
+      ctx.shadowOffsetY = Math.max(1, Math.round(width*0.0015));
       pathRoundRect(ctx, badgeX, cursorY, badgeW, badgeH, badgeH*geometry.cornerRatio);
       ctx.fill();
       ctx.restore();
@@ -1172,13 +1207,12 @@ window.AtlasOverlayEngine = window.AtlasOverlayEngine || {};
       var ctaX = textAlign==='center' ? px.x+(px.w-ctaW)/2 : px.x+layout.padding;
       var ctaY = Math.min(cursorY+layout.gapSm, px.y+px.h-layout.ctaH-layout.padding*0.5);
       ctx.fillStyle = ctaFillColor;
-      // V3 Phase 2 Round 3(품질 튜닝): CTA는 실제로 눌러야 하는 버튼이므로
-      // 뱃지보다 살짝 더 뚜렷한 그림자로 "누를 수 있는 표면"임을 시각적으로
-      // 강조한다.
+      // V3 Phase 2 Round 9(상업적 재실행) — 배지와 동일한 이유로 부드러운
+      // "떠 있는 버튼" 그림자를 얇고 또렷한 라벨/스탬프형 그림자로 바꾼다.
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,.28)';
-      ctx.shadowBlur = Math.max(3, Math.round(width*0.011));
-      ctx.shadowOffsetY = Math.max(1, Math.round(width*0.0038));
+      ctx.shadowColor = 'rgba(0,0,0,.32)';
+      ctx.shadowBlur = Math.max(1, Math.round(width*0.004));
+      ctx.shadowOffsetY = Math.max(1, Math.round(width*0.0018));
       pathRoundRect(ctx, ctaX, ctaY, ctaW, layout.ctaH, layout.ctaH*geometry.cornerRatio);
       ctx.fill();
       ctx.restore();

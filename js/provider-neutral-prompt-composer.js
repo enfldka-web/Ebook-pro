@@ -43,7 +43,16 @@ window.AtlasProviderNeutralPromptComposer = window.AtlasProviderNeutralPromptCom
      Instructions라는 요소 자체는 그대로 유지하되(요구 14개 항목 중 하나), 매번
      전체 목록을 반복하지 않는다. 원본 전체 목록은 AVPE 결과 자체에는 그대로 남아있고
      여기서 다시 쓰지 않을 뿐이다(원본 데이터 변경 없음). */
-  var NEGATIVE_TERM_LIMIT = 6;
+  /* V3 Phase 2 Round 17: 6이었을 때는 캠페인 레벨 NEGATIVE_BASE(18개 항목)의
+     앞 6개("illegible text, random letters, distorted hands, extra fingers,
+     duplicated objects, warped book mockup")만 살아남고 watermark/logo는
+     물론, 이후 Thumbnail Theme Engine이 맨 앞에 붙이는 테마별 필수 항목(인물
+     금지/파스텔 색 금지/아이콘 중복 금지, thumbnail-theme-engine.js 참고)까지
+     통째로 잘려나가는 실제 결함이 있었다(실측 확인: negativePrompt 필드가
+     "Avoid:" 프롬프트 줄에 전혀 반영되지 않음). 테마 항목은 항상 맨 앞에
+     붙으므로, 그 항목들(테마당 11~13개) + 핵심 base 항목 일부가 함께 살아남을
+     만큼 넉넉하게 올린다. */
+  var NEGATIVE_TERM_LIMIT = 20;
   function trimNegative(negativePrompt){
     var terms = String(negativePrompt||'').split(',').map(function(t){ return t.trim(); }).filter(Boolean);
     return terms.slice(0, NEGATIVE_TERM_LIMIT).join(', ');
