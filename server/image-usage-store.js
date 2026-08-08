@@ -28,11 +28,28 @@ function createUsageStore(env){
   var operatorTotal = { requestCount:0, chargeableCount:0, failedCount:0 };
 
   function getUser(userId, plan){
-    if(!users[userId]) users[userId] = { plan: plan||'starter', daily:{date:todayKey(), count:0}, monthly:{month:monthKey(), count:0} };
+    if(!users[userId]) users[userId] = { plan: plan||'starter', daily:{date:todayKey(), count:0}, monthly:{month:monthKey(), count:0}, trialUsed:false };
     var u = users[userId];
     if(u.daily.date !== todayKey()) u.daily = { date:todayKey(), count:0 };
     if(u.monthly.month !== monthKey()) u.monthly = { month:monthKey(), count:0 };
     return u;
+  }
+
+  /* V3 Phase 2 Round 33(2026-08-07): 사용자가 명시적으로 요청한 "무료 체험 1회 →
+     넘으면 구독(LatPeed) 유도" — 운영자 본인 키를 쓰는 클라우드 서버가 생기면서
+     방문자 익명 세션(쿠키)당 실제 비용이 드는 상황이 됐다. 클라이언트 localStorage
+     카운터만으로는 지워버리면 무제한 우회가 가능하므로, 서버가 세션 쿠키 기준으로
+     한 번만 진짜로 판단한다(완벽한 방지는 아니지만 — 쿠키 삭제/시크릿 모드로는
+     여전히 우회 가능 — 합리적 수준의 남용 방지). "1회"는 전자책 본문 생성이
+     실제로 성공했을 때만 소모된다(실패한 시도는 소모하지 않는다 — 아래
+     recordTrialUsed 호출부, image-gateway.js 참고). */
+  function checkTrialAllowed(userId){
+    var u = getUser(userId);
+    return { allowed: !u.trialUsed };
+  }
+  function recordTrialUsed(userId){
+    var u = getUser(userId);
+    u.trialUsed = true;
   }
 
   function getPlanLimits(plan){
@@ -86,7 +103,8 @@ function createUsageStore(env){
 
   return {
     getUser: getUser, getPlanLimits: getPlanLimits, checkLimit: checkLimit,
-    recordUsage: recordUsage, getOperatorTotal: getOperatorTotal, resolveSessionUser: resolveSessionUser
+    recordUsage: recordUsage, getOperatorTotal: getOperatorTotal, resolveSessionUser: resolveSessionUser,
+    checkTrialAllowed: checkTrialAllowed, recordTrialUsed: recordTrialUsed
   };
 }
 

@@ -301,16 +301,14 @@ var LATPEED_URL='https://www.latpeed.com/memberships/69e81cb28dffc208089f1e8e';
 
 function openLatpeed(){window.open(LATPEED_URL,"_blank");}
 function showTrialLimitPopup(type){
-  var typeNames={file:'파일 업로드',topic:'주제 키워드',url:'URL',text:'텍스트',sales:'상세페이지'};
-  var typeName=typeNames[type]||type;
   var p=document.createElement('div');
   p.className='atlas-modal-bg';
   var inner=document.createElement('div');
   inner.className='atlas-modal';
   inner.style.cssText='max-width:400px;text-align:center';
   inner.innerHTML='<div class="a2-icon-chip amber" data-icon="lock" style="margin:0 auto 16px"></div>'
-    +'<h3 style="margin-bottom:8px">'+typeName+' 체험 횟수 초과</h3>'
-    +'<p style="margin-bottom:24px">무료 체험판은 방식별 1회만 사용 가능합니다.<br>무제한으로 사용하려면 구독해주세요!</p>';
+    +'<h3 style="margin-bottom:8px">무료 체험을 모두 사용하셨습니다</h3>'
+    +'<p style="margin-bottom:24px">무료 체험판은 <b>전체 1회</b>만 사용 가능합니다.<br>계속 사용하시려면 구독해주세요!</p>';
   var btn1=document.createElement('button');
   btn1.className='a2-btn a2-btn-primary';
   btn1.style.cssText='width:100%;margin-bottom:10px';
@@ -338,7 +336,7 @@ function showTrialWelcomePopup(){
   inner.style.cssText='max-width:400px;text-align:center';
   inner.innerHTML='<div class="a2-icon-chip violet" data-icon="sparkle" style="margin:0 auto 16px"></div>'
     +'<h3 style="margin-bottom:8px">무료 체험판에 오신 걸 환영합니다!</h3>'
-    +'<p style="margin-bottom:24px">파일·주제·URL·상세페이지<br>각 방식별 <b style="color:var(--a2-accent)">1회씩</b> 무료로 체험하실 수 있습니다.</p>';
+    +'<p style="margin-bottom:24px">전자책 생성을 <b style="color:var(--a2-accent)">전체 1회</b> 무료로 체험하실 수 있습니다.</p>';
   var btn=document.createElement('button');
   btn.className='a2-btn a2-btn-primary';
   btn.style.width='100%';
@@ -359,7 +357,17 @@ function addTrialCount(type){
   t[type]=(t[type]||0)+1;
   localStorage.setItem('plrbooks_trial',JSON.stringify(t));
 }
-function canGenerate(type){ return true; }
+/* V3 Phase 2 Round 33(2026-08-07): 사용자가 명시적으로 요청한 "무료 체험 1회 →
+   넘으면 구독(LatPeed) 유도" 흐름. 본인 API 키(AtlasUserApiKey)가 있으면 그
+   키로 무제한 호출이 가능하므로 항상 허용한다. 없으면 클라우드 Gateway가
+   서버에서 세션 쿠키 기준으로 실제 판단한 trialUsed를 그대로 따른다(서버가
+   유일한 진실 — 클라이언트에서 위조해도 실제 생성 호출 자체가 서버에서
+   403으로 거부된다, image-gateway.js의 outline 게이트 참고). */
+function canGenerate(type){
+  if(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey()) return true;
+  var gw = window.AtlasAnthropicGateway ? AtlasAnthropicGateway.getStatusCache() : null;
+  return !(gw && gw.trialUsed);
+}
 
 function showPage(pg,sub){
   /* Atlas Redesign Phase 3 investigation: #pg-access-block has no matching
@@ -1797,7 +1805,10 @@ function atlasRegenerateEbookFromScratch(){
   startGenerate(true);
 }
 function checkAndShowSales(){
-  if(!canGenerate('sales')){showTrialLimitPopup('sales');return;}
+  /* V3 Phase 2 Round 33: 체험 1회는 전자책 생성 시작 시점(startGenerate)에서만
+     확인한다 — 이미 시작한 같은 전자책의 후속 단계(상세페이지 생성)까지 여기서
+     다시 막으면, 첫 무료 체험 도중에 튕겨나가는 버그가 된다(트라이얼은 outline
+     성공 시 서버에서 이미 소모됨). */
   addTrialCount('sales');
   if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
   showSalesThemeModal(APP.ebook);
