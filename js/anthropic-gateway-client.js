@@ -22,7 +22,7 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
   var BASE = '/api/anthropic-gateway';
   var ANTHROPIC_DIRECT_URL = 'https://api.anthropic.com/v1/messages';
   var ANTHROPIC_VERSION = '2023-06-01';
-  var statusCache = { reachable:false, configured:false, checked:false };
+  var statusCache = { reachable:false, configured:false, checked:false, trialUsed:false };
 
   function ownKey(){ return window.AtlasUserApiKey ? window.AtlasUserApiKey.getAnthropicKey() : ''; }
 
@@ -32,7 +32,9 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
      없어도, 심지어 GitHub Pages처럼 서버가 존재하지 않는 곳에서도 정확하다). */
   G.refreshStatus = function(){
     if(ownKey()){
-      statusCache = { reachable:true, configured:true, checked:true, mode:'own-key' };
+      /* 본인 키가 있으면 체험 횟수 제한 자체가 무의미하다(자기 키로 무제한
+         호출 가능) — trialUsed는 항상 false로 보고한다. */
+      statusCache = { reachable:true, configured:true, checked:true, mode:'own-key', trialUsed:false };
       return Promise.resolve(statusCache);
     }
     var url = new URL(BASE+'/status', window.AtlasGatewayBaseUrl.resolve()).href;
@@ -50,11 +52,11 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
         return body;
       });
     }).then(function(body){
-      statusCache = { reachable:true, configured: !!body.configured, checked:true, mode:'gateway' };
+      statusCache = { reachable:true, configured: !!body.configured, checked:true, mode:'gateway', trialUsed: !!body.trialUsed };
       return statusCache;
     }).catch(function(err){
       console.error('[AtlasAnthropicGateway] gateway unreachable at '+url+' — is `node server/image-gateway.js` actually the process serving THIS page (same host:port)?', err && err.message);
-      statusCache = { reachable:false, configured:false, checked:true, mode:'gateway' };
+      statusCache = { reachable:false, configured:false, checked:true, mode:'gateway', trialUsed:false };
       return statusCache;
     });
   };

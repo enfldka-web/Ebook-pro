@@ -56,6 +56,24 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     return found ? found.css : null;
   }
 
+  /* V3 Phase 2 Round 34(2026-08-08): 사용자 실측 버그 — 글씨체를 바꿔도 렌더링
+     결과가 그대로였다. 원인: Google Fonts는 <link>로 CSS만 미리 받아둘 뿐,
+     실제 폰트 파일(woff2)은 그 폰트가 "실제로 화면에 쓰일 때"에만 지연 로드된다
+     (브라우저 표준 동작). 이 폰트들은 어디에도 실제 DOM 텍스트로 쓰인 적이 없고
+     오직 <canvas> 안의 ctx.font로만 쓰이는데, ctx.fillText()는 폰트 파일이 아직
+     안 받아졌으면 로드를 기다려주지 않고 그 순간 즉시 폴백 폰트로 그려버린다
+     (Canvas + @font-face의 잘 알려진 표준 함정 — document.fonts.load()로 명시적
+     으로 기다려야 한다). 이미 로드된 폰트(Pretendard 등)를 다시 불러도 즉시
+     resolve되므로 항상 호출해도 안전하다. */
+  function ensureFontLoaded(cssFamily){
+    if(!cssFamily || typeof document==='undefined' || !document.fonts || !document.fonts.load) return Promise.resolve();
+    var weightedSizes = ['16px', 'bold 16px', '600 16px', '800 16px'];
+    return Promise.all(weightedSizes.map(function(spec){
+      try{ return document.fonts.load(spec+' '+cssFamily).catch(function(){}); }
+      catch(e){ return Promise.resolve(); }
+    })).catch(function(){ /* 폰트 로드가 실패해도 기존 폴백 폰트로 계속 진행한다 */ });
+  }
+
   /* 현재 승인된 카테고리/브랜드전략/Creative Campaign을 한 곳에서 읽는다 — plan/
      replan/generate가 전부 이 값을 공유한다. */
   /* 실제 발견된 버그: AIP.state.creativeCampaign은 AIP.approve() 호출 시점에만
@@ -349,22 +367,40 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
       showToast('error','전자책 기획 정보를 찾을 수 없습니다. [전자책으로] 돌아가 [썸네일 만들기]를 다시 눌러 스타일을 선택한 뒤 이어서 시도해주세요.',6000);
       return;
     }
-    UI.generateThumbnailsFromThemeExamples();
+    UI.generateAllThumbnailsWithAi();
   };
 
-  /* V3 Phase 2 Round 30: 사용자가 실측으로 확인한 문제 — STEP2에서 보여준 테마
-     예시 이미지와 STEP4에서 실제로 생성되는 배경이 완전히 다른 그림이었다(매번
-     GPT Image에 새로 요청해 만드는 그림이라 예시와 무관했기 때문). 사용자가
-     명시적으로 선택한 방향대로, 이제 STEP4의 기본 5개 후보는 AI를 다시 호출하지
-     않고 STEP2에서 실제로 보여준 그 5개 예시 파일(TTE.themeExampleFiles, assets/
-     thumbnail-themes/)을 배경으로 그대로 쓴다 — 미리보기와 결과가 항상 일치한다.
-     각 배경에는 즉시 실제 제목/카피가 자동으로 입혀진다(composeAndStoreThumbnailResult).
-     기존 Creative Director Concept(5개 서로 다른 판매 각도)은 여전히 카드 구조
-     (conceptId)로 유지된다 — "다시 생성"을 누르면 그 카드만 기존처럼 실제 GPT
-     Image를 호출해 대체 이미지를 만든다(UI.generateThumbnail, 아래 auto-composite
-     로직 추가만 됨 — 실제 생성 엔진 자체는 전혀 바뀌지 않았다). 없는 예시 파일
-     (사용자가 아직 채우지 않은 -2~-5.png)은 조용히 건너뛴다(가짜로 채우지 않는다,
-     Never Guess). */
+  /* V3 Phase 2 Round 35(2026-08-08): 사용자가 실측으로 확인한 문제 — Round 30
+     방식(아래 generateThumbnailsFromThemeExamples)이 STEP2 스타일 예시 이미지를
+     배경으로 그대로 재사용하다 보니, 부업 주제 전자책인데 배경은 "프리미어 프로
+     영상편집" 같은 무관한 예시 그림 위에 실제 제목/카피만 얹힌 것처럼 보였다
+     ("실제 이미지상 내에서 제목이랑 관련 내용들로 바뀌어야 한다"는 명시적
+     요청). 사용자에게 트레이드오프(스타일 미리보기와 실제 결과가 달라질 수
+     있음, 후보마다 실제 GPT Image 비용 발생)를 설명한 뒤, "5개 전부 AI로 자동
+     생성"을 명시적으로 선택받아 기본 경로를 다시 실제 AI 생성으로 되돌린다.
+     Round 30의 정적 예시 재사용 함수(generateThumbnailsFromThemeExamples,
+     아래)는 삭제하지 않고 그대로 남겨둔다 — 더 이상 기본 경로에서 호출되지
+     않을 뿐, 필요하면 그대로 복원할 수 있다. */
+  UI.generateAllThumbnailsWithAi = function(){
+    var st = S.get(); if(!st) return;
+    var providerId = UI.effectivePrimaryProviderId();
+    if(!providerId){
+      showToast('error','이미지 생성 방식이 설정되지 않았습니다. 위 안내를 확인해주세요.');
+      return;
+    }
+    (st.creativeDirector.thumbnailConcepts||[]).forEach(function(card){
+      UI.generateThumbnail(card.conceptId, providerId);
+    });
+  };
+
+  /* V3 Phase 2 Round 30(2026-08-07, 더 이상 기본 경로 아님 — 위 Round 35 설명
+     참고): 당시엔 STEP2에서 보여준 테마 예시 이미지와 STEP4에서 실제로 생성되는
+     배경이 매번 달라 "미리보기와 결과가 다르다"는 문제가 있었고, 그 해결로
+     기본 5개 후보가 AI 재호출 없이 STEP2에서 보여준 그 5개 예시 파일(TTE.
+     themeExampleFiles, assets/thumbnail-themes/)을 배경으로 그대로 쓰도록
+     만들었다. 지금은 이 함수가 기본 경로에서 호출되지 않지만, 구현 자체는
+     보존한다(Never Delete). 없는 예시 파일(사용자가 아직 채우지 않은 -2~-5.png)
+     은 조용히 건너뛴다(가짜로 채우지 않는다, Never Guess). */
   UI.generateThumbnailsFromThemeExamples = function(){
     var st = S.get(); if(!st) return;
     var themeId = UI.getSelectedThumbnailThemeId();
@@ -621,22 +657,27 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
     var themeOverlayOpts = TTE ? TTE.getOverlayOptions(themeId) : {};
     var layoutFamily = CE ? CE.pickLayoutFamily(themeId, result.jobId) : null;
     var fontFamily = thumbFontCss(st.thumbnail.overlayFontFamily);
-    loadImageFromUrl(result.image.objectUrl, function(img){
-      if(!img){ if(cb) cb(null); return; }
-      var composite = OE.composeThumbnailOverlayIntelligent(img, customCopy||approvedThumbnailCopy(), THUMB_SAFE_AREA_RECT, Object.assign({ brandStrategy: ctx && ctx.brandStrategy, layoutFamily: layoutFamily, fontFamily: fontFamily }, themeOverlayOpts));
-      result.compositeDataUrl = composite.dataUrl;
-      result.compositeWidth = composite.width;
-      result.compositeHeight = composite.height;
-      /* 이 result가 현재 선택된 후보라면(또는 아직 아무것도 선택되지 않았다면
-         이 result를 첫 선택으로 삼는다) finalComposite도 함께 갱신한다 —
-         STEP5/리스팅 다운로드가 계속 finalComposite 하나만 읽어도 되도록
-         기존 계약(js/application.js 리스팅 화면, downloadThumbnail)을 그대로
-         지킨다. */
-      if(!st.thumbnail.selectedResultId) st.thumbnail.selectedResultId = result.jobId;
-      if(st.thumbnail.selectedResultId===result.jobId){
-        st.thumbnail.finalComposite = { dataUrl: composite.dataUrl, width: composite.width, height: composite.height, sourceJobId: result.jobId, sourceType: result.image.sourceType, themeId: themeOverlayOpts.themeId, layoutFamilyId: layoutFamily && layoutFamily.id };
-      }
-      if(cb) cb(composite);
+    /* Round 34: 실제로 그리기 전에 선택된 글씨체 파일이 로드됐는지 먼저 확인한다
+       (위 ensureFontLoaded 설명 참고) — 이게 없으면 글씨체를 바꿔도 항상 폴백
+       폰트로만 그려졌다. */
+    ensureFontLoaded(fontFamily).then(function(){
+      loadImageFromUrl(result.image.objectUrl, function(img){
+        if(!img){ if(cb) cb(null); return; }
+        var composite = OE.composeThumbnailOverlayIntelligent(img, customCopy||approvedThumbnailCopy(), THUMB_SAFE_AREA_RECT, Object.assign({ brandStrategy: ctx && ctx.brandStrategy, layoutFamily: layoutFamily, fontFamily: fontFamily }, themeOverlayOpts));
+        result.compositeDataUrl = composite.dataUrl;
+        result.compositeWidth = composite.width;
+        result.compositeHeight = composite.height;
+        /* 이 result가 현재 선택된 후보라면(또는 아직 아무것도 선택되지 않았다면
+           이 result를 첫 선택으로 삼는다) finalComposite도 함께 갱신한다 —
+           STEP5/리스팅 다운로드가 계속 finalComposite 하나만 읽어도 되도록
+           기존 계약(js/application.js 리스팅 화면, downloadThumbnail)을 그대로
+           지킨다. */
+        if(!st.thumbnail.selectedResultId) st.thumbnail.selectedResultId = result.jobId;
+        if(st.thumbnail.selectedResultId===result.jobId){
+          st.thumbnail.finalComposite = { dataUrl: composite.dataUrl, width: composite.width, height: composite.height, sourceJobId: result.jobId, sourceType: result.image.sourceType, themeId: themeOverlayOpts.themeId, layoutFamilyId: layoutFamily && layoutFamily.id };
+        }
+        if(cb) cb(composite);
+      });
     });
   }
 
@@ -815,8 +856,14 @@ window.AtlasImageProductionUI = window.AtlasImageProductionUI || {};
          compositeDataUrl을 즉시 갖고 있으므로, 있으면 그것을(완성본) 보여주고
          아직 합성이 끝나지 않은 드문 순간에만 배경 원본을 임시로 보여준다. */
       var srcUrl = r.compositeDataUrl || r.image.objectUrl;
+      /* V3 Phase 2 Round 34: 사용자 실측 버그 — 후보가 150×112(652×488의 약 23%)
+         로 표시돼, 실제 크기에 맞춰 그려진 헤드라인/뱃지/CTA 글자가 함께
+         4배 이상 축소되며 뭉개져 보였다("글자가 다 가려 보인다"는 리포트의
+         실제 원인 — 오버레이 엔진 자체의 겹침 버그가 아니라 미리보기가 너무
+         작아 읽을 수 없었던 것, 원본 해상도 합성 결과로 직접 확인함). 원본과
+         동일한 4:3 비율을 유지하며 2배(300×224)로 키운다. */
       return '<div style="display:inline-block;margin:4px;text-align:center">'
-        + '<img src="'+x(srcUrl)+'" style="width:150px;height:112px;object-fit:cover;border-radius:8px;border:2px solid '+(selected?'#4f46e5':'var(--a2-border)')+';cursor:pointer" onclick="AtlasImageProductionUI.selectThumbnailResult(\''+x(r.jobId)+'\')"/>'
+        + '<img src="'+x(srcUrl)+'" style="width:300px;height:224px;object-fit:cover;border-radius:8px;border:2px solid '+(selected?'#4f46e5':'var(--a2-border)')+';cursor:pointer" onclick="AtlasImageProductionUI.selectThumbnailResult(\''+x(r.jobId)+'\')"/>'
         + mockBanner(r.image.sourceType)
         + (selected ? '<div style="font-size:10px;font-weight:800;color:#4f46e5;margin-top:2px">선택됨</div>' : '')
         + '</div>';

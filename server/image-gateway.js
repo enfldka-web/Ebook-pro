@@ -236,7 +236,9 @@ function createApp(opts){
      거친다. API Key는 서버 프로세스 환경변수에서만 읽고 브라우저로 전달하지
      않는다(구조: Browser → localhost:8910 → Node → Anthropic). */
   app.get('/api/anthropic-gateway/status', function(req, res){
-    res.json({ configured: anthropicProvider.isConfigured(env) });
+    var sessionUser = getSessionUser(req, res);
+    var trialCheck = usageStore.checkTrialAllowed(sessionUser.userId);
+    res.json({ configured: anthropicProvider.isConfigured(env), trialUsed: !trialCheck.allowed });
   });
 
   app.post('/api/anthropic-gateway/generate', function(req, res){
@@ -246,6 +248,18 @@ function createApp(opts){
     }
     if(!Array.isArray(body.messages) || !body.messages.length){
       return res.status(400).json({ error: { message:'요청 형식이 올바르지 않습니다.', code:'invalid_request' } });
+    }
+    var callType = body.callType || 'general';
+    var sessionUser = getSessionUser(req, res);
+    /* "1회 무료 체험"은 전자책 본문 생성이 시작되는 시점(outline 호출, 전자책당
+       정확히 1번만 발생)에서만 검사한다 — 제목 분석(callType 없음)이나 개별
+       chapter/appendices 재시도는 체험 횟수를 소모하지 않는다(하나의 전자책을
+       만드는 도중 재시도 때마다 막히면 안 되므로). */
+    if(callType === 'outline'){
+      var trialCheck = usageStore.checkTrialAllowed(sessionUser.userId);
+      if(!trialCheck.allowed){
+        return res.status(403).json({ error: { message:'무료 체험(1회)을 이미 사용하셨습니다. 구독 후 계속 이용해주세요.', code:'trial_exhausted' } });
+      }
     }
     var requestBody = {
       model: body.model || anthropicProvider.DEFAULT_MODEL,
@@ -292,6 +306,7 @@ function createApp(opts){
           }
         });
       }
+      if(callType === 'outline') usageStore.recordTrialUsed(sessionUser.userId);
       safeLog('anthropic-generate-success', { callType: callType, retries: result.retries });
       res.json(result.data);
     }).catch(function(err){
