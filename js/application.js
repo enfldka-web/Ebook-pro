@@ -227,6 +227,43 @@ function testGatewayConnection(){
     showToast('success','AI 서버 연결 정상!');
   });
 }
+/* V3 Phase 2 Round 32(2026-08-07): 사용자가 선택한 A안("각자 자기 API 키")의
+   Settings 쪽 진입점. 저장/삭제 직후 두 Provider의 상태 캐시도 즉시 다시
+   계산해(refreshStatus) 화면이 새로고침 없이 바로 반영되게 한다. */
+function renderUserApiKeyStatus(){
+  var K = window.AtlasUserApiKey;
+  var aEl = document.getElementById('set-anthropic-key-status');
+  var oEl = document.getElementById('set-openai-key-status');
+  if(aEl) aEl.textContent = (K && K.hasAnthropicKey()) ? '· 설정됨' : '· 설정 안 됨';
+  if(oEl) oEl.textContent = (K && K.hasOpenAIKey()) ? '· 설정됨' : '· 설정 안 됨';
+  var aIn = document.getElementById('set-anthropic-key');
+  var oIn = document.getElementById('set-openai-key');
+  if(aIn) aIn.value = (K && K.getAnthropicKey()) || '';
+  if(oIn) oIn.value = (K && K.getOpenAIKey()) || '';
+}
+function saveUserApiKeys(){
+  var K = window.AtlasUserApiKey;
+  if(!K){ showToast('error','API 키 저장 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+  var aVal = (document.getElementById('set-anthropic-key')||{}).value || '';
+  var oVal = (document.getElementById('set-openai-key')||{}).value || '';
+  K.setAnthropicKey(aVal);
+  K.setOpenAIKey(oVal);
+  renderUserApiKeyStatus();
+  if(window.AtlasAnthropicGateway) window.AtlasAnthropicGateway.refreshStatus().then(function(){ if(typeof checkCvReady==='function')checkCvReady(); });
+  if(window.AtlasOpenAIImageProvider) window.AtlasOpenAIImageProvider.refreshStatus();
+  showToast('success','API 키가 이 브라우저에 저장되었습니다. 이제 본인 키로 직접 AI를 호출합니다.');
+}
+function clearUserApiKeys(){
+  var K = window.AtlasUserApiKey;
+  if(!K) return;
+  K.setAnthropicKey('');
+  K.setOpenAIKey('');
+  renderUserApiKeyStatus();
+  if(window.AtlasAnthropicGateway) window.AtlasAnthropicGateway.refreshStatus().then(function(){ if(typeof checkCvReady==='function')checkCvReady(); });
+  if(window.AtlasOpenAIImageProvider) window.AtlasOpenAIImageProvider.refreshStatus();
+  showToast('info','저장된 API 키를 지웠습니다. 이제 로컬 서버(Gateway) 방식으로 돌아갑니다.');
+}
+
 function getUserEbooks(email){
   // 전체 localStorage 스캔 - 이메일 무관하게 모든 전자책 통합
   var all=[];
@@ -628,6 +665,7 @@ function renderSettings(){
   var u=APP.user;
   document.getElementById('set-name').value=u.name||'';
   document.getElementById('set-email').value=u.email||'';
+  renderUserApiKeyStatus();
   refreshAtlasGatewayStatus();
   var plan=PLANS[u.plan||'free'];
   var badge=document.getElementById('set-plan-badge');

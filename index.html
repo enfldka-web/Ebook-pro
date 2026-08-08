@@ -704,10 +704,33 @@
     <!-- SETTINGS -->
     <div id="app-settings" class="content" style="display:none">
       <div class="card">
+        <!-- V3 Phase 2 Round 32(2026-08-07): 사용자가 명시적으로 선택한 방향(A안) —
+             Atlas는 서버가 AI 비용을 대신 내주는 SaaS가 아니라, 각자 자신의
+             OpenAI/Anthropic API 키로 직접 사용하는 프로그램이다. 여기 입력한 키는
+             이 브라우저의 localStorage에만 저장되고 Atlas의 어떤 서버로도 전송되지
+             않는다(js/atlas-user-api-key.js) — 저장하는 즉시 js/anthropic-gateway-
+             client.js와 js/image-provider-openai.js가 로컬 Gateway 대신 이 키로
+             api.anthropic.com/api.openai.com을 브라우저에서 직접 호출한다. */-->
         <div class="settings-section">
-          <div class="settings-title"><span data-icon="server" data-icon-size="14"></span>AI 서버 연결 상태</div>
+          <div class="settings-title"><span data-icon="lock" data-icon-size="14"></span>나만의 API 키</div>
+          <div class="settings-desc" style="margin-bottom:14px">이 키는 <b>이 브라우저에만</b> 저장되며, Atlas의 어떤 서버로도 전송되지 않습니다 — 저장하면 곧바로 본인의 API 키로 직접 AI를 호출합니다(운영자의 서버가 필요 없습니다). 사용한 만큼의 AI 비용은 본인의 OpenAI/Anthropic 계정으로 청구됩니다.</div>
           <div class="settings-row">
-            <div><div class="settings-label">Anthropic (자료 분석·제목·전자책 생성)</div><div class="settings-desc">API 키는 서버에서만 관리됩니다. 브라우저에는 어떤 API 키도 저장되지 않습니다.</div></div>
+            <div><div class="settings-label">Anthropic API 키</div><div class="settings-desc">자료 분석·제목·전자책 본문 생성에 사용됩니다. <span id="set-anthropic-key-status" style="font-weight:700"></span></div></div>
+            <input id="set-anthropic-key" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off"/>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">OpenAI API 키</div><div class="settings-desc">썸네일·상세페이지 이미지 생성에 사용됩니다. <span id="set-openai-key-status" style="font-weight:700"></span></div></div>
+            <input id="set-openai-key" class="settings-input" type="password" placeholder="sk-..." autocomplete="off"/>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="a2-btn a2-btn-primary" onclick="saveUserApiKeys()"><span data-icon="checkCircle"></span>저장</button>
+            <button class="a2-btn a2-btn-secondary" onclick="clearUserApiKeys()"><span data-icon="trash"></span>모두 지우기</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title"><span data-icon="server" data-icon-size="14"></span>AI 서버 연결 상태(로컬 서버 · 운영자 테스트용)</div>
+          <div class="settings-row">
+            <div><div class="settings-label">Anthropic (자료 분석·제목·전자책 생성)</div><div class="settings-desc">위에 본인 API 키를 저장했다면 이 항목은 확인할 필요가 없습니다(자동으로 본인 키 방식이 우선 적용됩니다). 이 항목은 로컬에서 <code>node server/image-gateway.js</code>를 직접 실행해 테스트할 때만 씁니다.</div></div>
           </div>
           <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
             <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="testGatewayConnection()"><span data-icon="refresh"></span>서버 연결 테스트</button>
@@ -796,6 +819,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="js/atlas-gateway-base-url.js"></script>
+<script src="js/atlas-user-api-key.js"></script>
 <script src="js/anthropic-gateway-client.js"></script>
 <script src="js/incremental-ebook-engine.js"></script>
 <script src="js/ebook-progress-store.js"></script>
