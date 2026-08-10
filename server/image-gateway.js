@@ -1,7 +1,12 @@
-/* server/image-gateway.js — Phase 15: Atlas Image Generation Gateway
-   구조: Atlas Browser → Atlas Server Gateway(이 파일) → OpenAI Images API → Atlas Server
-   → Browser. OpenAI API Key는 이 프로세스의 환경변수에서만 읽고, 어떤 응답에도
-   그대로 노출하지 않는다.
+/* server/image-gateway.js — 2026-08-10: 사용자 지시로 썸네일/상세페이지(이미지
+   생성) 기능이 전면 삭제되면서, 이 서버가 실제로 서빙하는 것은 이제
+   Anthropic 텍스트 게이트웨이(/api/anthropic-gateway/*, 제목·전자책 생성)와
+   정적 파일 서빙뿐이다. 파일 이름/스크립트(package.json start/dev)는 diff를
+   불필요하게 키우지 않기 위해 그대로 유지한다 — 실제 라우트만 바뀌었다.
+   원래(Phase 15) 목적이었던 OpenAI Images API 프록시 라우트(/api/image-gateway/*)
+   와 그 전용 의존성(Contract/validator/rateLimiter/openaiProvider)은 삭제했다.
+   session/trial 관리(image-usage-store.js)는 이미지 생성 전용이 아니라
+   Anthropic 무료 체험 1회 게이트에도 쓰이는 공유 모듈이라 그대로 유지한다.
 
    선택한 구조: 순수 Node.js + Express. 이 프로젝트는 지금까지 빌드 도구/서버가 전혀
    없는 정적 프론트엔드였고(package.json도 없었음), Vercel/Netlify/Cloudflare Worker
@@ -13,7 +18,6 @@
    옮기기 쉽다 — 그래서 이번 Phase에서는 이 방식 하나만 선택했다. */
 
 var express = require('express');
-var crypto = require('crypto');
 var path = require('path');
 var fs = require('fs');
 
@@ -41,21 +45,14 @@ var fs = require('fs');
   });
 })();
 
-var Contract = require('../shared/image-generation-contract.js');
-var validator = require('./image-request-validator.js');
-var rateLimiter = require('./image-rate-limiter.js');
 var usageStoreModule = require('./image-usage-store.js');
-var openaiProvider = require('./providers/openai-image-provider.js');
 var anthropicProvider = require('./providers/anthropic-text-provider.js');
 
 function createApp(opts){
   opts = opts || {};
   var env = opts.env || process.env;
   var fetchImpl = opts.fetchImpl; /* 테스트 전용 주입 — 프로덕션에서는 undefined(전역 fetch 사용) */
-  var cfg = openaiProvider.config(env);
-  var semaphore = rateLimiter.createSemaphore(cfg.maxConcurrency);
   var usageStore = usageStoreModule.createUsageStore(env);
-  var abortControllers = {}; /* jobId -> AbortController (취소용) */
 
   /* Atlas는 GitHub Pages 같은 정적 호스팅에서도 열릴 수 있다 — 그 페이지의 origin과
      이 로컬 Gateway(http://localhost:8910)는 서로 다른 origin이므로, 허용 목록에
@@ -108,128 +105,6 @@ function createApp(opts){
       res.setHeader('Set-Cookie', name+'='+value+'; Path=/; HttpOnly; SameSite=Lax');
     });
   }
-
-  app.get('/api/image-gateway/status', function(req, res){
-    var configured = openaiProvider.isConfigured(env);
-    var sessionUser = getSessionUser(req, res);
-    var limitCheck = usageStore.checkLimit(sessionUser.userId, sessionUser.plan);
-    res.json({
-      configured: configured,
-      model: cfg.model,
-      quality: cfg.quality,
-      maxConcurrency: cfg.maxConcurrency,
-      plan: sessionUser.plan,
-      dailyUsed: limitCheck.dailyUsed, dailyLimit: limitCheck.dailyLimit,
-      monthlyUsed: limitCheck.monthlyUsed, monthlyLimit: limitCheck.monthlyLimit
-    });
-  });
-
-  app.post('/api/image-gateway/generate', function(req, res){
-    var jobId = (req.body && req.body.jobId) || ('server-job-'+crypto.randomUUID());
-    var contractRequest = req.body && req.body.request;
-
-    if(!openaiProvider.isConfigured(env)){
-      return res.status(503).json(Contract.createResponse({ requestId: contractRequest&&contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'failed',
-        error: { message:'이미지 생성 서버 설정이 필요합니다.', code:'not_configured' } }));
-    }
-
-    var contractCheck = Contract.validateRequest(contractRequest);
-    if(!contractCheck.valid){
-      return res.status(400).json(Contract.createResponse({ requestId: contractRequest&&contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'failed',
-        error: { message:'요청 형식이 올바르지 않습니다.', code:'invalid_request' } }));
-    }
-
-    var sessionUser = getSessionUser(req, res);
-    var limitCheck = usageStore.checkLimit(sessionUser.userId, sessionUser.plan);
-    if(!limitCheck.allowed){
-      return res.status(403).json(Contract.createResponse({ requestId: contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'failed',
-        error: { message: limitCheck.message, code: limitCheck.reason } }));
-    }
-
-    var size = validator.sizeForAssetType(contractRequest.assetType);
-    var openaiBody = { size: size, quality: cfg.quality, output_format:'png', background:'opaque', model: cfg.model, prompt: contractRequest.prompt.positive };
-    var bodyValidation = validator.validateOpenAIRequestBody(openaiBody);
-    if(!bodyValidation.valid){
-      safeLog('invalid-openai-body', { jobId: jobId, errors: bodyValidation.errors });
-      return res.status(400).json(Contract.createResponse({ requestId: contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'failed',
-        error: { message:'생성 요청을 처리할 수 없습니다.', code:'invalid_prompt' } }));
-    }
-
-    var upstreamController = new AbortController();
-    abortControllers[jobId] = upstreamController;
-    var responseSent = false;
-    var clientGone = false;
-    /* req.on('close')가 아니라 res.on('close')를 쓴다 — req의 'close'는 Node/Express에서
-       요청 바디를 다 읽은 시점에도 발생할 수 있어(실제로 발견된 버그: 응답을 보내기도
-       전에 발생해 핸들러가 조용히 리턴하며 응답이 영원히 가지 않는 상태가 됨), 응답이
-       실제로 끝난 뒤에만 발생하는 res의 'close'로 "클라이언트가 정말 연결을 끊었는가"를
-       판단한다. */
-    res.on('close', function(){
-      if(!responseSent){ clientGone = true; upstreamController.abort(); }
-    });
-
-    safeLog('generate-start', { jobId: jobId, assetType: contractRequest.assetType, size: size });
-
-    semaphore.acquire().then(function(release){
-      openaiProvider.generateWithRetry(contractRequest.prompt.positive, {
-        env: env, size: size, quality: cfg.quality, signal: upstreamController.signal, fetchImpl: fetchImpl
-      }).then(function(result){
-        release();
-        delete abortControllers[jobId];
-        if(clientGone) return;
-        responseSent = true;
-
-        if(result.errorKind==='cancelled'){
-          usageStore.recordUsage(sessionUser.userId, { chargeable:false });
-          return res.json(Contract.createResponse({ requestId: contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'cancelled' }));
-        }
-        if(!result.success){
-          usageStore.recordUsage(sessionUser.userId, { chargeable:false });
-          safeLog('generate-failed', { jobId: jobId, status: result.status, errorKind: result.errorKind, retries: result.retries });
-          var httpStatus = result.status || 502;
-          var userMessage = { invalid_request:'요청 내용에 문제가 있습니다.', auth_error:'이미지 생성 서버 인증에 실패했습니다.', permission_error:'이미지 생성 권한이 없습니다.', timeout:'이미지 생성 시간이 초과되었습니다. 다시 시도해주세요.', network_error:'네트워크 오류로 이미지 생성에 실패했습니다.' }[result.errorKind] || '이미지 생성에 실패했습니다. 잠시 후 다시 시도해주세요.';
-          return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json(Contract.createResponse({ requestId: contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'failed',
-            error: { message: userMessage, code: result.errorKind } }));
-        }
-
-        usageStore.recordUsage(sessionUser.userId, { chargeable:true });
-        var dataUrl = openaiProvider.decodeOpenAIImage(result.data, 'image/png');
-        if(!dataUrl){
-          safeLog('decode-failed', { jobId: jobId });
-          return res.status(502).json(Contract.createResponse({ requestId: contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'failed',
-            error: { message:'생성된 이미지를 읽을 수 없습니다. 다시 시도해주세요.', code:'decode_failed' } }));
-        }
-        safeLog('generate-success', { jobId: jobId, retries: result.retries });
-        var dims = size.split('x');
-        res.json(Contract.createResponse({ requestId: contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'completed',
-          image: { mimeType:'image/png', width:parseInt(dims[0],10), height:parseInt(dims[1],10), objectUrl: dataUrl, sourceType:'generated' },
-          usage: { costAvailable:false } }));
-      }).catch(function(err){
-        /* 예상치 못한 예외가 나더라도 응답을 반드시 보낸다 — 여기서 실패하면 클라이언트가
-           영원히 응답을 기다리게 되는 것이 실제로 발견된 버그였다(req.on('close') 오작동).
-           Prompt/API Key는 로그에 남기지 않는다. */
-        delete abortControllers[jobId];
-        if(responseSent || clientGone) return;
-        responseSent = true;
-        safeLog('generate-unexpected-error', { jobId: jobId, message: err && err.message });
-        res.status(500).json(Contract.createResponse({ requestId: contractRequest.requestId, jobId: jobId, providerId:'openai-gpt-image', status:'failed',
-          error: { message:'예기치 않은 오류로 이미지 생성에 실패했습니다.', code:'internal_error' } }));
-      });
-    });
-  });
-
-  app.post('/api/image-gateway/cancel', function(req, res){
-    var jobId = req.body && req.body.jobId;
-    var controller = abortControllers[jobId];
-    if(!controller) return res.json({ cancelled:false });
-    controller.abort();
-    delete abortControllers[jobId];
-    res.json({ cancelled:true });
-  });
-
-  app.get('/api/image-gateway/usage', function(req, res){
-    res.json(usageStore.getOperatorTotal());
-  });
 
   /* ── Anthropic Text Gateway — 자료 분석/제목 생성/전자책 생성/부분 재생성 등
      브라우저가 필요로 하는 모든 Anthropic Messages API 호출은 이 경로 하나만
@@ -315,14 +190,14 @@ function createApp(opts){
     });
   });
 
-  return { app: app, usageStore: usageStore, semaphore: semaphore };
+  return { app: app, usageStore: usageStore };
 }
 
 if(require.main === module){
   var port = process.env.PORT || 8910;
   var built = createApp();
   built.app.listen(port, function(){
-    console.log('Atlas Image Gateway listening on http://localhost:'+port+' (OpenAI configured: '+openaiProvider.isConfigured(process.env)+', Anthropic configured: '+anthropicProvider.isConfigured(process.env)+')');
+    console.log('Atlas Gateway listening on http://localhost:'+port+' (Anthropic configured: '+anthropicProvider.isConfigured(process.env)+')');
   });
 }
 

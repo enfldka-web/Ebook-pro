@@ -43,14 +43,12 @@
       </div>
 
       <div><span class="al-badge">👑 모든 프로젝트 프리미엄 품질 자동 적용</span></div>
-      <h1 class="al-title">생각을 전자책으로.<span class="grad">AI가 기획부터 판매 준비까지 완성합니다.</span></h1>
-      <p class="al-desc">주제·PLR·여러 문서·영상 및 온라인 자료를 하나의 전자책으로 재기획하고,<br>판매용 썸네일·상세페이지·전자책 판매자료까지 함께 완성합니다.</p>
+      <h1 class="al-title">생각을 전자책으로.<span class="grad">AI가 제목부터 전자책 완성까지 함께합니다.</span></h1>
+      <p class="al-desc">주제·PLR·여러 문서·영상 및 온라인 자료를 입력하면,<br>후킹 제목 추천부터 완성된 전자책까지 AI가 함께 만듭니다.</p>
 
       <div class="al-featurebar">
         <div class="al-feature"><i>📖</i> 전자책 생성</div>
-        <div class="al-feature"><i>🖼️</i> 썸네일 디자인</div>
-        <div class="al-feature"><i>🧩</i> 상세페이지 제작</div>
-        <div class="al-feature"><i>🛍️</i> 판매자료 준비</div>
+        <div class="al-feature"><i>✨</i> AI 제목 추천</div>
         <div class="al-feature"><i>☁️</i> 프로젝트 저장</div>
       </div>
 
@@ -205,21 +203,14 @@
           </div>
           <div class="aw-progress-head"><span id="aw-stage-label">1단계 · 자료 업로드</span><span id="aw-progress-text">8%</span></div>
           <div class="aw-progress"><div id="aw-progress-bar"></div></div>
-          <!-- Atlas Product Workflow Redesign (Round 12): 사용자가 실제로 겪는
-               흐름과 정확히 같은 6단계 하나만 보여준다 — 예전에는 이 4단계
-               배지와, 접으면 보이는 7단계 상세 배너가 서로 다른 숫자/이름
-               체계로 동시에 존재해(예: 배너 "3단계"인데 배지 "STEP 2") 실제
-               제품 흐름(업로드→제목→전자책→썸네일→상세페이지→리스팅)과
-               맞지 않았다 — 이제 이 배지 자체가 유일한 진행 표시다(중복 진행
-               시스템 제거). data-aw-simple-step 값은 ATLAS_STAGE_ORDER의
+          <!-- 2026-08-10: 사용자 지시로 썸네일/상세페이지/리스팅 자료 단계를
+               전면 삭제하고 전자책 생성 전용 3단계(업로드→제목→전자책)로
+               축소했다. data-aw-simple-step 값은 ATLAS_STAGE_ORDER의
                문자열 id와 정확히 같다(js/application.js). -->
           <div class="aw-steps-simple" id="aw-steps-simple">
             <div class="aw-step-simple" data-aw-simple-step="upload"><span class="num">STEP 1</span><div class="lbl">자료 업로드</div></div>
             <div class="aw-step-simple" data-aw-simple-step="title"><span class="num">STEP 2</span><div class="lbl">제목 생성</div></div>
             <div class="aw-step-simple" data-aw-simple-step="ebook"><span class="num">STEP 3</span><div class="lbl">전자책 생성</div></div>
-            <div class="aw-step-simple" data-aw-simple-step="thumbnail"><span class="num">STEP 4</span><div class="lbl">썸네일 생성</div></div>
-            <div class="aw-step-simple" data-aw-simple-step="salespage"><span class="num">STEP 5</span><div class="lbl">상세페이지 생성</div></div>
-            <div class="aw-step-simple" data-aw-simple-step="listing"><span class="num">STEP 6</span><div class="lbl">리스팅 자료</div></div>
           </div>
           <div class="aw-coach"><div class="aw-coach-icon" data-icon="ai"></div><div class="aw-coach-text" id="aw-coach-text">파일, 주제 또는 URL 중 편한 방식을 선택하세요. 입력한 내용은 브라우저에 임시 저장됩니다.</div></div>
         </section>
@@ -234,7 +225,7 @@
         <div id="cv-limit-warn" class="cv-limit-warn"></div>
         <!-- UPLOAD STATE -->
         <div id="cv-upload-state">
-          <div class="input-mode-badge">STEP 1/6 · 3가지 방식으로 전자책 생성</div>
+          <div class="input-mode-badge">STEP 1/3 · 3가지 방식으로 전자책 생성</div>
 
           <!-- 탭 -->
           <div class="input-tabs">
@@ -329,7 +320,7 @@
           <div class="title-studio">
             <div class="ts-head">
               <div>
-                <div class="cv-step-eyebrow">STEP 2/6 · ATLAS TITLE &amp; HOOK STUDIO</div>
+                <div class="cv-step-eyebrow">STEP 2/3 · ATLAS TITLE &amp; HOOK STUDIO</div>
                 <div class="cv-step-title">후킹 제목을 고르세요</div>
                 <div class="cv-step-sub">마음에 드는 제목을 선택하거나 직접 수정한 뒤 잠그면 전자책·썸네일·상세페이지에 동일하게 적용됩니다.</div>
               </div>
@@ -354,86 +345,10 @@
           </div>
         </div>
 
-        <!-- AI PLANNER STATE — 2026-08-07: 전자책 생성 이후(STEP4 진입 직전)에만
-             열리도록 순서 변경(js/ai-planner.js AIP.open/atlasGoToThumbnailStage 참고). -->
-        <div id="cv-planner-state" style="display:none">
-          <div class="ai-planner">
-            <div class="ts-head">
-              <div>
-                <div class="cv-step-eyebrow">STEP 4/6 · 판매 스타일 선택</div>
-                <div class="cv-step-title">판매 스타일을 선택하세요</div>
-                <div class="cv-step-sub">스타일을 하나 선택하면 썸네일과 상세페이지가 모두 같은 스타일로 만들어집니다. 상세페이지에서 다시 고를 필요가 없습니다. 선택 후 승인하면 썸네일·상세페이지 생성이 시작됩니다.</div>
-              </div>
-              <button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.backToEbookResult()"><span data-icon="arrowLeft"></span>전자책으로</button>
-            </div>
-            <details style="margin-bottom:14px">
-              <summary style="font-size:12px;color:var(--a2-text-faint);cursor:pointer;font-weight:700">상세 분석 보기 (고급 — Campaign Score/Evaluator/Visual DNA 등 내부 분석 데이터)</summary>
-              <div id="aip-report-body" class="aip-report" style="margin-top:10px"></div>
-              <div class="aip-accordion">
-                <button type="button" class="aip-accordion-toggle" onclick="AtlasAIPlanner.toggleReasonAccordion()">
-                  <span>추천 이유 보기</span>
-                  <span id="aip-reason-arrow" class="aip-accordion-arrow" data-icon="chevronDown" data-icon-size="11"></span>
-                </button>
-                <div id="aip-reason-body" class="aip-accordion-body" style="display:none">
-                  <div id="aip-reason-content"></div>
-                </div>
-              </div>
-            </details>
-            <div class="aip-candidates-head">판매 스타일 후보</div>
-            <div id="aip-candidates" class="aip-candidates"></div>
-            <div class="ts-actions">
-              <button class="a2-btn a2-btn-secondary" onclick="AtlasAIPlanner.backToEbookResult()">전자책으로 돌아가기</button>
-              <button class="a2-btn a2-btn-primary" id="aip-approve-btn" onclick="AtlasAIPlanner.approve()" disabled><span data-icon="checkCircle"></span>이 스타일로 썸네일·상세페이지 생성</button>
-            </div>
-            <div id="aip-approve-reason" style="margin-top:4px"></div>
-
-            <!-- Phase 13: Claude Design Creative Feedback Engine — Prompt가 아니라
-                 Claude Design이 실제 생성한 이미지를 업로드해 품질을 진단한다.
-                 Phase 17: 일반 사용자 흐름에 필요 없는 개발자/QA 도구이므로 기본
-                 화면에서는 접어두고 "고급" 아래로 옮긴다(기능은 삭제하지 않음). -->
-            <details class="aip-cfe-section-wrap" style="margin-top:24px;border-top:1px solid var(--a2-border);padding-top:20px">
-              <summary style="font-size:13px;color:var(--a2-text-faint);cursor:pointer;font-weight:700">고급: Claude Design 이미지 품질 진단 도구 (개발자용)</summary>
-            <div class="aip-cfe-section" id="aip-cfe-section" style="margin-top:14px">
-              <div style="font-size:16px;font-weight:800;color:var(--a2-text)">Claude Design Creative Feedback</div>
-              <div style="font-size:12px;color:var(--a2-text-faint);margin-top:4px">Claude Design에서 실제로 생성한 이미지를 업로드해야 분석할 수 있습니다(Prompt만으로는 평가하지 않습니다). Mock/Placeholder 이미지는 지원하지 않습니다.</div>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
-                <select id="cfe-asset-type" class="a2-input" style="max-width:180px" onchange="AtlasAIPlanner.creativeFeedback.onContextChange()">
-                  <option value="thumbnail">Thumbnail</option>
-                  <option value="sales-page-hero">Sales Page Hero</option>
-                </select>
-                <select id="cfe-concept-select" class="a2-input" style="max-width:280px" onchange="AtlasAIPlanner.creativeFeedback.onContextChange()"></select>
-                <span id="cfe-version-label" style="font-size:12px;color:var(--a2-text-faint)">다음 Version: 1</span>
-              </div>
-              <div style="margin-top:10px">
-                <input type="file" id="cfe-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="AtlasAIPlanner.creativeFeedback.onFileSelected(this)"/>
-                <button class="a2-btn a2-btn-secondary" onclick="document.getElementById('cfe-file-input').click()">Claude Design 결과 이미지 업로드</button>
-                <span id="cfe-source-badge" style="display:none;font-size:11px;font-weight:700;color:var(--a2-success);margin-left:8px">● source: Claude Design</span>
-              </div>
-              <div id="cfe-preview-wrap" style="margin-top:10px;display:none">
-                <img id="cfe-preview-img" style="max-width:320px;border-radius:8px;display:block;border:1px solid var(--a2-border)"/>
-                <canvas id="cfe-canvas" style="display:none"></canvas>
-              </div>
-              <div id="cfe-waiting-message" style="margin-top:10px;font-size:12px;color:var(--a2-text-faint);font-weight:600">waiting-for-real-image — 아직 실제 Claude Design 이미지가 업로드되지 않았습니다.</div>
-              <details style="margin-top:10px">
-                <summary style="font-size:12px;color:var(--a2-text-faint);cursor:pointer">Claude Code 구조화 시각 평가 붙여넣기(선택, JSON) — 손/얼굴/아티팩트 등 의미적 판단 항목용</summary>
-                <textarea id="cfe-visual-assessment-json" class="a2-input" style="width:100%;min-height:60px;margin-top:6px;font-family:monospace;font-size:11px" placeholder='{"productFrameRatio":0.4,"subjectVisible":true,"artifacts":[]}'></textarea>
-              </details>
-              <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-                <button class="a2-btn a2-btn-primary" id="cfe-analyze-btn" disabled onclick="AtlasAIPlanner.creativeFeedback.analyze()">실제 이미지 분석</button>
-                <button class="a2-btn a2-btn-secondary" id="cfe-cancel-btn" onclick="AtlasAIPlanner.creativeFeedback.cancel()">분석 취소</button>
-                <button class="a2-btn a2-btn-secondary" id="cfe-delete-btn" onclick="AtlasAIPlanner.creativeFeedback.deleteImage()">이미지 삭제</button>
-              </div>
-              <div id="cfe-results-body" style="margin-top:16px"></div>
-              <div id="cfe-user-review-body" style="margin-top:16px"></div>
-              <div id="cfe-history-body" style="margin-top:16px"></div>
-            </div>
-            </details>
-          </div>
-        </div>
         <!-- PROCESS STATE (STEP 3 · 전자책 생성 진행) -->
         <div id="cv-process-state" class="cv-process" style="display:none">
           <div class="cv-process-card">
-            <div class="cv-step-eyebrow" style="text-align:center">STEP 3/6 · 전자책 생성</div>
+            <div class="cv-step-eyebrow" style="text-align:center">STEP 3/3 · 전자책 생성</div>
             <!-- 진행률 원형 -->
             <div style="position:relative;width:130px;height:130px;margin:16px auto 24px">
               <svg width="130" height="130" class="a2-progress-circle">
@@ -467,141 +382,45 @@
             <div id="cv-save-indicator" class="cv-process-saved">생성 상태가 저장되었습니다.</div>
           </div>
         </div>
-        <!-- Phase 17.1: STEP 3~4 판매 이미지 생성/결과 — 기존 ipe-section을 그대로
-             재사용한다(Engine/Provider/Overlay 변경 없음). 생성 중에는 진행 배지가,
-             완료 후에는 동일한 카드가 결과 갤러리 겸 STEP4 화면 역할을 한다.
-             2026-08-07: 스타일(브랜딩 팩) 선택 화면(cv-planner-state)이 전자책
-             생성 이후·이 화면 진입 직전으로 옮겨졌다(AIP.open, atlasGoToThumbnailStage). -->
-        <!-- Atlas Product Workflow Redesign (Round 12) — Stage4: 썸네일 생성.
-             이전에는 이 내용 전체(테마 선택+생성)가 전자책 생성 화면과 항상
-             함께 보였고, 상세페이지 생성까지 같은 화면에 뒤섞여 있었다. 이제
-             전자책 완성 화면의 [썸네일 만들기] 버튼(atlasGoToThumbnailStage)을
-             눌러야만 진입하는 독립된 단계다. 내부 id(ipe-thumb-*)는 전혀
-             바꾸지 않았다 — image-generation-ui.js는 그대로 재사용된다. -->
-        <div id="cv-thumbnail-state" style="display:none">
-          <div class="ts-head">
-            <div>
-              <div class="cv-step-eyebrow">STEP 4/6 · 썸네일 생성</div>
-              <div class="cv-step-title">썸네일을 만드세요</div>
-              <div class="cv-step-sub">앞에서 선택한 스타일로 썸네일 예시를 생성합니다. 마음에 드는 결과를 선택하면 다음 단계(상세페이지)로 진행할 수 있습니다.</div>
-            </div>
-            <button class="a2-btn a2-btn-secondary" onclick="atlasBackToEbookResult()"><span data-icon="arrowLeft"></span>전자책으로</button>
-          </div>
-          <div id="ipe-provider-status-banner" style="margin-top:10px"></div>
-
-          <details style="margin-top:10px">
-            <summary style="font-size:12px;color:var(--a2-text-faint);cursor:pointer">고급 설정</summary>
-            <div id="ipe-advanced-info" style="margin-top:8px"></div>
-            <div style="margin-top:8px;font-size:11px;color:var(--a2-text-faint)">이미지 생성 방식(Provider) — 문제 해결/테스트용:</div>
-            <div id="ipe-provider-select-wrap" style="margin-top:4px"></div>
-          </details>
-
-          <!-- V3 Phase 2 Round 22: 테마 선택은 STEP2로 옮겼다 — 여기서는 이미 정해진
-               테마를 읽기 전용으로 보여주고, 바꾸고 싶으면 STEP2로 돌아가게 안내한다
-               (재선택 UI를 여기 다시 만들지 않는다 — 선택은 한 곳에서만). -->
-          <div id="ipe-selected-theme-readout" style="margin-top:16px"></div>
-
-          <div style="font-size:14px;font-weight:800;margin-top:18px;color:var(--a2-text)">썸네일 생성 (652×488)</div>
-          <div style="font-size:12px;color:var(--a2-text-faint);margin-top:2px">선택한 스타일로 썸네일 예시를 바로 생성합니다.</div>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="a2-btn a2-btn-primary" id="ipe-thumb-generate-btn" disabled onclick="AtlasImageProductionUI.generateThumbnailsSimple()">썸네일 생성</button>
-          </div>
-          <div id="ipe-thumb-generate-reason" style="margin-top:4px"></div>
-          <div id="ipe-thumb-progress"></div>
-          <div id="ipe-thumb-list"></div>
-          <div style="font-size:13px;font-weight:700;margin-top:12px;color:var(--a2-text)">글씨체 · 카피 수정</div>
-          <div id="ipe-thumb-overlay-actions" style="margin-top:6px"></div>
-
-          <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--a2-border)">
-            <button class="a2-btn a2-btn-primary" style="font-size:14px;padding:12px 24px" onclick="atlasGoToSalesPageStage()">다음 단계: 상세페이지 만들기 →</button>
-          </div>
-        </div>
-
-        <!-- Stage5: 상세페이지 생성. Stage4에서 선택한 썸네일 테마와 같은
-             테마가 자동으로 이어진다(APP.thumbnailThemeId → 상세페이지 Scene,
-             js/thumbnail-theme-engine.js TTE.applyThemeToSalesPageScene). 사용자가
-             다시 스타일을 고르지 않는다 — 하나의 프로젝트 테마다. -->
-        <div id="cv-salespagegen-state" style="display:none">
-          <div class="ts-head">
-            <div>
-              <div class="cv-step-eyebrow">STEP 5/6 · 상세페이지 생성</div>
-              <div class="cv-step-title">선택한 썸네일과 같은 테마로 상세페이지를 만드세요</div>
-              <div class="cv-step-sub">방금 고른 썸네일 테마가 색상·톤·연출 방향에 그대로 이어집니다. 9장을 생성하고 마음에 드는 결과를 선택하세요.</div>
-            </div>
-            <button class="a2-btn a2-btn-secondary" onclick="atlasBackToThumbnailStage()"><span data-icon="arrowLeft"></span>썸네일로</button>
-          </div>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.planSalesPageScenes()">상세페이지 9장 기획</button>
-            <button class="a2-btn a2-btn-primary" id="ipe-sp-generate-btn" disabled onclick="AtlasImageProductionUI.generateSalesPages()">전체 이미지 생성</button>
-            <button class="a2-btn a2-btn-secondary" id="ipe-sp-zip-btn" disabled onclick="AtlasImageProductionUI.downloadAllSalesPagesZip()">전체 ZIP 다운로드</button>
-          </div>
-          <div id="ipe-sp-generate-reason" style="margin-top:4px"></div>
-          <div id="ipe-sp-zip-reason" style="margin-top:4px"></div>
-          <div id="ipe-sp-progress"></div>
-          <div id="ipe-sp-list"></div>
-          <div style="font-size:13px;font-weight:700;margin-top:16px;color:var(--a2-text-muted)">결과 선택 및 다운로드는 각 카드에서 진행하세요. 다시 생성해도 이전 결과(Version)는 지워지지 않습니다.</div>
-
-          <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--a2-border)">
-            <button class="a2-btn a2-btn-primary" style="font-size:14px;padding:12px 24px" onclick="atlasGoToListingStage()">다음 단계: 리스팅 자료 보기 →</button>
-          </div>
-        </div>
-
-        <!-- Stage6: 리스팅 자료 — 완성된 전자책/썸네일/상세페이지와 기존
-             buildKmongListing()/renderKmongListing()이 이미 계산한 등록 자료를
-             한 화면에 모은다(atlasRenderListingStage, js/application.js). -->
-        <div id="cv-listing-state" style="display:none">
-          <div class="ts-head">
-            <div>
-              <div class="cv-step-eyebrow">STEP 6/6 · 리스팅 자료</div>
-              <div class="cv-step-title">전자책 상품 제작이 완료되었습니다</div>
-              <div class="cv-step-sub" id="cv-listing-title">전자책 상품</div>
-            </div>
-            <button class="a2-btn a2-btn-secondary" onclick="atlasBackToSalesPageStage()"><span data-icon="arrowLeft"></span>상세페이지로</button>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
-            <div style="border:1px solid var(--a2-border);border-radius:10px;padding:12px">
-              <div style="font-size:13px;font-weight:800;color:var(--a2-text)">전자책</div>
-              <div id="cv-listing-ebook-body" style="margin-top:8px"></div>
-            </div>
-            <div style="border:1px solid var(--a2-border);border-radius:10px;padding:12px">
-              <div style="font-size:13px;font-weight:800;color:var(--a2-text)">썸네일</div>
-              <div id="cv-listing-thumb-body" style="margin-top:8px"></div>
-            </div>
-            <div style="border:1px solid var(--a2-border);border-radius:10px;padding:12px">
-              <div style="font-size:13px;font-weight:800;color:var(--a2-text)">상세페이지</div>
-              <div id="cv-listing-salespage-body" style="margin-top:8px"></div>
-            </div>
-          </div>
-
-          <div style="margin-top:22px;border-top:1px solid var(--a2-border);padding-top:16px">
-            <div style="font-size:14px;font-weight:800;color:var(--a2-text)">등록 자료 (상품 제목·설명·FAQ·키워드)</div>
-            <div id="cv-listing-materials-body" style="margin-top:8px"></div>
-          </div>
-
-          <div style="margin-top:20px">
-            <button class="a2-btn a2-btn-secondary" onclick="resetConverter()"><span data-icon="arrowLeft"></span>새 프로젝트 시작</button>
-          </div>
-        </div>
-        <!-- RESULT STATE (STEP 3/6 · 전자책 생성 완료) -->
+        <!-- RESULT STATE (STEP 3/3 · 전자책 생성 완료) -->
         <div id="cv-result-state" style="display:none">
           <div class="ts-head">
             <div>
-              <div class="cv-step-eyebrow">STEP 3/6 · 전자책 생성</div>
+              <div class="cv-step-eyebrow">STEP 3/3 · 전자책 생성</div>
               <div class="cv-step-title" id="cv-result-title">전자책이 완성되었습니다</div>
-              <div class="cv-step-sub">AI 완성도 점검 결과를 확인하고, 필요한 부분만 다시 만들거나 다음 단계로 진행하세요.</div>
+              <div class="cv-step-sub">AI 완성도 점검 결과를 확인하고, 필요하면 제목을 수정하거나 특정 부분만 다시 만드세요.</div>
             </div>
           </div>
-          <!-- Atlas Product Workflow Redesign (Round 12): 이전에는 이 화면 바로
-               아래에 판매 이미지 생성 UI(cv-imagegen-state)가 항상 함께 보이고,
-               Thumbnail Studio/Sales Page Studio/구버전 테마가 "고급" 접힘
-               안에 있었지만 여전히 이 화면 안에 있었다 — 두 문제 모두 "다음에
-               뭘 해야 하는지"를 흐리게 만들었다(중복 진행 화면, 주 흐름 안의
-               레거시 도구). 이제 다음 단계로 가는 길은 이 버튼 하나뿐이다.
-               Thumbnail Studio/Sales Page Studio/구버전 테마는 삭제되지 않고
-               설정 화면(고급 도구)으로 이동했다. -->
-          <div style="margin:14px 0">
-            <button class="a2-btn a2-btn-primary" style="font-size:15px;padding:14px 28px" onclick="atlasGoToThumbnailStage()"><span data-icon="sparkle"></span>썸네일 만들기</button>
+          <!-- 2026-08-10: 사용자 지시로 썸네일/상세페이지 단계를 전면 삭제하고
+               전자책 생성까지만 남겼다. 대신 제목이 이미 생성/잠금된 뒤에도
+               (전자책이 이미 만들어진 뒤에도) 다시 바꿀 수 있어야 한다는
+               요구에 맞춰, 결과 화면에 제목 실시간 수정 UI를 새로 추가한다.
+               atlasEditEbookTitle()(js/application.js)이 APP.ebook.title을
+               갱신하고 renderCvEbook()을 재호출해 미리보기를 즉시 새로고침한다
+               — 전자책을 재생성하지 않는다(제목은 본문에 박혀있지 않고 별도
+               필드로만 쓰인다는 것을 코드 조사로 확인했다). -->
+          <div class="cv-title-edit" id="cv-title-edit-view" style="margin:14px 0;padding:14px 16px;border:1px solid var(--a2-border);border-radius:12px;background:var(--a2-surface)">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div style="min-width:0">
+                <div style="font-size:11px;font-weight:800;color:var(--a2-text-faint);letter-spacing:.02em">전자책 제목</div>
+                <div id="cv-title-edit-display" style="font-size:16px;font-weight:800;color:var(--a2-text);margin-top:2px;word-break:break-word"></div>
+              </div>
+              <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="atlasOpenTitleEditForm()"><span data-icon="sparkle"></span>제목 수정</button>
+            </div>
+            <div id="cv-title-edit-form" style="display:none;margin-top:12px">
+              <div class="cv-topic-row">
+                <label class="a2-label">새 제목</label>
+                <input id="cv-title-edit-input" class="a2-input" type="text" placeholder="새 제목을 입력하세요"/>
+              </div>
+              <div class="cv-topic-row">
+                <label class="a2-label">새 부제목</label>
+                <input id="cv-subtitle-edit-input" class="a2-input" type="text" placeholder="새 부제목을 입력하세요"/>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="a2-btn a2-btn-primary a2-btn-sm" onclick="atlasSaveEditedTitle()"><span data-icon="checkCircle"></span>저장하고 바로 반영</button>
+                <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="atlasCancelTitleEdit()">취소</button>
+              </div>
+            </div>
           </div>
           <div class="result-actions">
             <button class="a2-btn a2-btn-secondary" onclick="resetConverter()"><span data-icon="arrowLeft"></span>새 프로젝트</button>
@@ -612,76 +431,6 @@
           <div id="atlas-quality-body"></div>
           <!-- 에디터 툴바 -->
           <div class="ebook-preview-wrap"><div class="ebook-preview-inner" id="cv-edoc"></div></div>
-        </div>
-        <!-- SALES RESULT -->
-        <div id="cv-sales-state" style="display:none">
-          <div class="result-actions">
-            <button class="a2-btn a2-btn-secondary" onclick="hideCvSales()"><span data-icon="arrowLeft"></span>전자책으로</button>
-            <button class="a2-btn a2-btn-secondary" id="cv-sp-editbtn" onclick="toggleCvSalesEdit()">편집</button>
-            <button class="a2-btn a2-btn-primary" onclick="dlAllSlides(this)" id="sp-img-save-btn">전체 9장 저장</button>
-            <button class="a2-btn a2-btn-secondary" id="cv-copybtn">HTML 복사</button>
-          </div>
-          <div class="atlas-platform-row"><span style="font-size:11px;color:var(--a2-text-muted);font-weight:800">판매 플랫폼</span><select id="atlas-platform-select" onchange="atlasPlatformChanged(this.value)"><option value="kmong">크몽</option><option value="direct">자체 판매</option><option value="gumroad">Gumroad</option><option value="other">기타 플랫폼</option></select><span style="font-size:10px;color:var(--a2-text-faint)">선택한 플랫폼에 맞춰 판매자료 안내와 검수 기준을 조정합니다.</span></div>
-          <div id="atlas-sales-quality-body"></div>
-          <!-- Atlas 썸네일 엔진 -->
-          <div id="cv-thumb-body"></div>
-          <!-- Atlas v0.4 전자책 판매자료 + 정책검사 엔진 -->
-          <div id="cv-listing-body"></div>
-          <!-- 상세페이지 에디터 툴바 -->
-          <div id="cv-sp-toolbar" style="display:none;flex-wrap:wrap;gap:6px;background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);padding:10px 14px;margin-bottom:12px;align-items:center;box-shadow:var(--a2-shadow-sm)">
-            <select onchange="execF('fontName',this.value)" style="padding:5px 8px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:7px;font-size:12px;color:var(--a2-text);cursor:pointer">
-              <option value="Noto Sans KR">Noto Sans KR</option>
-              <option value="Noto Serif KR">Noto Serif KR</option>
-              <option value="malgun gothic">맑은 고딕</option>
-              <option value="dotum">돋움</option>
-              <option value="Arial">Arial</option>
-              <option value="Georgia">Georgia</option>
-            </select>
-            <select onchange="execF('fontSize',this.value)" style="padding:5px 8px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:7px;font-size:12px;color:var(--a2-text);cursor:pointer">
-              <option value="1">10px</option>
-              <option value="2">13px</option>
-              <option value="3" selected>16px</option>
-              <option value="4">18px</option>
-              <option value="5">24px</option>
-              <option value="6">32px</option>
-              <option value="7">48px</option>
-            </select>
-            <div style="display:flex;gap:4px">
-              <button onclick="execF('bold')" style="width:30px;height:30px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:7px;color:var(--a2-text);font-weight:900;font-size:14px;cursor:pointer">B</button>
-              <button onclick="execF('italic')" style="width:30px;height:30px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:7px;color:var(--a2-text);font-style:italic;font-size:14px;cursor:pointer">I</button>
-              <button onclick="execF('underline')" style="width:30px;height:30px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:7px;color:var(--a2-text);text-decoration:underline;font-size:14px;cursor:pointer">U</button>
-            </div>
-            <div style="display:flex;gap:4px">
-              <button onclick="execF('justifyLeft')" style="width:30px;height:30px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:7px;color:var(--a2-text);font-size:13px;cursor:pointer">≡</button>
-              <button onclick="execF('justifyCenter')" style="width:30px;height:30px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:7px;color:var(--a2-text);font-size:13px;cursor:pointer">☰</button>
-              <button onclick="execF('justifyRight')" style="width:30px;height:30px;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:7px;color:var(--a2-text);font-size:13px;cursor:pointer">≡</button>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <label style="font-size:11px;color:var(--a2-text-faint)">글자색</label>
-              <input type="color" value="#1a1a2e" onchange="execF('foreColor',this.value)" style="width:30px;height:30px;border:1px solid var(--a2-border);border-radius:7px;padding:2px;cursor:pointer;background:transparent"/>
-              <label style="font-size:11px;color:var(--a2-text-faint)">배경색</label>
-              <input type="color" value="#ffffff" onchange="execF('hiliteColor',this.value)" style="width:30px;height:30px;border:1px solid var(--a2-border);border-radius:7px;padding:2px;cursor:pointer;background:transparent"/>
-            </div>
-            <button onclick="insertSpImage()" style="padding:5px 12px;background:var(--a2-accent-soft);border:1px solid var(--a2-border);border-radius:7px;color:var(--a2-accent);font-size:12px;font-weight:700;cursor:pointer">이미지</button>
-            <button onclick="execF('removeFormat')" style="padding:5px 12px;background:var(--a2-danger-soft);border:1px solid var(--a2-border);border-radius:7px;color:var(--a2-danger);font-size:12px;font-weight:700;cursor:pointer">서식초기화</button>
-            <input type="file" id="sp-img-input" accept="image/*" style="display:none" onchange="handleEditorImage(this,'cv-sp-body')"/>
-            <span style="font-size:11px;color:var(--a2-text-faint);margin-left:4px">텍스트 선택 후 버튼 클릭</span>
-          </div>
-          <div id="cv-sp-body" style="background:#f8f8fc;border-radius:12px;overflow:hidden;font-family:'Noto Sans KR',sans-serif"></div>
-        </div>
-        <!-- THUMBNAIL STUDIO (Milestone 2) -->
-        <div id="cv-thumbstudio-state" style="display:none">
-          <div class="result-actions">
-            <button class="a2-btn a2-btn-secondary" onclick="tsClose()"><span data-icon="arrowLeft"></span>전자책으로</button>
-          </div>
-          <div id="ts-root"></div>
-        </div>
-        <!-- SALES PAGE STUDIO (Milestone 3) -->
-        <div id="cv-salespagestudio-state" style="display:none">
-          <div class="result-actions">
-            <button class="a2-btn a2-btn-secondary" onclick="spsClose()"><span data-icon="arrowLeft"></span>전자책으로</button>
-          </div>
-          <div id="sps-root"></div>
         </div>
 
 
@@ -706,21 +455,18 @@
       <div class="card">
         <!-- V3 Phase 2 Round 32(2026-08-07): 사용자가 명시적으로 선택한 방향(A안) —
              Atlas는 서버가 AI 비용을 대신 내주는 SaaS가 아니라, 각자 자신의
-             OpenAI/Anthropic API 키로 직접 사용하는 프로그램이다. 여기 입력한 키는
+             Anthropic API 키로 직접 사용하는 프로그램이다. 여기 입력한 키는
              이 브라우저의 localStorage에만 저장되고 Atlas의 어떤 서버로도 전송되지
              않는다(js/atlas-user-api-key.js) — 저장하는 즉시 js/anthropic-gateway-
-             client.js와 js/image-provider-openai.js가 로컬 Gateway 대신 이 키로
-             api.anthropic.com/api.openai.com을 브라우저에서 직접 호출한다. */-->
+             client.js가 로컬 Gateway 대신 이 키로 api.anthropic.com을 브라우저에서
+             직접 호출한다. 2026-08-10: 썸네일/상세페이지(및 그 이미지 생성용
+             OpenAI 키)가 전면 삭제되어 이제 Anthropic 키 한 종류만 남는다. -->
         <div class="settings-section">
           <div class="settings-title"><span data-icon="lock" data-icon-size="14"></span>나만의 API 키</div>
-          <div class="settings-desc" style="margin-bottom:14px">이 키는 <b>이 브라우저에만</b> 저장되며, Atlas의 어떤 서버로도 전송되지 않습니다 — 저장하면 곧바로 본인의 API 키로 직접 AI를 호출합니다(운영자의 서버가 필요 없습니다). 사용한 만큼의 AI 비용은 본인의 OpenAI/Anthropic 계정으로 청구됩니다.</div>
+          <div class="settings-desc" style="margin-bottom:14px">이 키는 <b>이 브라우저에만</b> 저장되며, Atlas의 어떤 서버로도 전송되지 않습니다 — 저장하면 곧바로 본인의 API 키로 직접 AI를 호출합니다(운영자의 서버가 필요 없습니다). 사용한 만큼의 AI 비용은 본인의 Anthropic 계정으로 청구됩니다.</div>
           <div class="settings-row">
             <div><div class="settings-label">Anthropic API 키</div><div class="settings-desc">자료 분석·제목·전자책 본문 생성에 사용됩니다. <span id="set-anthropic-key-status" style="font-weight:700"></span></div></div>
             <input id="set-anthropic-key" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off"/>
-          </div>
-          <div class="settings-row">
-            <div><div class="settings-label">OpenAI API 키</div><div class="settings-desc">썸네일·상세페이지 이미지 생성에 사용됩니다. <span id="set-openai-key-status" style="font-weight:700"></span></div></div>
-            <input id="set-openai-key" class="settings-input" type="password" placeholder="sk-..." autocomplete="off"/>
           </div>
           <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
             <button class="a2-btn a2-btn-primary" onclick="saveUserApiKeys()"><span data-icon="checkCircle"></span>저장</button>
@@ -773,23 +519,6 @@
             <button class="a2-btn a2-btn-danger" onclick="doLogout()"><span data-icon="logout"></span>로그아웃</button>
           </div>
         </div>
-        <!-- Atlas Product Workflow Redesign (Round 12): Thumbnail Studio/Sales
-             Page Studio/구버전 카드뉴스 테마는 6단계 주 흐름과 다른 아키텍처를
-             쓰는 별개 템플릿 도구다 — 삭제하지 않고(기능 보존), 주 흐름 화면이
-             아니라 설정의 "고급 도구"로만 접근하게 한다(주 흐름 안의 레거시
-             도구 노출 금지 원칙). 전자책이 있어야 의미가 있으므로 먼저 변환기
-             화면으로 전환한 뒤 각 도구를 연다. -->
-        <div class="settings-section">
-          <div class="settings-title"><span data-icon="sparkle" data-icon-size="14"></span>고급 도구 (템플릿 기반 대체 도구)</div>
-          <div class="settings-row">
-            <div><div class="settings-label">템플릿 기반 대체 도구</div><div class="settings-desc">기본 워크플로(썸네일/상세페이지 생성)와 별개인 수동 템플릿 도구입니다. 전자책이 먼저 생성되어 있어야 합니다.</div></div>
-          </div>
-          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-            <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="atlasOpenLegacyTool(tsOpen)">Thumbnail Studio</button>
-            <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="atlasOpenLegacyTool(spsOpen)">Sales Page Studio</button>
-            <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="atlasOpenLegacyTool(checkAndShowSales)">썸네일 + 상세페이지 (구버전 테마)</button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -825,41 +554,6 @@
 <script src="js/ebook-progress-store.js"></script>
 <script src="js/application.js"></script>
 <script src="js/bootstrap.js"></script>
-<script src="js/design-system.js"></script>
-<script src="js/reasoning-service.js"></script>
-<script src="js/brand-strategy-engine.js"></script>
-<script src="js/marketing-copy-engine.js"></script>
-<script src="js/thumbnail-engine.js"></script>
-<script src="js/sales-page-engine.js"></script>
-<script src="js/ebook-engine.js"></script>
-<script src="js/ai-visual-prompt-engine.js"></script>
-<script src="js/creative-campaign-engine.js"></script>
-<script src="js/commercial-concept-engine.js"></script>
-<script src="js/product-marketing-engine.js"></script>
-<script src="js/creative-feedback-engine.js"></script>
-<script src="shared/image-generation-contract.js"></script>
-<script src="shared/image-provider-registry.js"></script>
-<script src="js/image-provider-mock.js"></script>
-<script src="js/image-provider-manual-import.js"></script>
-<script src="js/image-provider-openai.js"></script>
-<script src="js/provider-neutral-prompt-composer.js"></script>
-<script src="js/atlas-overlay-engine.js"></script>
-<script src="js/thumbnail-theme-engine.js"></script>
-<script src="js/thumbnail-composition-engine.js"></script>
-<script src="js/image-engine.js"></script>
-<script src="js/creative-director-adapter.js"></script>
-<script src="js/image-generation-queue.js"></script>
-<script src="js/image-generation-state.js"></script>
-<script src="js/ai-planner.js"></script>
-<script src="js/image-generation-ui.js"></script>
-<script src="js/thumbnail-blueprint-adapter.js"></script>
-<script src="js/thumbnail-claude-style-renderer.js"></script>
-<script src="js/thumbnail-studio.js"></script>
-<script src="js/thumbnail-studio-io.js"></script>
-<script src="js/thumbnail-intelligence-2.js"></script>
-<script src="js/thumbnail-intelligence.js"></script>
-<script src="js/sales-page-studio.js"></script>
-<script src="js/sales-page-studio-io.js"></script>
 
 </body>
 </html>

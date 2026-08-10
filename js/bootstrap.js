@@ -1,7 +1,5 @@
 window.addEventListener('load',function(){setTimeout(function(){atlasBindDraftAutosave();var raw=localStorage.getItem(atlasProjectStorageKey());if(raw){try{var d=JSON.parse(raw);atlasSetWorkspaceStage(d.stage||'input',{noSave:true,coach:'저장된 프로젝트가 있습니다. 불러오기 버튼을 누르면 이어서 작업할 수 있습니다.'});}catch(e){atlasSetWorkspaceStage('input',{noSave:true});}}else atlasSetWorkspaceStage('input',{noSave:true});},350);});
 /* Atlas Final Integrated Layer */
-var ATLAS_PLATFORM='kmong';
-function atlasPlatformChanged(v){ATLAS_PLATFORM=v||'kmong';if(APP&&APP.ebook){renderKmongListing(APP.ebook);renderAtlasQuality();}atlasSaveDraft(false);showToast('success','판매 플랫폼이 변경되었습니다.');}
 function atlasTextLen(v){return String(v||'').replace(/<[^>]*>/g,'').trim().length;}
 function atlasClamp(n){return Math.max(0,Math.min(100,Math.round(n)));}
 
@@ -70,8 +68,8 @@ function atlasQualityScores(e){
  return {total:total,completeness:completeness,readability:readability,sales:salesScore,policy:atlasClamp(policy),depth:depth,notes:notes,duplicateChapterPairs:dupTitlePairs,mismatchedSummaryCount:mismatchedSummaries.length,fillerDensity:fillerDensity};
 }
 function atlasQualityHTML(e,compact){var q=atlasQualityScores(e);return '<div class="atlas-final-tools"><div class="aft-head"><div><div class="aft-kicker">ATLAS AI QUALITY COACH</div><div class="aft-title">전자책 완성도 점검</div></div><div class="aft-score">'+q.total+'</div></div><div class="aft-grid"><div class="aft-metric"><b>'+q.completeness+'</b><span>구성 완성도</span></div><div class="aft-metric"><b>'+q.readability+'</b><span>가독성</span></div><div class="aft-metric"><b>'+q.sales+'</b><span>판매 설득력</span></div><div class="aft-metric"><b>'+q.policy+'</b><span>정책 안전도</span></div></div><div class="aft-note">'+q.notes.join('<br>• ')+'</div><div class="aft-actions"><button class="aft-btn primary" onclick="openAtlasPartialModal()">필요한 부분만 수정</button><button class="aft-btn" onclick="atlasApplySafeClaims()">위험 표현 정리</button><button class="aft-btn" onclick="openTitleStudio(true)">제목 다시 추천</button></div></div>';}
-function renderAtlasQuality(){var a=document.getElementById('atlas-quality-body'),b=document.getElementById('atlas-sales-quality-body');if(a)a.innerHTML=APP.ebook?atlasQualityHTML(APP.ebook,false):'';if(b)b.innerHTML=APP.ebook?atlasQualityHTML(APP.ebook,true):'';}
-function atlasApplySafeClaims(){if(!APP.ebook)return;APP.ebook=sanitizeKmongSalesClaims(APP.ebook);renderCvEbook(APP.ebook);renderKmongListing(APP.ebook);renderKmongThumbnails(APP.ebook);renderAtlasQuality();atlasSaveDraft(false);showToast('success','위험 표현을 안전하게 정리했습니다.');}
+function renderAtlasQuality(){var a=document.getElementById('atlas-quality-body');if(a)a.innerHTML=APP.ebook?atlasQualityHTML(APP.ebook,false):'';}
+function atlasApplySafeClaims(){if(!APP.ebook)return;APP.ebook=sanitizeKmongSalesClaims(APP.ebook);renderCvEbook(APP.ebook);renderAtlasQuality();atlasSaveDraft(false);showToast('success','위험 표현을 안전하게 정리했습니다.');}
 function openAtlasPartialModal(){if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}var opts=(APP.ebook.chapters||[]).map(function(c,i){return '<option value="chapter:'+i+'">'+(i+1)+'장 · '+x(c.title||'챕터')+'</option>';}).join('');var bg=document.createElement('div');bg.className='atlas-modal-bg';bg.id='atlas-partial-modal';bg.innerHTML='<div class="atlas-modal"><h3>필요한 부분만 다시 만들기</h3><p>완성된 전자책은 유지하고 선택한 부분만 다시 생성합니다. 처음부터 15분을 다시 기다릴 필요가 없습니다.</p><div class="atlas-form-row"><label>수정할 부분</label><select id="atlas-partial-type"><option value="sales">판매자료·후킹·FAQ</option><option value="intro">서론</option><option value="conclusion">결론</option><option value="appendices">부록 전체</option>'+opts+'</select></div><div class="atlas-form-row"><label>수정 방향</label><textarea id="atlas-partial-direction" placeholder="예: 초보자가 이해하기 쉽게, 사례를 더 구체적으로, 과장 없이 후킹 강화"></textarea></div><div class="atlas-modal-actions"><button class="aft-btn" onclick="document.getElementById(\'atlas-partial-modal\').remove()">취소</button><button class="aft-btn primary" id="atlas-partial-run" onclick="runAtlasPartialRegeneration()">선택 부분 다시 생성</button></div></div>';document.body.appendChild(bg);}
 /* Atlas V3 Phase 1 — 부분 재생성 전면 개편.
    이전에는 이 함수가 전체 생성(js/incremental-ebook-engine.js)과 완전히 분리된
@@ -142,4 +140,4 @@ async function runAtlasPartialRegeneration(){
  }
 }
 // Hook existing renders without changing core code
-(function(){var oldRender=window.renderCvEbook;window.renderCvEbook=function(e){oldRender(e);setTimeout(renderAtlasQuality,0);};var oldSales=window.renderCvSalesPage;window.renderCvSalesPage=function(e,t){oldSales(e,t);setTimeout(renderAtlasQuality,0);};})();
+(function(){var oldRender=window.renderCvEbook;window.renderCvEbook=function(e){oldRender(e);setTimeout(renderAtlasQuality,0);};})();
