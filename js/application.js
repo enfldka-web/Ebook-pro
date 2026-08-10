@@ -1,29 +1,21 @@
 // ════════════════════════════════════════
 // DATA & STATE
 // ════════════════════════════════════════
-var APP={user:null,ebook:null,editMode:false,salesEditMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'upload',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,plannerReport:null,brandProfile:null,marketingCopy:null,thumbnailBlueprint:null,salesPageBlueprint:null,ebookBlueprint:null,ebookProgress:null,thumbnailThemeId:null};
+var APP={user:null,ebook:null,editMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'upload',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,ebookProgress:null};
 
 // ════════════════════════════════════════
 // ATLAS v0.7 SMART PREMIUM ENGINE
 // ════════════════════════════════════════
-/* Atlas Product Workflow Redesign (Round 12) — 이전에는 4단계 사용자 배지
-   (aw-steps-simple, 숫자 1~4)와 7단계 내부 워크스페이스 배너(ATLAS_STAGE_ORDER,
-   analysis/planner/sales/publish 등)가 서로 다른 숫자·이름 체계로 동시에
-   존재해(예: 배너는 "3단계 · 제목과 후킹"인데 배지는 "STEP 2"), 사용자가 실제로
-   본 화면의 실질 흐름(자료 업로드 → 제목 생성 → 전자책 생성 → 썸네일 생성 →
-   상세페이지 생성 → 리스팅 자료)과 전혀 일치하지 않았다 — 이것이 "워크플로가
-   원래 의도와 다르다"는 지적의 핵심 원인 중 하나였다(중복 진행 시스템). 이제
-   ATLAS_STAGE_ORDER 자체가 사용자가 보는 6단계와 정확히 같은 이름/순서를 쓰고,
-   atlasSetWorkspaceStage() 하나가 배너와 6단계 배지를 함께 갱신한다(별도
+/* 2026-08-10: 사용자 지시로 썸네일/상세페이지/리스팅 자료 단계를 전면
+   삭제하고 전자책 생성 전용 3단계(업로드→제목→전자책)로 축소했다.
+   ATLAS_STAGE_ORDER가 사용자가 보는 3단계와 정확히 같은 이름/순서를 쓰고,
+   atlasSetWorkspaceStage() 하나가 배너와 3단계 배지를 함께 갱신한다(별도
    atlasSetSimpleStep 숫자 호출 불필요 — 아래 참고). */
-var ATLAS_STAGE_ORDER=['upload','title','ebook','thumbnail','salespage','listing'];
+var ATLAS_STAGE_ORDER=['upload','title','ebook'];
 var ATLAS_STAGE_INFO={
- upload:{pct:8,label:'1단계 · 자료 업로드',badge:'자료 준비',coach:'파일, 주제 또는 URL 중 편한 방식을 선택하세요. 입력한 내용은 브라우저에 임시 저장됩니다.'},
- title:{pct:25,label:'2단계 · 제목 생성',badge:'제목 선택',coach:'제목 후보를 검토하고 하나를 선택한 뒤 잠그면 전자책 생성이 바로 시작됩니다.'},
- ebook:{pct:45,label:'3단계 · 전자책 생성',badge:'전자책 생성',coach:'전자책이 완성되면 [썸네일 만들기]로 다음 단계로 이동하세요.'},
- thumbnail:{pct:65,label:'4단계 · 썸네일 생성',badge:'썸네일 제작',coach:'마음에 드는 테마를 고르고 썸네일을 생성한 뒤 하나를 선택하세요.'},
- salespage:{pct:85,label:'5단계 · 상세페이지 생성',badge:'상세페이지 제작',coach:'선택한 썸네일과 같은 테마로 상세페이지를 생성합니다.'},
- listing:{pct:100,label:'6단계 · 리스팅 자료',badge:'등록 준비 완료',coach:'전자책, 썸네일, 상세페이지와 등록 자료를 다운로드하세요.'}
+ upload:{pct:15,label:'1단계 · 자료 업로드',badge:'자료 준비',coach:'파일, 주제 또는 URL 중 편한 방식을 선택하세요. 입력한 내용은 브라우저에 임시 저장됩니다.'},
+ title:{pct:45,label:'2단계 · 제목 생성',badge:'제목 선택',coach:'제목 후보를 검토하고 하나를 선택한 뒤 잠그면 전자책 생성이 바로 시작됩니다.'},
+ ebook:{pct:100,label:'3단계 · 전자책 생성',badge:'전자책 생성',coach:'전자책이 완성되면 제목을 다시 확인하거나 필요한 부분만 다시 만들 수 있습니다.'}
 };
 function atlasProjectStorageKey(){return 'atlas_project_draft_v07';}
 /* V3 Phase 2 Round 24: 실제 재현된 버그 — 전자책을 하나도 시작하지 않고 화면만
@@ -65,7 +57,7 @@ function atlasSetWorkspaceStage(stage,opts){
  var badge=document.getElementById('aw-status-badge');if(badge)badge.textContent=info.badge;
  var coach=document.getElementById('aw-coach-text');if(coach)coach.textContent=opts.coach||info.coach;
  /* data-aw-simple-step는 이제 숫자가 아니라 ATLAS_STAGE_ORDER의 문자열 id를
-    그대로 쓴다(예: data-aw-simple-step="thumbnail") — 배너와 6단계 배지가
+    그대로 쓴다(예: data-aw-simple-step="ebook") — 배너와 3단계 배지가
     항상 같은 단일 소스(idx)에서 나오므로 서로 어긋날 수 없다. */
  document.querySelectorAll('[data-aw-simple-step]').forEach(function(el){var n=ATLAS_STAGE_ORDER.indexOf(el.getAttribute('data-aw-simple-step'));el.classList.toggle('done',n<idx);el.classList.toggle('active',n===idx);});
  if(!opts.noSave)atlasSaveDraft(false);
@@ -88,7 +80,7 @@ function atlasUpdateResultHeader(e){
 }
 function atlasCollectDraft(){
  function val(id){var e=document.getElementById(id);return e?e.value:'';}
- return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'upload',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,ebookProgress:ebookProgressLightweight(APP.ebookProgress),thumbnailStudio:APP.thumbnailStudio||null,salesPageStudio:APP.salesPageStudio||null,brandTheme:APP.brandTheme||null,plannerReport:APP.plannerReport||null,brandProfile:APP.brandProfile||null,marketingCopy:APP.marketingCopy||null,thumbnailBlueprint:APP.thumbnailBlueprint||null,salesPageBlueprint:APP.salesPageBlueprint||null,ebookBlueprint:APP.ebookBlueprint||null,creativeCampaign:APP.creativeCampaign||null,thumbnailThemeId:APP.thumbnailThemeId||null};
+ return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'upload',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,ebookProgress:ebookProgressLightweight(APP.ebookProgress)};
 }
 function atlasSaveDraft(show){try{localStorage.setItem(atlasProjectStorageKey(),JSON.stringify(atlasCollectDraft()));if(show)showToast('success','현재 프로젝트를 저장했습니다.');}catch(e){if(show)showToast('error','프로젝트 저장에 실패했습니다.');}}
 /* V3 Phase 2 Round 24: 실제 재현된 두 번째 버그 — atlasLoadDraft()는 지금까지
@@ -102,7 +94,7 @@ function atlasSaveDraft(show){try{localStorage.setItem(atlasProjectStorageKey(),
    호출한다. 후속 단계인데 정작 APP.ebook이 없는 경우(있을 수 없지만 방어적으로)
    는 항상 안전하게 STEP1로 떨어진다 — 절대 throw하지 않는다. */
 function atlasRestoreStageView(stage){
-  ['cv-upload-state','cv-title-state','cv-process-state','cv-result-state','cv-thumbnail-state','cv-salespagegen-state','cv-listing-state'].forEach(function(id){
+  ['cv-upload-state','cv-title-state','cv-process-state','cv-result-state'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.style.display='none';
   });
   function show(id){ var el=document.getElementById(id); if(el) el.style.display=''; return el; }
@@ -111,29 +103,20 @@ function atlasRestoreStageView(stage){
   } else if(stage==='ebook' && APP.ebook){
     show('cv-result-state');
     if(typeof renderCvEbook==='function') renderCvEbook(APP.ebook);
-  } else if(stage==='thumbnail' && APP.ebook){
-    show('cv-thumbnail-state');
-    if(typeof AtlasImageProductionUI!=='undefined' && AtlasImageProductionUI.populate) AtlasImageProductionUI.populate();
-    showToast('info','이전에 생성한 썸네일 이미지는 저장되지 않아 다시 생성해야 합니다.',5000);
-  } else if(stage==='salespage' && APP.ebook){
-    show('cv-salespagegen-state');
-    if(typeof AtlasImageProductionUI!=='undefined' && AtlasImageProductionUI.render) AtlasImageProductionUI.render();
-    showToast('info','이전에 생성한 이미지는 저장되지 않아 다시 생성해야 합니다.',5000);
-  } else if(stage==='listing' && APP.ebook){
-    show('cv-listing-state');
-    if(typeof atlasRenderListingStage==='function') atlasRenderListingStage();
+    if(typeof atlasRenderTitleEditView==='function') atlasRenderTitleEditView();
   } else {
     show('cv-upload-state');
   }
 }
 function atlasLoadDraft(show){
  try{var raw=localStorage.getItem(atlasProjectStorageKey());if(!raw){if(show)showToast('info','저장된 프로젝트가 없습니다.');return;}var d=JSON.parse(raw);
- APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.plannerReport=d.plannerReport||null;APP.brandProfile=d.brandProfile||null;APP.marketingCopy=d.marketingCopy||null;APP.thumbnailBlueprint=d.thumbnailBlueprint||null;APP.salesPageBlueprint=d.salesPageBlueprint||null;APP.ebookBlueprint=d.ebookBlueprint||null;APP.creativeCampaign=d.creativeCampaign||null;APP.thumbnailThemeId=d.thumbnailThemeId||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;APP._ebookProgressLightweightHint=d.ebookProgress||null;APP.ebookProgress=null;
- if(d.thumbnailStudio){APP.thumbnailStudio=d.thumbnailStudio;}else{delete APP.thumbnailStudio;}
- if(typeof ThumbnailStudio!=='undefined'&&typeof ThumbnailStudio.init==='function')ThumbnailStudio.init();
- if(d.salesPageStudio){APP.salesPageStudio=d.salesPageStudio;}else{delete APP.salesPageStudio;}
- if(typeof SalesPageStudio!=='undefined'&&typeof SalesPageStudio.init==='function')SalesPageStudio.init();
- if(typeof AtlasDesignSystem!=='undefined'&&typeof AtlasDesignSystem.restoreTheme==='function')AtlasDesignSystem.restoreTheme(d.brandTheme&&d.brandTheme.themeId?d.brandTheme.themeId:null);
+ /* 2026-08-10: 썸네일/상세페이지/AI Planner/Brand Pack 관련 필드는 더 이상
+    쓰지 않는다(위 atlasCollectDraft 참고) — 하지만 예전에 저장된 draft에는
+    여전히 thumbnailStudio/salesPageStudio/brandTheme 등이 남아있을 수 있으므로,
+    읽기는 그대로 무시(아무 것도 하지 않음)하도록 둔다. 존재하지 않는 필드를
+    읽어도 에러 없이 안전하다(atlas-coding-bible: 기존 데이터 구조 삭제 금지 —
+    과거 프로젝트 로드가 깨지면 안 된다). */
+ APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;APP._ebookProgressLightweightHint=d.ebookProgress||null;APP.ebookProgress=null;
  function setv(id,v){var e=document.getElementById(id);if(e)e.value=v||'';}
  setv('topic-main',d.topic&&d.topic.main);setv('topic-target',d.topic&&d.topic.target);setv('topic-extra',d.topic&&d.topic.extra);setv('url-input',d.url&&d.url.input);setv('url-direction',d.url&&d.url.direction);setv('url-extra',d.url&&d.url.extra);setv('ms-notes',d.multi&&d.multi.notes);setv('ms-direction',d.multi&&d.multi.direction);
  if(typeof switchInputTab==='function'&&d.mode)switchInputTab(d.mode);if(typeof renderMultiLinks==='function')renderMultiLinks();
@@ -233,34 +216,25 @@ function testGatewayConnection(){
 function renderUserApiKeyStatus(){
   var K = window.AtlasUserApiKey;
   var aEl = document.getElementById('set-anthropic-key-status');
-  var oEl = document.getElementById('set-openai-key-status');
   if(aEl) aEl.textContent = (K && K.hasAnthropicKey()) ? '· 설정됨' : '· 설정 안 됨';
-  if(oEl) oEl.textContent = (K && K.hasOpenAIKey()) ? '· 설정됨' : '· 설정 안 됨';
   var aIn = document.getElementById('set-anthropic-key');
-  var oIn = document.getElementById('set-openai-key');
   if(aIn) aIn.value = (K && K.getAnthropicKey()) || '';
-  if(oIn) oIn.value = (K && K.getOpenAIKey()) || '';
 }
 function saveUserApiKeys(){
   var K = window.AtlasUserApiKey;
   if(!K){ showToast('error','API 키 저장 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
   var aVal = (document.getElementById('set-anthropic-key')||{}).value || '';
-  var oVal = (document.getElementById('set-openai-key')||{}).value || '';
   K.setAnthropicKey(aVal);
-  K.setOpenAIKey(oVal);
   renderUserApiKeyStatus();
   if(window.AtlasAnthropicGateway) window.AtlasAnthropicGateway.refreshStatus().then(function(){ if(typeof checkCvReady==='function')checkCvReady(); });
-  if(window.AtlasOpenAIImageProvider) window.AtlasOpenAIImageProvider.refreshStatus();
   showToast('success','API 키가 이 브라우저에 저장되었습니다. 이제 본인 키로 직접 AI를 호출합니다.');
 }
 function clearUserApiKeys(){
   var K = window.AtlasUserApiKey;
   if(!K) return;
   K.setAnthropicKey('');
-  K.setOpenAIKey('');
   renderUserApiKeyStatus();
   if(window.AtlasAnthropicGateway) window.AtlasAnthropicGateway.refreshStatus().then(function(){ if(typeof checkCvReady==='function')checkCvReady(); });
-  if(window.AtlasOpenAIImageProvider) window.AtlasOpenAIImageProvider.refreshStatus();
   showToast('info','저장된 API 키를 지웠습니다. 이제 로컬 서버(Gateway) 방식으로 돌아갑니다.');
 }
 
@@ -431,7 +405,7 @@ function showApp(section){
 
   // 6. converter 벗어날 때 내부 상태 리셋
   if(section!=='converter'){
-    ['cv-process-state','cv-result-state','cv-sales-state','cv-planner-state'].forEach(function(id){
+    ['cv-process-state','cv-result-state'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     var up=document.getElementById('cv-upload-state');
@@ -727,20 +701,8 @@ function openEbook(id){
   var eb=ebooks.find(function(e){return e.id===id;});
   if(!eb||!eb.data)return;
   APP.ebook=eb.data;
-  /* V3 Phase 2 Round 21: finalizeIncrementalEbook()이 저장 시점에 함께 스냅샷해둔
-     캠페인 재료를 복원한다 — atlasLoadDraft()가 이미 쓰는 것과 같은 패턴(존재하지
-     않으면 null, 조용히 실패하지 않고 STEP4의 기존 에러 토스트가 안내함). 이 필드가
-     없는(이 수정 이전에 저장된) 과거 전자책은 여전히 STEP4 진입 시 재생성 안내를
-     받는다 — 원본 기획 데이터 자체가 저장된 적이 없어 복원할 수 없기 때문이다. */
-  APP.creativeCampaign=eb.data.creativeCampaign||null;
-  APP.brandProfile=eb.data.brandProfile||null;
-  APP.marketingCopy=eb.data.marketingCopy||null;
   APP.titleAnalysis=eb.data.titleAnalysis||null;
-  /* V3 Phase 2 Round 22: 썸네일 테마 선택이 STEP2로 앞당겨지면서(더 이상 STEP4에서
-     다시 고르지 않음) 이 값도 함께 복원해야 STEP4/5가 저장 당시 고른 스타일을
-     그대로 이어받는다 — 없으면 TTE.getTheme의 기본 테마 폴백으로 안전하게 대체됨. */
-  APP.thumbnailThemeId=eb.data.thumbnailThemeId||null;
-  ['cv-upload-state','cv-process-state','cv-sales-state'].forEach(function(sid){
+  ['cv-upload-state','cv-process-state'].forEach(function(sid){
     var el=document.getElementById(sid);if(el)el.style.display='none';
   });
   var edoc=document.getElementById('cv-edoc');
@@ -748,6 +710,7 @@ function openEbook(id){
   showApp('converter');
   renderCvEbook(eb.data);
   document.getElementById('cv-result-state').style.display='';
+  atlasRenderTitleEditView();
   window.scrollTo(0,0);
 }
 
@@ -824,11 +787,6 @@ function setupConverter(){
     msDrop.addEventListener('drop',function(e){e.preventDefault();msDrop.classList.remove('drag');addMultiFiles(e.dataTransfer.files);});
   }
 
-  // Word 버튼 - onclick으로 처리 (중복 이벤트 제거)
-  document.getElementById('cv-copybtn').addEventListener('click',function(){
-    var html=document.getElementById('cv-sp-body').innerHTML;
-    navigator.clipboard.writeText(html).then(function(){showToast('success','HTML이 복사되었습니다!');});
-  });
   // live check for topic/url/text inputs
   ['topic-main','topic-target','topic-extra','url-input','url-direction','ms-notes','ms-direction','ms-link-input'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.addEventListener('input',checkCvReady);
@@ -934,13 +892,7 @@ function checkCvReady(){
   if(warn)warn.style.display='none';
 }
 function resetConverter(){
-  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.salesEditMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.plannerReport=null;APP.brandProfile=null;APP.marketingCopy=null;APP.thumbnailBlueprint=null;APP.salesPageBlueprint=null;APP.ebookBlueprint=null;APP.creativeCampaign=null;APP.thumbnailThemeId=null;APP.ebookProgress=null;APP._ebookProgressLightweightHint=null;APP.projectName='';
-  /* Phase 13: Creative Feedback UI가 만든 Object URL을 여기서도 정리한다(모듈
-     미로드 시에도 안전하도록 방어적으로 호출 — 기존 resetConverter 동작은 그대로 유지). */
-  if(typeof AtlasAIPlanner!=='undefined' && AtlasAIPlanner.creativeFeedback && AtlasAIPlanner.creativeFeedback.deleteImage){ try{ AtlasAIPlanner.creativeFeedback.deleteImage(); }catch(e){} }
-  /* Phase 14: Image Production 상태(생성 결과 objectUrl 포함)도 여기서 정리한다 —
-     모듈 미로드 시에도 안전하도록 방어적으로 호출(기존 resetConverter 동작은 그대로 유지). */
-  if(typeof AtlasImageProductionState!=='undefined' && AtlasImageProductionState.reset){ try{ AtlasImageProductionState.reset(); }catch(e){} }
+  APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.ebookProgress=null;APP._ebookProgressLightweightHint=null;APP.projectName='';
   CV_MODE='file';
   var fi=document.getElementById('cv-fi');if(fi)fi.value='';
   var dz=document.getElementById('cv-dz');if(dz)dz.classList.remove('has-file');
@@ -953,21 +905,11 @@ function resetConverter(){
     var el=document.getElementById(id);if(el)el.value='';
   });
   var up=document.getElementById('url-preview');if(up){up.textContent='';up.classList.remove('show');} renderMultiSources(); var ts=document.getElementById('cv-title-state');if(ts)ts.style.display='none';
-  var ps=document.getElementById('cv-planner-state');if(ps)ps.style.display='none';
   // reset tabs
   switchInputTab('file');
   document.getElementById('cv-upload-state').style.display='';
   document.getElementById('cv-process-state').style.display='none';
   document.getElementById('cv-result-state').style.display='none';
-  document.getElementById('cv-sales-state').style.display='none';
-  var igs=document.getElementById('cv-imagegen-state');if(igs)igs.style.display='none';
-  /* Atlas Product Workflow Redesign (Round 12): Stage4/5/6의 새 전용 화면도
-     새 프로젝트 시작 시 반드시 함께 숨긴다 — 그렇지 않으면 이전 프로젝트의
-     썸네일/상세페이지/리스팅 화면이 새 프로젝트에서도 열린 채로 남는다. */
-  ['cv-thumbnail-state','cv-salespagegen-state','cv-listing-state'].forEach(function(id){
-    var el=document.getElementById(id); if(el) el.style.display='none';
-  });
-  if(typeof AtlasAIPlanner!=='undefined'&&typeof AtlasAIPlanner.reset==='function')AtlasAIPlanner.reset();
   /* APP.workspaceStage를 직접 대입하는 대신 atlasSetWorkspaceStage()를 호출해야
      상단 워크스페이스 위젯(단계 배지/진행률 바/코치 문구)도 함께 'upload' 단계로
      되돌아간다 — 그렇지 않으면 이전 단계가 화면에 그대로 남아 마치 초기화가
@@ -988,7 +930,7 @@ JSON 키는 영어로 유지하고 모든 값은 한국어로 작성합니다.
 - 도구·서비스·정책처럼 최신성이 필요한 내용은 확신이 없으면 일반화하고 확인 필요성을 표시합니다.
 
 [전자책 판매자료 정책]
-- 썸네일, 상세페이지, 서비스 소개에는 구체적인 수익 금액을 쓰지 않습니다.
+- 전자책 소개(제목·부제·설명)에는 구체적인 수익 금액을 쓰지 않습니다.
 - 월·주·일 단위 수익, 매출, 절감액, 투자수익률, 성장률을 숫자로 약속하지 않습니다.
 - 보장, 무조건, 반드시 성공, 누구나 가능, 자동수익, 평생수익, 100% 같은 표현을 금지합니다.
 - 증빙 없는 판매량, 후기, 평점, 순위, 수익성과를 창작하지 않습니다.
@@ -1275,11 +1217,6 @@ function selectTitleCandidate(i){
   document.querySelectorAll('.ts-card').forEach(function(el,idx){el.classList.toggle('selected',idx===i);});
   document.getElementById('ts-final-title').value=t.title||'';document.getElementById('ts-final-subtitle').value=t.subtitle||'';
 }
-/* 2026-08-07 사용자 요구로 순서 변경: 판매 스타일(브랜딩 팩) 선택 화면을
-   전자책 생성 이후로 옮겼다 — 제목을 잠그면 스타일 선택 없이 바로 전자책
-   생성이 시작된다(전자책은 기본 톤으로 생성됨, 사용자가 직접 확인한
-   트레이드오프). 스타일 선택은 이제 전자책 완성 후 [썸네일 만들기]를
-   누르면 열린다(atlasGoToThumbnailStage, js/ai-planner.js AIP.open 참고). */
 function lockTitleAndGenerate(){
   var title=safeTitleText(document.getElementById('ts-final-title').value);var sub=safeTitleText(document.getElementById('ts-final-subtitle').value);
   if(!title){showToast('error','최종 제목을 입력해주세요.');return;}
@@ -1516,24 +1453,7 @@ async function finalizeIncrementalEbook(p){
   ebook=sanitizeKmongSalesClaims(ebook);
   APP.ebook=ebook;
   p.mergedEbook=ebook;
-  /* V3 Phase 2 Round 21: 실제 사용자가 "내 전자책"(History 라이브러리)에서 과거에
-     완성한 전자책을 다시 열어 STEP4(썸네일 생성)로 들어가면 "전자책 기획 정보를
-     찾을 수 없습니다" 에러로 막히는 버그가 실제로 재현됐다 — 원인을 추적한 결과
-     openEbook()은 항상 ebook.data(챕터/제목)만 복원할 뿐, Stage4가 실제로 필요로
-     하는 campaignContext()의 재료(APP.creativeCampaign/brandProfile/marketingCopy/
-     titleAnalysis)는 애초에 저장된 적이 없었다(addEbook이 이 필드들을 전혀 저장
-     하지 않음, 확인됨). 지금 이 시점에는 이미 이 값들이 전부 APP.*에 채워져 있으므로
-     (STEP2 AI Planner 승인 시점에 설정됨) 저장되는 ebook 레코드에 함께 스냅샷
-     해둔다 — openEbook()이 이 값들을 그대로 복원한다(아래). 이미 저장된 과거
-     전자책은 이 필드가 없어 이 수정으로 소급 적용되지 않는다(데이터 자체가 처음부터
-     저장된 적이 없었으므로 복원 불가 — 그 책은 재생성이 필요하다). */
-  ebook.creativeCampaign=APP.creativeCampaign||null;
-  ebook.brandProfile=APP.brandProfile||null;
-  ebook.marketingCopy=APP.marketingCopy||null;
   ebook.titleAnalysis=APP.titleAnalysis||APP.smartAnalysis||null;
-  /* V3 Phase 2 Round 22: STEP2에서 이미 골라둔 썸네일 테마도 함께 스냅샷한다 —
-     openEbook()이 그대로 복원한다(위 openEbook 주석 참고). */
-  ebook.thumbnailThemeId=APP.thumbnailThemeId||null;
   addEbook(u.email,ebook);
   addTrialCount(CV_MODE);
   var users=getUsers();u.plan=u.plan||'free';users[u.email]=u;saveUsers(users);
@@ -1542,131 +1462,61 @@ async function finalizeIncrementalEbook(p){
   document.getElementById('cv-process-state').style.display='none';
   document.getElementById('cv-result-state').style.display='';
   renderCvEbook(ebook);
-  /* Atlas Product Workflow Redesign (Round 12): 등록 자료(제목/설명/FAQ/키워드)
-     패널은 이제 Stage3(전자책 완성) 화면이 아니라 Stage6(리스팅 자료) 화면의
-     책임이다 — 같은 내용을 두 화면에 중복 표시하지 않는다(중복 진행/정보
-     시스템 금지 원칙). buildKmongListing()/renderKmongListing() 자체는 그대로
-     재사용하되, 실제 렌더링은 atlasRenderListingStage()에서 한다. */
+  atlasRenderTitleEditView();
   atlasSetWorkspaceStage('ebook');
   showToast('success','전자책이 생성되었습니다!');
 }
 
-/* ══════════════════════════════════════════════════════════════
-   Atlas Product Workflow Redesign (Round 12) — Stage4(썸네일)/Stage5(상세
-   페이지)/Stage6(리스팅 자료) 사이의 명시적 순차 이동. 각 함수는 정확히
-   하나의 이전 화면을 숨기고 하나의 다음 화면을 보여준 뒤 워크스페이스
-   배너를 그 단계로 갱신한다 — "다음에 무엇을 해야 하는지"가 항상 버튼
-   하나로 명확해야 한다는 요구사항의 실제 구현이다. 내부 엔진(Commercial
-   Concept Engine/Product Marketing Engine/Creative Director/Art Director/
-   Prompt Builder/Overlay Engine)은 image-generation-ui.js가 이미 그대로
-   숨겨서 호출한다(V3 Phase 2 Round 11) — 이 함수들은 화면 전환만 담당한다.
-   ══════════════════════════════════════════════════════════════ */
-/* 2026-08-07 사용자 요구로 순서 변경: "썸네일 만들기"를 누르면 이제 곧바로
-   생성 화면으로 가지 않고, 먼저 판매 스타일(브랜딩 팩) 선택 화면(AI Planner)을
-   연다 — 스타일 선택이 전자책 생성보다 뒤로 옮겨졌기 때문이다. 실제 생성
-   화면(cv-thumbnail-state)을 보여주는 로직은 atlasShowThumbnailGenerationUI로
-   분리했고, AIP.approve()가 스타일 확정 직후 그 함수를 호출한다(js/ai-planner.js). */
-function atlasGoToThumbnailStage(){
-  if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
-  document.getElementById('cv-result-state').style.display='none';
-  if(typeof AtlasAIPlanner!=='undefined'&&typeof AtlasAIPlanner.open==='function')AtlasAIPlanner.open();
-  else atlasShowThumbnailGenerationUI();
+/* 2026-08-10: 사용자 지시 — 제목을 AI가 생성한 뒤(STEP2)뿐 아니라 전자책이
+   이미 완성된 뒤(STEP3 결과 화면)에도 다시 바꿀 수 있어야 하고, 바꾸면
+   이미 만들어진 전자책에 즉시 반영되어야 한다. 코드 조사로 확인한 사실:
+   제목은 챕터 본문에 "박혀있지" 않고 APP.ebook.title이라는 별도 필드로만
+   쓰이며, renderCvEbook()은 호출될 때마다 e.title을 새로 읽어 미리보기를
+   다시 그리는 순수 함수다(bootstrap.js의 atlasApplySafeClaims와 같은 패턴).
+   따라서 제목 변경은 전자책 재생성 없이 APP.ebook.title 갱신 +
+   renderCvEbook() 재호출만으로 충분하다. */
+function atlasRenderTitleEditView(){
+  var disp=document.getElementById('cv-title-edit-display');
+  if(disp)disp.textContent=(APP.ebook&&APP.ebook.title)?APP.ebook.title:'';
+  var form=document.getElementById('cv-title-edit-form');
+  if(form)form.style.display='none';
 }
-function atlasShowThumbnailGenerationUI(){
-  var ts=document.getElementById('cv-thumbnail-state');if(ts)ts.style.display='';
-  if(typeof AtlasImageProductionUI!=='undefined'&&AtlasImageProductionUI.populate)AtlasImageProductionUI.populate();
-  atlasSetWorkspaceStage('thumbnail');
-  window.scrollTo(0,0);
+function atlasOpenTitleEditForm(){
+  if(!APP.ebook)return;
+  var ti=document.getElementById('cv-title-edit-input');if(ti)ti.value=APP.ebook.title||'';
+  var si=document.getElementById('cv-subtitle-edit-input');if(si)si.value=APP.ebook.subtitle||'';
+  var form=document.getElementById('cv-title-edit-form');if(form)form.style.display='';
 }
-function atlasBackToEbookResult(){
-  var ts=document.getElementById('cv-thumbnail-state');if(ts)ts.style.display='none';
-  document.getElementById('cv-result-state').style.display='';
-  atlasSetWorkspaceStage('ebook');
-  window.scrollTo(0,0);
+function atlasCancelTitleEdit(){
+  var form=document.getElementById('cv-title-edit-form');if(form)form.style.display='none';
 }
-function atlasGoToSalesPageStage(){
-  var st=window.AtlasImageProductionState&&AtlasImageProductionState.get();
-  if(!st||!st.thumbnail.selectedResultId){showToast('error','먼저 썸네일 후보 중 하나를 선택해주세요.');return;}
-  var ts=document.getElementById('cv-thumbnail-state');if(ts)ts.style.display='none';
-  var sp=document.getElementById('cv-salespagegen-state');if(sp)sp.style.display='';
-  if(typeof AtlasImageProductionUI!=='undefined'&&AtlasImageProductionUI.render)AtlasImageProductionUI.render();
-  atlasSetWorkspaceStage('salespage');
-  window.scrollTo(0,0);
-}
-function atlasBackToThumbnailStage(){
-  var sp=document.getElementById('cv-salespagegen-state');if(sp)sp.style.display='none';
-  var ts=document.getElementById('cv-thumbnail-state');if(ts)ts.style.display='';
-  atlasSetWorkspaceStage('thumbnail');
-  window.scrollTo(0,0);
-}
-function atlasGoToListingStage(){
-  var sp=document.getElementById('cv-salespagegen-state');if(sp)sp.style.display='none';
-  var ls=document.getElementById('cv-listing-state');if(ls)ls.style.display='';
-  atlasRenderListingStage();
-  atlasSetWorkspaceStage('listing');
-  window.scrollTo(0,0);
-}
-/* Atlas Product Workflow Redesign (Round 12): 구버전 템플릿 도구(Thumbnail
-   Studio/Sales Page Studio/구버전 카드뉴스 테마)는 이제 설정 화면에서만
-   열린다. 세 도구 모두 내부적으로 "#cv-result-state가 보이는 상태"를 전제로
-   자기 화면과 서로 교체한다 — 하지만 showApp('converter')는 변환기를 벗어나
-   있었을 때 항상 STEP1(cv-upload-state)을 강제로 다시 보여주는 기존 동작이
-   있어(변환기 탭을 누르면 항상 새로 시작하는 기존 설계), 그 상태 그대로
-   호출하면 STEP1과 도구 화면이 동시에 보이는 겹침이 생긴다. 이 함수가 그
-   전제 조건(STEP1 숨김 + 결과 화면 보임)을 먼저 맞춰준 뒤 도구를 연다. */
-function atlasOpenLegacyTool(openFn){
-  if(!APP.ebook){ showToast('error','전자책을 먼저 생성해주세요.'); return; }
-  showApp('converter');
-  var up=document.getElementById('cv-upload-state');if(up)up.style.display='none';
-  var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='';
-  openFn();
-}
-function atlasBackToSalesPageStage(){
-  var ls=document.getElementById('cv-listing-state');if(ls)ls.style.display='none';
-  var sp=document.getElementById('cv-salespagegen-state');if(sp)sp.style.display='';
-  atlasSetWorkspaceStage('salespage');
-  window.scrollTo(0,0);
-}
-/* Stage6 — 지금까지 만든 실제 결과물(전자책/썸네일/상세페이지)과 기존
-   buildKmongListing()/renderKmongListing()이 이미 계산해 둔 등록 자료(제목/
-   설명/FAQ/키워드)를 한 화면에 모은다. 새 데이터를 만들지 않고, 이미 존재하는
-   결과만 모아 보여준다(Never Guess — 없는 결과물은 "아직 없음"으로 표시). */
-function atlasRenderListingStage(){
-  var titleEl=document.getElementById('cv-listing-title');
-  if(titleEl)titleEl.textContent=(APP.ebook&&APP.ebook.title)?APP.ebook.title:'전자책 상품';
-
-  var ebookBody=document.getElementById('cv-listing-ebook-body');
-  if(ebookBody){
-    ebookBody.innerHTML=APP.ebook
-      ? '<button class="a2-btn a2-btn-secondary" onclick="downloadDocx(APP.ebook)"><span data-icon="file"></span>전자책 Word 다운로드</button>'
-      : '<div style="font-size:12px;color:var(--a2-text-faint)">아직 생성된 전자책이 없습니다.</div>';
+function atlasSaveEditedTitle(){
+  if(!APP.ebook){showToast('error','전자책이 없습니다.');return;}
+  var newTitle=(document.getElementById('cv-title-edit-input')||{}).value||'';
+  var newSubtitle=(document.getElementById('cv-subtitle-edit-input')||{}).value||'';
+  newTitle=newTitle.trim();
+  if(!newTitle){showToast('error','제목을 입력해주세요.');return;}
+  APP.ebook.title=newTitle;
+  APP.ebook.subtitle=newSubtitle.trim();
+  APP.lockedTitle=APP.ebook.title;
+  APP.lockedSubtitle=APP.ebook.subtitle;
+  // 재생성 없이 즉시 미리보기 새로고침 — bootstrap.js atlasApplySafeClaims와 동일한 패턴
+  renderCvEbook(APP.ebook);
+  atlasRenderTitleEditView();
+  // 이미 History(내 전자책)에 저장된 레코드라면 그 목록의 title 스냅샷도 함께 갱신한다 —
+  // addEbook()이 title을 data.title과 별도로 top-level에도 스냅샷해두기 때문에 둘 다 갱신하지 않으면
+  // History 카드에는 옛 제목이 남는다.
+  if(APP.user&&APP.ebook.id){
+    var ebooks=getUserEbooks(APP.user.email);
+    var rec=ebooks.find(function(e){return e.id===APP.ebook.id;});
+    if(rec){
+      rec.title=APP.ebook.title;
+      if(rec.data){rec.data.title=APP.ebook.title;rec.data.subtitle=APP.ebook.subtitle;}
+      saveUserEbooks(APP.user.email,ebooks);
+    }
   }
-
-  var thumbBody=document.getElementById('cv-listing-thumb-body');
-  if(thumbBody){
-    var st=window.AtlasImageProductionState&&AtlasImageProductionState.get();
-    var selId=st&&st.thumbnail.selectedResultId;
-    var result=selId&&st.thumbnail.results.filter(function(r){return r.jobId===selId;})[0];
-    var fc=st&&st.thumbnail.finalComposite;
-    thumbBody.innerHTML=(fc||result)
-      ? ('<img src="'+((fc&&fc.dataUrl)||(result&&result.image.objectUrl))+'" style="width:220px;border-radius:8px;border:1px solid var(--a2-border);display:block"/>'
-          + (fc?('<div style="margin-top:6px"><button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.downloadThumbnail(\'png\')">PNG 다운로드</button></div>'):''))
-      : '<div style="font-size:12px;color:var(--a2-text-faint)">아직 선택된 썸네일이 없습니다.</div>';
-  }
-
-  var spBody=document.getElementById('cv-listing-salespage-body');
-  if(spBody){
-    var st2=window.AtlasImageProductionState&&AtlasImageProductionState.get();
-    var compositeCount=st2?Object.keys(st2.salesPage.finalComposites||{}).length:0;
-    spBody.innerHTML=compositeCount
-      ? '<button class="a2-btn a2-btn-secondary" onclick="AtlasImageProductionUI.downloadAllSalesPagesZip()"><span data-icon="file"></span>상세페이지 전체 ZIP 다운로드 ('+compositeCount+'장)</button>'
-      : '<div style="font-size:12px;color:var(--a2-text-faint)">아직 완성된 상세페이지가 없습니다.</div>';
-  }
-
-  var listingBody=document.getElementById('cv-listing-materials-body');
-  if(listingBody&&APP.ebook&&typeof renderKmongListing==='function'){
-    renderKmongListing(APP.ebook);
-  }
+  atlasSaveDraft(false);
+  showToast('success','제목이 수정되어 바로 반영되었습니다.');
 }
 
 function stopIncrementalEbookGeneration(){
@@ -1765,20 +1615,9 @@ async function startGenerate(titleLocked){
 
   document.getElementById('cv-upload-state').style.display='none';
   var _ts=document.getElementById('cv-title-state');if(_ts)_ts.style.display='none';
-  var _ps=document.getElementById('cv-planner-state');if(_ps)_ps.style.display='none';
   document.getElementById('cv-result-state').style.display='none';
-  document.getElementById('cv-sales-state').style.display='none';
   var _edoc=document.getElementById('cv-edoc');if(_edoc)_edoc.innerHTML='';
-  var _spb=document.getElementById('cv-sp-body');if(_spb)_spb.innerHTML='';
   document.getElementById('cv-process-state').style.display='';
-  /* Atlas Product Workflow Redesign (Round 12): 이전에는 판매 이미지 생성
-     화면(cv-imagegen-state, 구 ipe-section)이 전자책 생성 중에 항상 함께
-     나타났다 — 이것이 "전자책 완성 → 썸네일 만들기"라는 명확한 순차 흐름을
-     흐리고, STEP3와 STEP4가 하나의 화면에 뒤섞여 보이던 핵심 원인이었다.
-     이제 썸네일 생성(Stage4)은 전자책 완성 화면의 [썸네일 만들기] 버튼을
-     눌러야만 시작된다(atlasGoToThumbnailStage, 아래) — 여기서는 미리 보여주지
-     않는다. AtlasImageProductionUI.populate()도 실제로 Stage4에 진입할 때만
-     호출한다(불필요한 조기 API 상태 조회 방지). */
   atlasSetWorkspaceStage('ebook',{coach:'목차 → 챕터별 → 부록 순서로 전자책을 나눠서 만듭니다. 언제든 중지했다가 이어서 진행할 수 있습니다.'});
 
   // 이미 진행 중이던 상태가 있으면(§5: 재시작 시 완료 지점부터 이어서) 그대로 이어가고,
@@ -1803,95 +1642,6 @@ function atlasRegenerateEbookFromScratch(){
   if(!confirm('전자책을 처음부터 다시 만들까요? 현재 완성본은 새 버전으로 덮어써집니다.'))return;
   APP.ebookProgress=null;
   startGenerate(true);
-}
-function checkAndShowSales(){
-  /* V3 Phase 2 Round 33: 체험 1회는 전자책 생성 시작 시점(startGenerate)에서만
-     확인한다 — 이미 시작한 같은 전자책의 후속 단계(상세페이지 생성)까지 여기서
-     다시 막으면, 첫 무료 체험 도중에 튕겨나가는 버그가 된다(트라이얼은 outline
-     성공 시 서버에서 이미 소모됨). */
-  addTrialCount('sales');
-  if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
-  showSalesThemeModal(APP.ebook);
-}
-THEMES_MODAL_DEF=null;
-function showSalesThemeModal(ebook){
-  // renderIdx: THEMES 배열 내 실제 인덱스 (0=navy,1=mint,2=violet,3=coral,4=gold)
-  var THEME_DEFS=[
-    {name:'📘 네이비 골드',desc:'프리미엄 · 신뢰감',bg:'#0d1b2a',point:'#D4A843',accent:'#F0C84A',light:false,renderIdx:0},
-    {name:'🌿 차콜 민트',desc:'모던 · 청량감',bg:'#111417',point:'#2DD4BF',accent:'#5EE8D8',light:false,renderIdx:1},
-    {name:'💜 크림 바이올렛',desc:'감성 · 세련됨',bg:'#faf9f7',point:'#7C3AED',accent:'#9b59fa',light:true,renderIdx:2},
-    {name:'🔥 코랄 에너지',desc:'열정 · 에너제틱',bg:'#120805',point:'#E84A1F',accent:'#FFB347',light:false,renderIdx:3},
-    {name:'✨ 골드 럭셔리',desc:'고급스러움 · 부유함',bg:'#0d0b05',point:'#D4A843',accent:'#FFE066',light:false,renderIdx:4},
-    {name:'🌸 파스텔 핑크',desc:'따뜻함 · 감성적',bg:'#FFF5F8',point:'#E0187A',accent:'#FF4DA6',light:true,renderIdx:5}
-  ];
-  var overlay=document.createElement('div');
-  overlay.id='sales-theme-modal';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
-  var modal=document.createElement('div');
-  modal.style.cssText='background:#0c0f1a;border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:24px 20px;max-width:520px;width:100%';
-  function makeThumb(th,idx){
-    var isLt=th.light;
-    var borderC=isLt?'rgba(180,160,140,.5)':'rgba(255,255,255,.12)';
-    var darkText=isLt?'#1a1a1a':'#ffffff';
-    var thumbContent='<div style="width:100%;height:130px;background:'+th.bg+';border-radius:10px;overflow:hidden;position:relative">'
-      +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,'+th.point+','+th.accent+')"></div>'
-      +'<div style="padding:10px 12px">'
-      +'<div style="display:flex;align-items:center;gap:5px;margin-bottom:7px">'
-      +'<div style="width:16px;height:16px;border-radius:4px;background:'+th.point+'26;display:flex;align-items:center;justify-content:center;font-size:8px">📘</div>'
-      +'<div style="font-size:7px;font-weight:800;color:'+th.point+';letter-spacing:1px">EBOOK</div></div>'
-      +'<div style="display:inline-block;background:'+th.point+'26;border:1px solid '+th.point+'66;color:'+th.point+';font-size:7px;font-weight:800;padding:2px 7px;border-radius:100px;margin-bottom:5px">CATEGORY</div>'
-      +'<div style="font-size:11px;font-weight:900;color:'+darkText+';line-height:1.2;margin-bottom:5px">제목이 <span style="color:'+th.point+'">여기에</span><br>표시됩니다</div>'
-      +'<div style="padding:5px 8px;background:'+th.point+'1a;border:1px solid '+th.point+'44;border-radius:7px;font-size:7px;color:'+th.point+';font-weight:700">→ 스와이프하여 확인하기</div>'
-      +'</div></div>';
-        var nameC='rgba(255,255,255,.92)';
-    var descC=isLt?'rgba(255,255,255,.6)':'rgba(255,255,255,.5)';
-    return '<div id="th-'+idx+'" onclick="selTheme('+idx+')" style="cursor:pointer;padding:10px;border:2px solid '+borderC+';border-radius:12px;background:rgba(255,255,255,.02);transition:border-color .2s,background .2s">'
-      +thumbContent
-      +'<div style="margin-top:7px"><div style="font-size:11px;font-weight:800;color:'+nameC+'">'+th.name+'</div>'
-      +'<div style="font-size:10px;color:'+descC+'">'+th.desc+'</div></div>'
-      +'</div>';
-  }
-  var grid='<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px">'
-    +THEME_DEFS.map(function(th,i){return makeThumb(th,i);}).join('')+'</div>';
-  modal.innerHTML='<div style="text-align:center;margin-bottom:18px">'
-    +'<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:2px;margin-bottom:5px">CARD NEWS THEME</div>'
-    +'<h2 style="font-size:17px;font-weight:900;color:#fff;margin:0 0 4px">테마를 선택하세요</h2>'
-    +'<p style="font-size:11px;color:rgba(255,255,255,.5);margin:0">카드뉴스 9장의 디자인 스타일</p></div>'
-    +grid
-    +'<div style="display:flex;gap:10px">'
-    +'<button onclick="document.getElementById(\'sales-theme-modal\').remove()" style="flex:1;padding:12px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:12px;color:rgba(255,255,255,.6);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">취소</button>'
-    +'<button id="th-confirm" onclick="confirmTheme()" disabled style="flex:2;padding:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;color:rgba(255,255,255,.35);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">테마를 선택해주세요</button>'
-    +'</div>';
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-  window._thEB=ebook;
-  window._thSel=undefined;
-  window.selTheme=function(idx){
-    window._thSel=idx;
-    for(var i=0;i<5;i++){
-      var el=document.getElementById('th-'+i);
-      if(el){var isLt2=THEME_DEFS[i].light;el.style.borderColor=isLt2?'rgba(0,0,0,.1)':'rgba(255,255,255,.12)';el.style.background='rgba(255,255,255,.02)';}
-    }
-    var sel=document.getElementById('th-'+idx);
-    if(sel){sel.style.borderColor=THEME_DEFS[idx].point;sel.style.background='rgba(255,255,255,.07)';sel.style.boxShadow='0 0 0 2px '+THEME_DEFS[idx].point+'40';}
-    var btn=document.getElementById('th-confirm');
-    if(btn){btn.disabled=false;btn.style.background='linear-gradient(135deg,'+THEME_DEFS[idx].point+','+THEME_DEFS[idx].accent+')';btn.style.borderColor=THEME_DEFS[idx].point;btn.style.color=THEME_DEFS[idx].light?'#1a1a1a':'#fff';btn.textContent=THEME_DEFS[idx].name+' 으로 생성하기';}
-  };
-  window.confirmTheme=function(){
-    var idx=window._thSel;if(idx===undefined)return;
-    var renderIdx=THEME_DEFS[idx].renderIdx;
-    document.getElementById('sales-theme-modal').remove();
-    // showCvSales 대신 직접 영역만 표시 (이중 renderCvSalesPage 호출 방지)
-    document.getElementById('cv-result-state').style.display='none';
-    var ss=document.getElementById('cv-sales-state');
-    if(ss){ ss.style.display=''; setTimeout(function(){ss.scrollIntoView({behavior:'instant',block:'start'});},30); }
-    var eb=window._thEB||APP.ebook;
-    /* Atlas Product Workflow Redesign (Round 12): 이 구버전 테마 도구는 이제
-       주 6단계 흐름 밖(설정 화면)에서만 열리는 보조 도구다 — 더 이상 존재하지
-       않는 'sales' 단계로 워크스페이스 배너를 바꾸지 않는다(현재 단계 그대로 유지). */
-    if(eb){renderCvSalesPage(eb, renderIdx);}
-    else showToast('error','전자책을 먼저 생성해주세요.');
-  };
 }
 function closeErrorPopup(el){
   var p=el;
@@ -1933,17 +1683,6 @@ function showErrorPopup(msg){
   overlay.appendChild(div);
   document.body.appendChild(overlay);
   if(window.AtlasIcons)AtlasIcons.applyAll(div);
-}
-
-function showCvSales(){
-  document.getElementById('cv-result-state').style.display='none';
-  var ss=document.getElementById('cv-sales-state');
-  if(ss){
-    ss.style.display='';
-    setTimeout(function(){ss.scrollIntoView({behavior:'instant',block:'start'});},30);
-  }
-  if(APP.ebook){renderCvSalesPage(APP.ebook);}
-  else showToast('error','전자책을 먼저 생성해주세요.');
 }
 
 function downloadDocx(e){
@@ -2422,8 +2161,6 @@ function downloadDocx(e){
   }catch(err){showToast('error','오류: '+err.message);}
 }
 
-function hideCvSales(){document.getElementById('cv-sales-state').style.display='none';document.getElementById('cv-result-state').style.display='';}
-
 // ── 리치 에디터 ──
 function execF(cmd,val){document.execCommand(cmd,false,val||null);}
 function setFontSize(size){
@@ -2439,7 +2176,6 @@ function setFontSize(size){
 function saveRange(){var s=window.getSelection();return(s&&s.rangeCount>0)?s.getRangeAt(0):null;}
 function restoreRange(r){if(!r)return;var s=window.getSelection();s.removeAllRanges();s.addRange(r);}
 function insertEditorImage(){APP._savedRange=saveRange();document.getElementById('editor-img-input').click();}
-function insertSpImage(){APP._savedRange=saveRange();document.getElementById('sp-img-input').click();}
 function handleEditorImage(input,targetId){
   var f=input.files[0];if(!f)return;
   var reader=new FileReader();
@@ -2465,68 +2201,5 @@ function toggleCvEdit(){
   setEditableAll(doc,APP.editMode);
   if(!APP.editMode)showToast('success','편집이 저장되었습니다');
 }
-function toggleCvSalesEdit(){
-  APP.salesEditMode=!APP.salesEditMode;
-  var btn=document.getElementById('cv-sp-editbtn');
-  var toolbar=document.getElementById('cv-sp-toolbar');
-  var body=document.getElementById('cv-sp-body');
-  if(!body)return;
-  toolbar.style.display=APP.salesEditMode?'flex':'none';
-  if(btn){
-    btn.textContent=APP.salesEditMode?'완료':'편집';
-    btn.style.cssText=APP.salesEditMode?'background:var(--a2-success-soft);border-color:var(--a2-success);color:var(--a2-success)':'';
-  }
-  // 상세페이지 카드 안 모든 텍스트 편집 가능
-  var editables=body.querySelectorAll('h1,h2,h3,h4,p,span,div');
-  editables.forEach(function(el){
-    // 버튼, 스크립트, 이미지 컨테이너 제외
-    if(el.tagName==='BUTTON'||el.closest('button')||el.tagName==='SVG')return;
-    if(el.querySelector('button,svg,canvas'))return;
-    if(APP.salesEditMode){
-      el.contentEditable='true';
-      el.style.outline='1px dashed rgba(99,102,241,0.4)';
-      el.style.minHeight='1em';
-    } else {
-      el.contentEditable='false';
-      el.style.outline='';
-      el.style.minHeight='';
-    }
-  });
-  if(!APP.salesEditMode)showToast('success','상세페이지 편집이 저장되었습니다');
-}
-
 function getRandomTheme(arr){return arr[Math.floor(Math.random()*arr.length)];}
-function printCvSales(){
-  var body=document.getElementById('cv-sp-body');
-  if(!body){showToast('error','상세페이지를 먼저 생성해주세요.');return;}
-  var w=window.open('','_blank');
-  if(!w)return;
-  var css=getSalesCss();
-  var content=body.innerHTML;
-  w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'+css+'</head><body>'+content+'</body></html>');
-  w.document.close();
-}
-
-
-function dlSpSlide(n,btn){
-  if(typeof html2canvas==='undefined'){
-    showToast('error','잠시 후 다시 시도해주세요.');
-    if(btn){btn.disabled=false;}return;
-  }
-  var body=document.getElementById('cv-sp-body');
-  if(!body){showToast('error','상세페이지를 먼저 생성해주세요.');return;}
-  var el=body.querySelector('#sp-card-'+n);
-  if(!el){var all=body.querySelectorAll('[id^="sp-card-"]');if(all&&all[n-1])el=all[n-1];}
-  if(!el){showToast('error',n+'번 카드 없음. 상세페이지 재생성 해주세요.');if(btn)btn.disabled=false;return;}
-  html2canvas(el,{scale:2,useCORS:true,allowTaint:true}).then(function(canvas){
-    var a=document.createElement('a');
-    a.download='card-'+n+'.png';
-    a.href=canvas.toDataURL('image/png');
-    a.click();
-    if(btn)btn.disabled=false;
-  }).catch(function(err){
-    showToast('error','저장 실패: '+err.message);
-    if(btn)btn.disabled=false;
-  });
-}
 
