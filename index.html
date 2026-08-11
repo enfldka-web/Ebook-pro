@@ -422,9 +422,21 @@
               </div>
             </div>
           </div>
+          <!-- 2026-08-10: 사용자 지시 — 완성 화면에서 전자책 본문(제목/챕터
+               제목/챕터 본문/서문/서론/결론/부록)을 직접 고칠 수 있어야 한다.
+               표·체크리스트·프레임워크·타임라인처럼 구조로 관리되는 항목은
+               자유 텍스트 편집 시 데이터가 깨질 위험이 커서 이번 범위에서는
+               편집 대상이 아니다(그대로 읽기 전용) — atlasToggleEbookEditMode()
+               (js/application.js)가 자유 서술형 필드([data-atlas-field])만
+               contentEditable로 전환한다. -->
+          <div id="cv-edit-hint" class="a2-banner a2-banner-info" style="display:none;margin-bottom:10px">
+            <span data-icon="sparkle"></span><span>점선 표시된 부분(제목·본문 문단)을 클릭해서 바로 수정하세요. 표·체크리스트 같은 항목은 이 화면에서 편집할 수 없습니다.</span>
+          </div>
           <div class="result-actions">
             <button class="a2-btn a2-btn-secondary" onclick="resetConverter()"><span data-icon="arrowLeft"></span>새 프로젝트</button>
+            <button class="a2-btn a2-btn-secondary" id="cv-edit-toggle-btn" onclick="atlasToggleEbookEditMode()"><span data-icon="sparkle"></span>편집</button>
             <button class="a2-btn a2-btn-secondary" id="cv-docxbtn" onclick="downloadDocx(APP.ebook)"><span data-icon="file"></span>Word 저장</button>
+            <button class="a2-btn a2-btn-secondary" onclick="atlasDownloadEbookPdf()"><span data-icon="file"></span>PDF로 저장</button>
             <button class="a2-btn a2-btn-secondary" onclick="openAtlasPartialModal()"><span data-icon="sparkle"></span>특정 챕터/부분만 다시 생성</button>
             <button class="a2-btn a2-btn-secondary" onclick="atlasRegenerateEbookFromScratch()"><span data-icon="refresh"></span>전자책 처음부터 다시 생성</button>
           </div>

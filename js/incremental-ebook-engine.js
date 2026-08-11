@@ -192,7 +192,6 @@ ${KOREAN_LOCALIZATION_RULES}
   "targetReader":"구체적인 추천 독자 상황",
   "preface":"저자 서문. 사용자 입력에 실제 경험이 없으면 경험을 꾸며내지 말고 집필 배경과 문제의식 중심으로 작성",
   "intro":"서론",
-  "authorBio":"저자 소개. 정보가 없으면 전문성을 과장하지 않는 일반 소개",
   "conclusion":"핵심 정리와 실행 순서, 현실적인 응원",
   "chapterBriefs":[
     {"number":1,"title":"챕터 제목","type":"문제 해부형","summary":"이 챕터에서 다룰 핵심 내용 2~3문장"},
@@ -582,7 +581,7 @@ ${KOREAN_LOCALIZATION_RULES}
     return {
       title: o.title, subtitle: o.subtitle, author: o.author, category: o.category,
       description: o.description, targetReader: o.targetReader,
-      preface: o.preface, intro: o.intro, authorBio: o.authorBio,
+      preface: o.preface, intro: o.intro,
       chapters: state.chapters.slice(),
       conclusion: o.conclusion,
       appendices: state.appendices.slice(),

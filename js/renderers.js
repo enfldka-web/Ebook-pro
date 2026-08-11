@@ -89,16 +89,11 @@ function copyPrompt(id,btn){
 function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 
-var COVER_THEMES=[
-  {bg:'linear-gradient(135deg,#1a1a2e 0%,#0f3460 100%)',catBg:'rgba(255,255,255,.1)',catBorder:'rgba(255,255,255,.2)',divBg:'rgba(255,255,255,.3)'},
-  {bg:'linear-gradient(135deg,#052e16 0%,#166534 100%)',catBg:'rgba(255,255,255,.1)',catBorder:'rgba(255,255,255,.2)',divBg:'rgba(255,255,255,.3)'},
-  {bg:'linear-gradient(135deg,#1e1b4b 0%,#4c1d95 100%)',catBg:'rgba(255,255,255,.1)',catBorder:'rgba(255,255,255,.2)',divBg:'rgba(255,255,255,.3)'},
-  {bg:'linear-gradient(135deg,#1a0a0a 0%,#7f1d1d 100%)',catBg:'rgba(255,255,255,.1)',catBorder:'rgba(255,255,255,.2)',divBg:'rgba(255,255,255,.3)'},
-  {bg:'linear-gradient(135deg,#0f172a 0%,#075985 100%)',catBg:'rgba(255,255,255,.1)',catBorder:'rgba(255,255,255,.2)',divBg:'rgba(255,255,255,.3)'},
-  {bg:'linear-gradient(135deg,#1c1008 0%,#3d3000 100%)',catBg:'rgba(255,255,255,.1)',catBorder:'rgba(255,255,255,.2)',divBg:'rgba(255,255,255,.3)'},
-  {bg:'linear-gradient(135deg,#1a0616 0%,#6b21a8 100%)',catBg:'rgba(255,255,255,.1)',catBorder:'rgba(255,255,255,.2)',divBg:'rgba(255,255,255,.3)'},
-  {bg:'linear-gradient(135deg,#0f172a 0%,#334155 100%)',catBg:'rgba(255,255,255,.1)',catBorder:'rgba(255,255,255,.2)',divBg:'rgba(255,255,255,.3)'}
-];
+/* 2026-08-10: 사용자가 첨부한 참고 전자책(다크 네이비 + 골드 프리미엄 에디토리얼
+   스타일)을 모방해달라고 요청 — 매 전자책마다 색이 바뀌던 랜덤 그라디언트
+   COVER_THEMES 대신, 참고 스타일과 같은 단일 고정 아이덴티티를 쓴다. Atlas
+   CSS(:root)에 이미 있는 --gold(#e8b84b) 토큰과 짝을 맞춘 다크 네이비 한
+   색상만 쓴다(참고 PDF에서 실측한 값과 가장 가까운 톤). */
 function getRandomTheme(arr){return arr[Math.floor(Math.random()*arr.length)];}
 
 /* Atlas Redesign Phase 2: Success/Error/Info toast now backed by
@@ -142,25 +137,40 @@ function renderCvEbook(e){
   var c=e.copyright||{};
   var chs=e.chapters||[];
   var apps=e.appendices||[];
-  // 랜덤 표지 테마
-  var th=getRandomTheme(COVER_THEMES);
   // 이 책에서 러닝 푸터(페이지 번호)가 붙는 "읽기" 페이지 총 개수를 먼저 계산
   var footerTotal=1/*저작권*/+(e.preface?1:0)+1/*목차*/+(e.intro?1:0)+chs.length/*챕터 본문*/+1/*결론*/+apps.length;
   var footerIdx=0;
   var footerCopyright='ⓒ '+(c.year||'2025')+' '+e.author;
   function nextFooter(){footerIdx++;return pgFooter(e.title,footerCopyright,footerIdx,footerTotal);}
 
+  /* 2026-08-10: 목차에 실제 페이지 번호를 넣기 위한 사전 계산. .pg 하나 =
+     인쇄/PDF 시 정확히 한 페이지라는 규칙(css/styles.css @media print)을
+     그대로 이용해, 아래 pages.push() 호출 순서와 정확히 같은 순서로 절대
+     페이지 번호를 미리 센다(지어내지 않고 실제로 쌓일 순서를 그대로 계산 —
+     Never-Guess). 표지=1, 저작권=2, 서문(있으면)=+1, 목차=그 다음 페이지,
+     서론(있으면)=+1, 이후 각 챕터는 오프너+본문 2페이지씩. */
+  var absPage=2; // 1=표지, 2=저작권
+  if(e.preface)absPage++;
+  var tocPageNum=absPage+1;
+  absPage=tocPageNum;
+  if(e.intro)absPage++;
+  var chapterPageNums=[];
+  for(var pi=0;pi<chs.length;pi++){ absPage++; chapterPageNums.push(absPage); absPage++; }
+  absPage++;
+  var conclusionPageNum=absPage;
+  var appendixPageNum=apps.length?absPage+1:null;
+
   var pages=[];
-  // 표지 — 고유 아트워크 페이지, 러닝 푸터 없음(원문 참고서도 표지엔 페이지 번호가 없다)
-  pages.push('<div class="pg cvr" style="background:'+th.bg+'">'
-    +'<div class="ccirc" style="width:560px;height:560px;top:-180px;right:-180px"></div>'
-    +'<div class="ccirc" style="width:380px;height:380px;bottom:-140px;left:-140px"></div>'
-    +'<div class="ccat" style="background:'+th.catBg+';border:1px solid '+th.catBorder+';color:'+th.accentLight+'">'+ebIcon('book',12)+' '+x(e.category)+'</div>'
-    +'<div class="ctit">'+x(e.title)+'</div>'
-    +'<div class="csub">'+x(e.subtitle)+'</div>'
-    +'<div class="cdiv" style="background:'+th.divBg+'"></div>'
-    +'<div class="caut">지은이 <strong>'+x(e.author)+'</strong></div>'
-    +'<div class="cyr">'+x(c.year||'2025')+'</div></div>');
+  // 표지 — 참고 전자책 스타일(다크 네이비 + 골드)을 모방한 고정 아이덴티티,
+  // 러닝 푸터 없음(원문 참고서도 표지엔 페이지 번호가 없다)
+  pages.push('<div class="pg cvr">'
+    +'<div class="cvr-spark cvr-spark-a">'+ebIcon('sparkle',13)+'</div>'
+    +'<div class="cvr-spark cvr-spark-b">'+ebIcon('sparkle',10)+'</div>'
+    +'<div class="ccat">'+x(e.category)+'</div>'
+    +'<div class="ctit-box"><div class="ctit" contenteditable="false" data-atlas-field="title">'+x(e.title)+'</div></div>'
+    +'<div class="csub" contenteditable="false" data-atlas-field="subtitle">'+x(e.subtitle)+'</div>'
+    +'<div class="cvr-foot"><div class="caut">'+x(e.author)+'</div><div class="cyr">'+x(c.year||'2025')+' · '+x(e.category)+'</div></div>'
+    +'</div>');
   // 저작권
   pages.push('<div class="pg cpg"><div class="cinn"><div class="clbl">저작권 및 법적 고지</div><div class="ctxt">'
     +'<p><strong>제목:</strong> '+x(e.title)+'</p>'
@@ -173,32 +183,26 @@ function renderCvEbook(e){
   // 저자 서문
   if(e.preface){
     pages.push('<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' PREFACE</div><div class="sh">저자 서문</div>'
-      +'<div class="chb">'+renderText(e.preface)+'</div>'+nextFooter()+'</div>');
+      +'<div class="chb" contenteditable="false" data-atlas-field="preface">'+renderText(e.preface)+'</div>'+nextFooter()+'</div>');
   }
-  // 저자 소개 — 커버와 같은 계열의 아트워크 페이지, 러닝 푸터 없음
-  var bio=e.authorBio||e.author_bio||e.bio||'(저자 소개 정보가 없습니다)';
-  pages.push('<div class="pg apg"><div class="ah">저자 소개</div>'
-    +'<div class="ac"><div class="aa">'+ebIcon('user',28)+'</div><div style="flex:1">'
-    +'<div class="an">'+x(e.author)+'</div>'
-    +'<div class="ar">'+x((e.category||'').toUpperCase())+' AUTHOR</div>'
-    +'<div class="ab">'+renderText(bio)+'</div>'
-    +'</div></div></div>');
-  // 목차
+  // 목차 — 참고 스타일처럼 점선 리더 + 실제 페이지 번호(위에서 미리 계산한 값)
   var toc='<div class="pg inn"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">목차</div>';
   for(var i=0;i<chs.length;i++){
     toc+='<div class="ti">'
-      +'<span class="tn">CH.'+pad(chs[i].number)+'</span>'
+      +'<span class="tn">CHAPTER '+pad(chs[i].number)+'</span>'
       +'<span class="tt">'+x(chs[i].title)+'</span>'
+      +'<span class="tdots"></span>'
+      +'<span class="tpg">P.'+chapterPageNums[i]+'</span>'
       +'</div>';
   }
-  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span></div>';
-  toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span></div>';
+  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span><span class="tdots"></span><span class="tpg">P.'+conclusionPageNum+'</span></div>';
+  if(appendixPageNum)toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span><span class="tdots"></span><span class="tpg">P.'+appendixPageNum+'</span></div>';
   toc+=nextFooter()+'</div>';
   pages.push(toc);
   // 서론
   if(e.intro){
     var introHtml='<div class="pg inn"><div class="ey">'+ebIcon('compass',12)+' INTRODUCTION</div><div class="sh">서론</div>'
-      +'<div class="chb">'+renderText(e.intro)+'</div>';
+      +'<div class="chb" contenteditable="false" data-atlas-field="intro">'+renderText(e.intro)+'</div>';
     if(e.targetReader){introHtml+='<div class="tgtb"><div class="tgtb-ic">'+ebIcon('target',16)+'</div><div><h4>이 책이 필요한 독자</h4><p>'+x(e.targetReader)+'</p></div></div>';}
     introHtml+=nextFooter()+'</div>';
     pages.push(introHtml);
@@ -210,11 +214,9 @@ function renderCvEbook(e){
   for(var i=0;i<chs.length;i++){
     var ch=chs[i];
     pages.push('<div class="pg chop">'
-      +'<div class="chop-eyebrow">'+ebIcon('book',12)+' CHAPTER</div>'
-      +'<div class="chop-num">'+pad(ch.number)+'</div>'
-      +'<div class="chop-title">'+x(ch.title)+'</div>'
-      +'<div class="chop-div"></div>'
-      +'<div class="chop-cat">'+x(e.category||'')+'</div>'
+      +'<div class="chop-badge">CHAPTER '+pad(ch.number)+'</div>'
+      +'<div class="chop-title" contenteditable="false" data-atlas-field="chapterTitle" data-atlas-chapter="'+i+'">'+x(ch.title)+'</div>'
+      +'<div class="chop-spark">'+ebIcon('sparkle',12)+'</div>'
       +'</div>');
     var h='<div class="pg inn">';
     h+='<div class="cb"><div class="cp">'+ebIcon('book',14)+' CHAPTER '+pad(ch.number)+'</div><div class="cl">'+x(e.category||'')+'</div></div>';
@@ -259,11 +261,11 @@ function renderCvEbook(e){
       mid++;
     }
     if(midComponents&&bodyBlocks.length>=2&&mid<bodyBlocks.length){
-      h+='<div class="chb">'+bodyBlocks.slice(0,mid).join('')+'</div>'
+      h+='<div class="chb" contenteditable="false" data-atlas-field="chapterContent" data-atlas-chapter="'+i+'" data-atlas-part="0">'+bodyBlocks.slice(0,mid).join('')+'</div>'
         +midComponents
-        +'<div class="chb">'+bodyBlocks.slice(mid).join('')+'</div>';
+        +'<div class="chb" contenteditable="false" data-atlas-field="chapterContent" data-atlas-chapter="'+i+'" data-atlas-part="1">'+bodyBlocks.slice(mid).join('')+'</div>';
     }else{
-      h+='<div class="chb">'+bodyBlocks.join('')+'</div>'+midComponents;
+      h+='<div class="chb" contenteditable="false" data-atlas-field="chapterContent" data-atlas-chapter="'+i+'">'+bodyBlocks.join('')+'</div>'+midComponents;
     }
     // Action Box — 오늘의 실행 (real actionBox field, one or more concrete actions)
     if(ch.actionBox&&ch.actionBox.length){
@@ -315,7 +317,7 @@ function renderCvEbook(e){
   // 결론
   var concl='<div class="pg inn" style="background:#fafaf9"><div class="ey">'+ebIcon('crown',12)+' CONCLUSION</div><div class="sh">결론</div>';
   var conclusionHtml=e.conclusion&&e.conclusion.length>10&&e.conclusion.charAt(0)!=='['?renderText(e.conclusion):'<p>이 전자책을 통해 다양한 전략과 방법을 살펴봤습니다. 꾸준히 실천하며 성장해 나가시길 진심으로 응원합니다. 작은 것부터 하나씩 시작하면 반드시 변화가 찾아올 것입니다.</p>';
-  concl+='<div class="chb">'+conclusionHtml+'</div>';
+  concl+='<div class="chb" contenteditable="false" data-atlas-field="conclusion">'+conclusionHtml+'</div>';
   concl+='<div class="impactb"><div class="impactb-mark">&ldquo;</div><p>이 책을 완독한 당신은 이미 99%를 앞서 있습니다</p><small>지금 바로 첫 번째 실천을 시작하세요</small></div>';
   concl+=nextFooter()+'</div>';
   pages.push(concl);
@@ -323,7 +325,7 @@ function renderCvEbook(e){
   if(apps.length){
     for(var i=0;i<apps.length;i++){
       var apHtml='<div class="pg inn"><div class="ey">'+ebIcon('file',12)+' APPENDIX '+(i+1)+'</div><div class="sh">'+x(apps[i].title)+'</div>';
-      apHtml+='<div class="chb">'+renderText(apps[i].content||'')+'</div>';
+      apHtml+='<div class="chb" contenteditable="false" data-atlas-field="appendixContent" data-atlas-appendix="'+i+'">'+renderText(apps[i].content||'')+'</div>';
       apHtml+=nextFooter()+'</div>';
       pages.push(apHtml);
     }
