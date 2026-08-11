@@ -1462,3 +1462,114 @@ textarea{resize:vertical}
 /* 2026-08-10: 사용자 지시로 Thumbnail Studio(Milestone 2)/Sales Page Studio
    (Milestone 3)/Brand Pack 재스킨(.ads-scope, Milestone 3.1) CSS 전체(~430줄)를
    삭제했다 — 해당 화면들이 index.html에서 전면 삭제되어 더 이상 쓰이지 않는다. */
+
+/* 2026-08-10: 전자책 완성 후 고정 템플릿 4종 썸네일 선택(js/thumbnail-templates.js).
+   AI 이미지 생성이 아니라 지금 책의 실제 title/subtitle/category를 CSS
+   템플릿에 얹어 그리는 순수 프론트엔드 기능 — 위에서 지운 AI 파이프라인과는
+   무관하다. 규격은 이 프로젝트에서 이미 검증했던 Kmong 표준 652×488(4:3)을
+   그대로 쓴다. 미리보기 축소 비율(300/652≈0.4601)도 과거 Round 34에서 이미
+   확정했던 300×224 후보 미리보기 크기와 같은 값을 재사용한다(새로 짓지 않음). */
+.thumb-tpl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:16px}
+.thumb-tpl-card{border:2px solid var(--a2-border);border-radius:var(--a2-r);overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s;background:var(--a2-surface)}
+.thumb-tpl-card:hover{border-color:var(--a2-accent)}
+.thumb-tpl-card.selected{border-color:var(--a2-accent);box-shadow:0 0 0 3px rgba(99,102,241,.18)}
+.thumb-tpl-preview{position:relative;width:300px;height:224px;overflow:hidden;background:#000;max-width:100%}
+.thumb-tpl-preview .thumb-tpl{transform:scale(.4601);transform-origin:top left}
+.thumb-tpl-card-label{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.thumb-tpl-card-name{font-size:13px;font-weight:800;color:var(--a2-text)}
+.thumb-tpl-card-desc{font-size:11px;color:var(--a2-text-faint);margin-top:2px;line-height:1.5}
+.thumb-tpl-card-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--a2-border);flex-shrink:0}
+.thumb-tpl-card.selected .thumb-tpl-card-check{background:var(--a2-accent);border-color:var(--a2-accent)}
+#thumb-export-stage{position:absolute;left:-9999px;top:-9999px}
+/* 2026-08-11: 카드별 "AI 이미지 생성" 버튼 + 상태 텍스트(생성 중.../실패
+   메시지). 카드 클릭(=선택)과 이 버튼 클릭이 겹치지 않도록 별도 행에 둔다. */
+.thumb-tpl-card-actions{padding:0 12px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.thumb-ai-gen-btn{font-size:12px;padding:7px 12px}
+.thumb-ai-status{font-size:11px;color:var(--a2-text-faint)}
+
+/* 템플릿 4종 공통 골격 — 652×488 고정(Kmong 표준). 참고 이미지 4장(파일명
+   BESTSELLER EDITORIAL/MARKETPLACE IMPACT/PROBLEM SOLVER/PUBLISHER PREMIUM)의
+   실제 레이아웃(배지, 상품/문서 목업, 방향 그래픽, CTA 버튼)을 그대로 반영해
+   테마마다 구조 자체가 다르므로, 공통 골격은 캔버스 크기/타이포 베이스만 담고
+   나머지는 테마별 블록에서 배치한다. */
+.thumb-tpl{width:652px;height:488px;box-sizing:border-box;position:relative;font-family:'Pretendard',sans-serif;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.thumb-tpl .tt-badge{position:absolute;top:44px;left:52px;font-size:13px;font-weight:700;padding:8px 18px;border-radius:100px;letter-spacing:.3px}
+.thumb-tpl .tt-title{font-size:38px;font-weight:800;line-height:1.32;word-break:keep-all}
+.thumb-tpl .tt-subtitle{font-size:16px;line-height:1.6;word-break:keep-all;margin-top:8px;max-width:420px}
+.thumb-tpl .tt-cta{display:inline-block;margin-top:16px;font-size:14px;font-weight:700;padding:11px 22px;border-radius:10px}
+/* 하단 아이콘 배지 4개 — 참고 이미지에 실제로 있던 문구(T.THEME_ICONS)를
+   그대로 얹는다. AI 배경 이미지가 있을 때는 어두운 스크림 위라 흰색으로,
+   없을 때(flat 폴백)는 테마별 색으로 보인다(has-ai-bg 오버라이드 참고). */
+.thumb-tpl .tt-icons{position:absolute;left:52px;right:52px;bottom:24px;display:flex;gap:20px;flex-wrap:wrap}
+.thumb-tpl .tt-icon-chip{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700}
+.thumb-tpl .tt-icon-chip svg{width:15px;height:15px;flex-shrink:0}
+
+/* 1) 베스트셀러 에디토리얼 — 이번에 새로 만든 전자책 표지(.cvr/.ctit)와 같은
+   다크 네이비+골드 톤을 그대로 재사용해 표지와 썸네일이 한 브랜드로 보인다.
+   참고 이미지: 상단 골드 pill 배지 + 좌하단 굵은 흰/골드 타이틀 + 우측 골드
+   점 3개가 대각선으로 흩어진 장식. */
+.tt-bestseller{background:linear-gradient(165deg,#1c1732 0%,#241d40 100%);display:flex;flex-direction:column;justify-content:center;padding:56px}
+.tt-bestseller .tt-badge{position:static;align-self:flex-start;background:transparent;border:1.5px solid var(--gold);color:var(--gold);margin-bottom:26px;padding:8px 18px}
+.tt-bestseller .tt-title{color:#fff}
+.tt-bestseller .tt-title::after{content:''}
+.tt-bestseller .tt-subtitle{color:rgba(255,255,255,.5)}
+.tt-bestseller .tt-dots{position:absolute;right:90px;top:150px;width:120px;height:120px}
+.tt-bestseller .tt-dots span{position:absolute;border-radius:50%;background:var(--gold)}
+.tt-bestseller .tt-dots span:nth-child(1){width:16px;height:16px;top:0;right:0}
+.tt-bestseller .tt-dots span:nth-child(2){width:10px;height:10px;top:44px;right:44px;opacity:.75}
+.tt-bestseller .tt-dots span:nth-child(3){width:7px;height:7px;top:80px;right:78px;opacity:.5}
+.tt-bestseller .tt-icons{color:rgba(255,255,255,.85)}
+
+/* 2) 마켓플레이스 임팩트 — 참고 이미지: 블루 단색 배경, 상단 크림색 pill 배지,
+   우측에 흰 라운드 카드(목업 문서: 회색 라인 3개 + 골드 CTA 짧은 바), 좌하단
+   굵은 흰 타이틀 + 진한 블루 CTA 버튼. */
+.tt-marketplace{background:#3d5ce6}
+.tt-marketplace .tt-badge{background:#fdf1dd;color:#3d5ce6}
+.tt-marketplace .tt-mock{position:absolute;top:112px;right:70px;width:220px;height:210px;background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 20px 40px rgba(0,0,0,.18)}
+.tt-marketplace .tt-mock-line{height:14px;border-radius:7px;background:#e8ecfb;margin-bottom:14px}
+.tt-marketplace .tt-mock-line.l1{width:100%}
+.tt-marketplace .tt-mock-line.l2{width:82%}
+.tt-marketplace .tt-mock-line.l3{width:60%;margin-bottom:22px}
+.tt-marketplace .tt-mock-cta{width:56px;height:14px;border-radius:7px;background:#f5b942}
+.tt-marketplace .tt-bottom{position:absolute;left:52px;bottom:78px;max-width:320px}
+.tt-marketplace .tt-title{color:#fff}
+.tt-marketplace .tt-subtitle{color:rgba(255,255,255,.75)}
+.tt-marketplace .tt-cta{background:#1c1732;color:#fff}
+.tt-marketplace .tt-icons{color:#fff}
+
+/* 3) 문제 해결형 — 참고 이미지: 그린 단색 배경, 상단 골드 pill 배지, 우측 상단
+   흰색 대각선 화살표(문제→해결의 상승 방향) + 그 아래 둥근 사각 포인트, 좌하단
+   굵은 흰 타이틀 + 골드 CTA 버튼. */
+.tt-problem{background:#1c6b4a}
+.tt-problem .tt-badge{background:#f5b942;color:#173a2c}
+.tt-problem .tt-arrow-wrap{position:absolute;top:96px;right:96px;width:130px;height:130px}
+.tt-problem .tt-arrow-box{position:absolute;left:0;bottom:0;width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.14)}
+.tt-problem .tt-arrow-icon{position:absolute;right:0;top:0;width:56px;height:56px}
+.tt-problem .tt-arrow-icon svg{width:100%;height:100%}
+.tt-problem .tt-bottom{position:absolute;left:52px;bottom:78px;max-width:340px}
+.tt-problem .tt-title{color:#fff}
+.tt-problem .tt-subtitle{color:rgba(255,255,255,.7)}
+.tt-problem .tt-cta{background:#f5b942;color:#173a2c}
+.tt-problem .tt-icons{color:#fff}
+
+/* 4) 퍼블리셔 프리미엄 — 참고 이미지: 크림 배경, 중앙 상단에 흰색 도서 목업
+   카드(가는 블루 룰 라인 + "EBOOK" 라벨 + 회색 텍스트 라인)와 그 아래 그림자
+   타원, 좌하단 절제된 다크 타이틀. 배지/CTA 없이 가장 차분한 톤. */
+.tt-publisher{background:#f5f1e8}
+.tt-publisher .tt-card{position:absolute;left:50%;top:64px;transform:translateX(-50%);width:150px;height:200px;background:#fff;border-radius:10px;box-shadow:0 24px 40px rgba(28,23,50,.12);padding:26px 22px;box-sizing:border-box}
+.tt-publisher .tt-card-rule{width:52px;height:2px;background:#3d5ce6;margin-bottom:18px}
+.tt-publisher .tt-card-ebook{font-size:12px;font-weight:800;letter-spacing:1.5px;color:#1c1732;margin-bottom:22px}
+.tt-publisher .tt-card-line{height:2px;background:#e4e0d6;margin-bottom:10px}
+.tt-publisher .tt-card-line.l3{width:70%}
+.tt-publisher .tt-card-shadow{position:absolute;left:50%;top:280px;transform:translateX(-50%);width:170px;height:26px;border-radius:50%;background:rgba(28,23,50,.08)}
+.tt-publisher .tt-bottom{position:absolute;left:52px;bottom:78px;max-width:400px}
+.tt-publisher .tt-title{color:#1c1732;font-size:30px}
+.tt-publisher .tt-subtitle{color:#7a7566}
+.tt-publisher .tt-icons{color:#1c1732}
+
+/* AI 배경 이미지가 생성되면 크림 배경 대신 어두운 왕관+월계관 사진 위에
+   스크림이 깔린다 — 퍼블리셔 프리미엄만 원래 다크 텍스트라서 흰색으로
+   뒤집어야 계속 읽힌다(다른 3개 테마는 이미 흰 텍스트라 그대로 둬도 된다). */
+.tt-publisher.has-ai-bg .tt-title{color:#fff}
+.tt-publisher.has-ai-bg .tt-subtitle{color:rgba(255,255,255,.75)}
+.tt-publisher.has-ai-bg .tt-icons{color:#fff}

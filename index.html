@@ -432,6 +432,13 @@
           <div id="cv-edit-hint" class="a2-banner a2-banner-info" style="display:none;margin-bottom:10px">
             <span data-icon="sparkle"></span><span>점선 표시된 부분(제목·본문 문단)을 클릭해서 바로 수정하세요. 표·체크리스트 같은 항목은 이 화면에서 편집할 수 없습니다.</span>
           </div>
+          <!-- 2026-08-10: 사용자 지시 — 완성된 전자책을 보고 고정 템플릿 4종
+               썸네일 중 원하는 것을 고르게 해달라(AI 이미지 생성 아님,
+               js/thumbnail-templates.js). 다음 단계로 가는 길은 이 버튼
+               하나뿐이라는 기존 원칙을 유지해 강조 CTA로 둔다. -->
+          <div style="margin:14px 0">
+            <button class="a2-btn a2-btn-primary" style="font-size:15px;padding:14px 28px" onclick="atlasGoToThumbnailPicker()"><span data-icon="sparkle"></span>썸네일 만들기</button>
+          </div>
           <div class="result-actions">
             <button class="a2-btn a2-btn-secondary" onclick="resetConverter()"><span data-icon="arrowLeft"></span>새 프로젝트</button>
             <button class="a2-btn a2-btn-secondary" id="cv-edit-toggle-btn" onclick="atlasToggleEbookEditMode()"><span data-icon="sparkle"></span>편집</button>
@@ -445,6 +452,34 @@
           <div class="ebook-preview-wrap"><div class="ebook-preview-inner" id="cv-edoc"></div></div>
         </div>
 
+        <!-- 2026-08-11: 썸네일 4테마 선택 화면. js/thumbnail-templates.js가
+             지금 전자책의 실제 제목/부제/카테고리를 얹어 즉시 미리보기(flat
+             배경)를 그려두고, 사용자가 카드별 "AI 이미지 생성" 버튼을 직접
+             누르면 그때(js/application.js atlasGenerateThumbnailAiBg)만
+             server/image-gateway.js를 통해 실제 OpenAI 이미지 생성이
+             일어난다 — 비용이 드는 호출이라 4장을 자동으로 만들지 않는다.
+             #thumb-export-stage는 화면 밖(-9999px)에 실제 크기(652×488)로
+             선택된 템플릿을 하나 더 그려두는 곳 — 미리보기는 CSS로 축소해서
+             보여주지만 PNG 저장은 항상 원본 크기로 캡처해야 해상도가 깨지지
+             않는다(생성된 AI 배경도 그대로 함께 캡처됨, Preview==Export). -->
+        <div id="cv-thumbnail-picker-state" style="display:none">
+          <div class="ts-head">
+            <div>
+              <div class="cv-step-eyebrow">썸네일 만들기</div>
+              <div class="cv-step-title">원하는 스타일을 고르세요</div>
+              <div class="cv-step-sub">지금 완성된 전자책의 제목으로 4가지 스타일을 미리 만들어봤습니다. 마음에 드는 카드에서 "AI 이미지 생성"을 눌러 배경을 만들고, 선택 후 PNG로 저장하세요.</div>
+            </div>
+            <button class="a2-btn a2-btn-secondary" onclick="atlasBackToEbookResultFromThumbs()"><span data-icon="arrowLeft"></span>전자책으로</button>
+          </div>
+          <div id="thumb-ai-status-banner" class="a2-banner a2-banner-info" style="display:none;margin-bottom:10px">
+            <span data-icon="sparkle"></span><span>서버에 OpenAI API 키가 설정되지 않아 AI 이미지 생성을 사용할 수 없습니다. 지금은 기본 배경으로 미리보기됩니다.</span>
+          </div>
+          <div id="thumb-tpl-grid" class="thumb-tpl-grid"></div>
+          <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="a2-btn a2-btn-primary" id="thumb-download-btn" disabled onclick="atlasDownloadThumbnailPng()"><span data-icon="file"></span>PNG로 저장</button>
+          </div>
+          <div id="thumb-export-stage"></div>
+        </div>
 
   </div>
     
@@ -564,6 +599,7 @@
 <script src="js/anthropic-gateway-client.js"></script>
 <script src="js/incremental-ebook-engine.js"></script>
 <script src="js/ebook-progress-store.js"></script>
+<script src="js/thumbnail-templates.js"></script>
 <script src="js/application.js"></script>
 <script src="js/bootstrap.js"></script>
 
