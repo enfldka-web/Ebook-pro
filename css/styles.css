@@ -847,6 +847,14 @@ textarea{resize:vertical}
    exported product — Preview==Export stays untouched, Design Bible §invariant). */
 .ebook-preview-wrap{background:var(--a2-bg);border-radius:var(--a2-r-lg);overflow:hidden;padding:20px;border:1px solid var(--a2-border)}
 
+/* 2026-08-10: 완성 화면에서 전자책 내용을 직접 수정하는 기능(js/application.js
+   atlasToggleEbookEditMode). 편집 모드일 때만 지정된 자유 서술형 필드
+   ([data-atlas-field], contentEditable=true)에 점선 아웃라인을 준다 — 표/
+   체크리스트/프레임워크처럼 구조화된 박스는 편집 대상이 아니므로 이 표시가
+   붙지 않는다(그대로 읽기 전용). */
+#cv-edoc.atlas-edit-mode [data-atlas-field]{outline:1.5px dashed rgba(99,102,241,.4);outline-offset:3px;border-radius:4px;cursor:text}
+#cv-edoc.atlas-edit-mode [data-atlas-field]:hover{outline-color:rgba(99,102,241,.7);background:rgba(99,102,241,.03)}
+
 /* PROMPT BOX — single authoritative definition now lives with the rest of
    the ebook page CSS below (this dark-glass variant was permanently
    overridden by the later light-green rule and was dead code). */
@@ -875,15 +883,22 @@ textarea{resize:vertical}
    Word (.docx) export is a wholly separate OOXML builder (application.js)
    and is not affected by this CSS — only the HTML preview (#cv-edoc). */
 .pg{background:#fff;color:#1a1a2e;border-radius:12px;overflow:hidden;box-shadow:0 10px 34px rgba(15,15,35,.10);position:relative;margin-bottom:28px}
-.cvr{min-height:620px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:linear-gradient(160deg,#1a1a2e 0%,#16213e 40%,#0f3460 100%);padding:48px 36px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ccirc{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.14),transparent)}
-.ccat{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.22);border:1px solid rgba(99,102,241,.5);padding:5px 16px;border-radius:100px;font-size:11px;color:#a5b4fc;font-weight:700;letter-spacing:1px;margin-bottom:24px;position:relative}
-.ccat svg{width:12px;height:12px}
-.ctit{font-family:'Noto Serif KR',serif;font-size:clamp(24px,4vw,40px);font-weight:700;color:#fff;line-height:1.3;margin-bottom:14px;position:relative;letter-spacing:-.2px}
-.csub{font-size:14px;color:rgba(255,255,255,.55);line-height:1.8;max-width:440px;margin-bottom:28px;position:relative}
-.cdiv{width:48px;height:3px;background:linear-gradient(90deg,#6366f1,#a5b4fc);margin:0 auto 22px;border-radius:2px;position:relative}
-.caut{font-size:13px;color:rgba(255,255,255,.45);position:relative}.caut strong{color:rgba(255,255,255,.82)}
-.cyr{position:absolute;bottom:20px;right:28px;font-size:11px;color:rgba(255,255,255,.18)}
+/* 2026-08-10: 사용자가 첨부한 참고 전자책(다크 네이비 + 골드 프리미엄
+   에디토리얼 스타일)을 모방 — 표지/챕터 오프너를 매번 랜덤 그라디언트가
+   아니라 이 하나의 고정 아이덴티티로 통일한다. 왼쪽 정렬 + 테두리 박스 안
+   큰 골드 제목이라는 참고 PDF의 실제 레이아웃을 그대로 따른다(참고 PDF의
+   자체 브랜딩/홍보 링크는 가져오지 않음). */
+.cvr{min-height:640px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;background:linear-gradient(165deg,#1c1732 0%,#241d40 100%);padding:64px 52px;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cvr-spark{position:absolute;color:rgba(232,184,75,.4)}
+.cvr-spark-a{top:36px;left:36px}
+.cvr-spark-b{bottom:60px;right:44px}
+.ccat{font-size:12px;color:var(--gold);font-weight:600;letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
+.ctit-box{border:1px solid rgba(232,184,75,.4);border-radius:4px;padding:30px 34px;margin-bottom:22px;max-width:100%;box-sizing:border-box}
+.ctit{font-size:clamp(26px,4.2vw,42px);font-weight:800;color:var(--gold);line-height:1.3;letter-spacing:-.4px;word-break:keep-all}
+.csub{font-size:14px;color:rgba(255,255,255,.5);line-height:1.8;max-width:440px;margin-bottom:44px}
+.cvr-foot{display:flex;flex-direction:column;gap:4px}
+.caut{font-size:13px;color:rgba(255,255,255,.62);font-weight:600}
+.cyr{font-size:11px;color:rgba(255,255,255,.32)}
 .cpg{background:#fafaf9;padding:40px;display:flex;flex-direction:column;justify-content:flex-end;min-height:240px}
 .cinn{border-top:1px solid #e2e8f0;padding-top:16px}
 .clbl{font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
@@ -891,11 +906,16 @@ textarea{resize:vertical}
 .inn{padding:44px}
 .ey{display:flex;align-items:center;gap:7px;font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
 .ey svg{width:13px;height:13px}
-.sh{font-family:'Noto Serif KR',serif;font-size:25px;font-weight:700;color:#1a1a2e;margin-bottom:24px;line-height:1.3;letter-spacing:-.3px}
-.ti{display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid #f1f5f9}
-.tn{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#6366f1;font-weight:700;min-width:56px}
+.sh{font-size:25px;font-weight:800;color:#1a1a2e;margin-bottom:24px;line-height:1.3;letter-spacing:-.3px}
+/* 목차 — 참고 전자책처럼 챕터명과 페이지 번호를 점선 리더로 연결한다.
+   페이지 번호(.tpg)는 renderCvEbook()이 실제 페이지 순서를 미리 계산해
+   넣은 값이다(지어낸 숫자 아님). */
+.ti{display:flex;align-items:baseline;gap:10px;padding:13px 0;border-bottom:1px solid #f1f5f9}
+.tn{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#6366f1;font-weight:800;letter-spacing:.4px;flex-shrink:0}
 .tn svg{width:12px;height:12px;flex-shrink:0}
-.tt{font-size:15px;color:#1a1a2e;font-weight:500;flex:1;line-height:1.4}
+.tt{font-size:14.5px;color:#1a1a2e;font-weight:600;line-height:1.4;flex-shrink:0}
+.tdots{flex:1;border-bottom:1px dotted #cbd5e1;margin:0 2px;align-self:center}
+.tpg{font-size:13px;color:#1a1a2e;font-weight:800;font-variant-numeric:tabular-nums;flex-shrink:0}
 /* V3 Phase 1B: chapter content now opens with a running header (this used
    to be the whole "chapter opener" — now the opener is its own page, see
    .chop below, and this block is the continuation header atop the body
@@ -911,26 +931,19 @@ textarea{resize:vertical}
    already present in the AI-written content, just given hanging-indent,
    two-weight typography instead of flattening into identical paragraphs. */
 .chb-nrow,.chb-brow{display:flex;gap:12px;align-items:baseline;margin-bottom:13px}
-.chb-nnum{flex-shrink:0;min-width:22px;font-family:'Noto Serif KR',serif;font-weight:700;font-size:15.5px;color:#6366f1}
+.chb-nnum{flex-shrink:0;min-width:22px;font-weight:800;font-size:15.5px;color:#6366f1}
 .chb-bdot{flex-shrink:0;width:5px;height:5px;border-radius:50%;background:#6366f1;margin-top:9px}
 .chb-ntext{font-size:14.5px;color:#374151;line-height:1.95;word-break:keep-all}
 
 /* Chapter opener page — its own page, minimal and centered, so a chapter
-   start resets reading pace (Master Reference's chapter-opener rhythm).
-   V3 Phase 1B refinement: a full re-study of the reference from page 1 to
-   the last page showed every chapter/section divider (prologue, each
-   chapter, epilogue, appendix opener) is a dark page, deliberately distinct
-   from the white reading pages that follow it — a rhythm break, not a
-   one-off. Re-expressed through Atlas's own existing dark ebook palette
-   (the same navy gradient already used by .apg/.bkpg), not the reference's
-   own gold-on-black look. */
-.chop{min-height:520px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;background:linear-gradient(160deg,#1a1a2e,#16213e);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.chop-eyebrow{display:flex;align-items:center;gap:7px;font-size:11px;color:#a5b4fc;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:22px}
-.chop-eyebrow svg{width:12px;height:12px}
-.chop-num{font-family:'Noto Serif KR',serif;font-size:clamp(56px,10vw,88px);font-weight:700;color:rgba(255,255,255,.15);line-height:1;margin-bottom:8px}
-.chop-title{font-family:'Noto Serif KR',serif;font-size:clamp(22px,3.4vw,32px);font-weight:700;color:#fff;line-height:1.35;max-width:520px;letter-spacing:-.3px}
-.chop-div{width:40px;height:3px;background:linear-gradient(90deg,#6366f1,#a5b4fc);border-radius:2px;margin:22px 0}
-.chop-cat{font-size:11px;color:rgba(255,255,255,.45);font-weight:600;letter-spacing:1px;text-transform:uppercase}
+   start resets reading pace. 2026-08-10: 사용자가 첨부한 참고 전자책 스타일을
+   모방하도록 다크 네이비 + 골드 뱃지(.chop-badge)로 다시 그렸다(표지 .cvr과
+   같은 그라디언트 값을 공유 — 책 전체가 하나의 일관된 아이덴티티). */
+.chop{min-height:520px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;background:linear-gradient(165deg,#1c1732 0%,#241d40 100%);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.chop-badge{display:inline-flex;align-items:center;padding:7px 20px;border:1px solid rgba(232,184,75,.5);border-radius:100px;font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:26px}
+.chop-title{font-size:clamp(24px,3.6vw,34px);font-weight:800;color:#fff;line-height:1.35;max-width:560px;letter-spacing:-.3px;word-break:keep-all}
+.chop-spark{margin-top:26px;color:rgba(232,184,75,.5)}
+.chop-spark svg{width:12px;height:12px}
 
 /* Bold "thesis statement" — V3 Phase 1B refinement. The reference repeats a
    single bold declarative sentence several times per book (not just once at
@@ -1023,10 +1036,10 @@ textarea{resize:vertical}
 .fwb{margin:24px 0}
 .fwb h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#6366f1;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
 .fwb h4 svg{width:14px;height:14px}
-.fwb-name{font-family:'Noto Serif KR',serif;font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:14px}
+.fwb-name{font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:14px}
 .fwgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .fwcard{background:linear-gradient(160deg,#f7f8ff,#f6f2ff);border:1px solid #e6e8fb;border-radius:12px;padding:16px 15px}
-.fwcard-num{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:#a5b0f5;margin-bottom:8px}
+.fwcard-num{font-size:20px;font-weight:800;color:#a5b0f5;margin-bottom:8px}
 .fwcard-title{font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:5px;line-height:1.4}
 .fwcard p{font-size:12.5px;color:#3a3f5c;line-height:1.65}
 
@@ -1052,8 +1065,8 @@ textarea{resize:vertical}
    pull-quote treatment (Editorial Intelligence: "oversized impact
    statement... a genuinely strong, underused technique"). */
 .impactb{margin-top:32px;padding:36px 28px;text-align:center;background:linear-gradient(160deg,#1a1a2e,#20264a);border-radius:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.impactb-mark{font-family:'Noto Serif KR',serif;font-size:40px;color:#6366f1;line-height:.6;margin-bottom:6px}
-.impactb p{font-family:'Noto Serif KR',serif;font-size:19px;font-weight:700;color:#fff;line-height:1.5;letter-spacing:-.2px}
+.impactb-mark{font-size:40px;color:#6366f1;line-height:.6;margin-bottom:6px}
+.impactb p{font-size:19px;font-weight:800;color:#fff;line-height:1.5;letter-spacing:-.2px}
 .impactb small{font-size:12px;color:rgba(255,255,255,.5);margin-top:10px;display:block}
 
 .chnx{margin-top:26px;padding-top:16px;border-top:2px solid #eef0fb;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
@@ -1061,15 +1074,13 @@ textarea{resize:vertical}
 .chnx-done svg{width:13px;height:13px}
 .chnx-next{font-size:12.5px;color:#64748b}
 .chnx-next b{color:#1a1a2e}
-.apg{padding:44px;background:linear-gradient(160deg,#1a1a2e,#16213e);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ah{font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:#fff;margin-bottom:22px;letter-spacing:-.2px}
-.ac{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:26px;display:flex;gap:18px}
-.aa{width:64px;height:64px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#6366f1,#a5b4fc);display:flex;align-items:center;justify-content:center;color:#fff}
-.aa svg{width:28px;height:28px}
-.an{font-size:17px;color:#fff;font-weight:700;margin-bottom:3px}.ar{font-size:10px;color:#6366f1;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px}.ab{font-size:13px;color:rgba(255,255,255,.58);line-height:1.8}
-.bkpg{padding:40px;text-align:center;background:linear-gradient(160deg,#0f0f1a,#07070f);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.bkpg-ic{color:#6366f1}
-.bkpg h3{font-family:'Noto Serif KR',serif;font-size:18px;color:#fff;letter-spacing:-.2px}.bkpg p{font-size:12px;color:rgba(255,255,255,.38);line-height:1.7;max-width:360px}
+/* 2026-08-10: 사용자 지시로 "저자 소개" 페이지를 전자책 생성에서 완전히
+   삭제했다(js/renderers.js renderCvEbook, js/incremental-ebook-engine.js
+   authorBio 스키마 모두 제거) — 그 페이지 전용이던 .apg/.ah/.ac/.aa/.an/.ar/.ab
+   규칙도 더 이상 쓰이지 않아 함께 삭제한다. */
+.bkpg{padding:40px;text-align:center;background:linear-gradient(165deg,#1c1732 0%,#241d40 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bkpg-ic{color:var(--gold)}
+.bkpg h3{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.2px}.bkpg p{font-size:12px;color:rgba(255,255,255,.38);line-height:1.7;max-width:360px}
 .bkc{font-size:10px;color:rgba(255,255,255,.16);letter-spacing:1.3px;border-top:1px solid rgba(255,255,255,.07);padding-top:14px;width:100%;text-align:center}
 .prompt-box{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-left:4px solid #16a34a;border-radius:0 10px 10px 0;padding:16px 20px;margin:20px 0}
 .prompt-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}

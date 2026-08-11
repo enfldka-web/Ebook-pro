@@ -1490,6 +1490,20 @@ function atlasOpenTitleEditForm(){
 function atlasCancelTitleEdit(){
   var form=document.getElementById('cv-title-edit-form');if(form)form.style.display='none';
 }
+/* 이미 History(내 전자책)에 저장된 레코드가 있으면 그 레코드를 지금의
+   APP.ebook 내용으로 다시 채운다 — addEbook()이 title을 data.title과
+   별도로 top-level에도 스냅샷해두기 때문에 title은 항상 같이 갱신해야
+   History 카드에 옛 제목이 남지 않는다. 제목 실시간 수정과 아래 본문 편집
+   기능이 공통으로 쓰는 저장 지점. */
+function atlasSyncEbookToHistory(){
+  if(!APP.user||!APP.ebook||!APP.ebook.id)return;
+  var ebooks=getUserEbooks(APP.user.email);
+  var rec=ebooks.find(function(e){return e.id===APP.ebook.id;});
+  if(!rec)return;
+  rec.title=APP.ebook.title;
+  rec.data=APP.ebook;
+  saveUserEbooks(APP.user.email,ebooks);
+}
 function atlasSaveEditedTitle(){
   if(!APP.ebook){showToast('error','전자책이 없습니다.');return;}
   var newTitle=(document.getElementById('cv-title-edit-input')||{}).value||'';
@@ -1503,20 +1517,100 @@ function atlasSaveEditedTitle(){
   // 재생성 없이 즉시 미리보기 새로고침 — bootstrap.js atlasApplySafeClaims와 동일한 패턴
   renderCvEbook(APP.ebook);
   atlasRenderTitleEditView();
-  // 이미 History(내 전자책)에 저장된 레코드라면 그 목록의 title 스냅샷도 함께 갱신한다 —
-  // addEbook()이 title을 data.title과 별도로 top-level에도 스냅샷해두기 때문에 둘 다 갱신하지 않으면
-  // History 카드에는 옛 제목이 남는다.
-  if(APP.user&&APP.ebook.id){
-    var ebooks=getUserEbooks(APP.user.email);
-    var rec=ebooks.find(function(e){return e.id===APP.ebook.id;});
-    if(rec){
-      rec.title=APP.ebook.title;
-      if(rec.data){rec.data.title=APP.ebook.title;rec.data.subtitle=APP.ebook.subtitle;}
-      saveUserEbooks(APP.user.email,ebooks);
-    }
-  }
+  atlasSyncEbookToHistory();
   atlasSaveDraft(false);
   showToast('success','제목이 수정되어 바로 반영되었습니다.');
+}
+
+/* 2026-08-10: 사용자 지시 — 완성 화면에서 전자책 본문을 직접 고칠 수 있어야
+   한다. renderCvEbook()(js/renderers.js)이 자유 서술형 필드에만
+   data-atlas-field 마커를 붙여뒀다(표지 제목/부제, 챕터 제목, 챕터 본문,
+   서문/서론/결론/부록) — keyPoints/actionItems/표/프레임워크/타임라인/
+   요약처럼 배열·구조로 관리되는 필드는 마커가 없어 이 토글의 영향을 받지
+   않는다(그대로 읽기 전용 — 자유 텍스트 편집 시 데이터가 깨질 위험이 커서
+   이번 범위에서 의도적으로 제외). */
+function atlasToggleEbookEditMode(){
+  if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
+  var edoc=document.getElementById('cv-edoc');
+  if(!edoc)return;
+  var btn=document.getElementById('cv-edit-toggle-btn');
+  var hint=document.getElementById('cv-edit-hint');
+  var turningOn=!edoc.classList.contains('atlas-edit-mode');
+  if(turningOn){
+    edoc.classList.add('atlas-edit-mode');
+    edoc.querySelectorAll('[data-atlas-field]').forEach(function(el){el.setAttribute('contenteditable','true');});
+    if(btn)btn.innerHTML='<span data-icon="checkCircle"></span>편집 완료';
+    if(hint)hint.style.display='';
+  }else{
+    atlasCollectEbookEdits(edoc);
+    edoc.classList.remove('atlas-edit-mode');
+    // 정규화된 내용으로 다시 그려(재생성이 아니라 지금 반영된 APP.ebook을
+    // renderCvEbook()으로 다시 그리는 것뿐) 저장된 결과를 그대로 보여준다.
+    renderCvEbook(APP.ebook);
+    if(btn)btn.innerHTML='<span data-icon="sparkle"></span>편집';
+    if(hint)hint.style.display='none';
+    atlasSyncEbookToHistory();
+    atlasSaveDraft(false);
+    showToast('success','수정한 내용이 저장되었습니다.');
+  }
+  if(window.AtlasIcons)AtlasIcons.applyAll(document.getElementById('cv-result-state'));
+}
+function atlasCollectEbookEdits(edoc){
+  function textOf(el){ return (el.innerText||el.textContent||'').replace(/ /g,' ').replace(/\n{3,}/g,'\n\n').trim(); }
+  var titleEl=edoc.querySelector('[data-atlas-field="title"]');
+  if(titleEl){ var t=textOf(titleEl); if(t){APP.ebook.title=t;APP.lockedTitle=t;} }
+  var subEl=edoc.querySelector('[data-atlas-field="subtitle"]');
+  if(subEl){ var s=textOf(subEl); APP.ebook.subtitle=s; APP.lockedSubtitle=s; }
+  var prefaceEl=edoc.querySelector('[data-atlas-field="preface"]');
+  if(prefaceEl)APP.ebook.preface=textOf(prefaceEl);
+  var introEl=edoc.querySelector('[data-atlas-field="intro"]');
+  if(introEl)APP.ebook.intro=textOf(introEl);
+  var conclusionEl=edoc.querySelector('[data-atlas-field="conclusion"]');
+  if(conclusionEl)APP.ebook.conclusion=textOf(conclusionEl);
+  (APP.ebook.chapters||[]).forEach(function(ch,i){
+    var chTitleEl=edoc.querySelector('[data-atlas-field="chapterTitle"][data-atlas-chapter="'+i+'"]');
+    if(chTitleEl){ var ct=textOf(chTitleEl); if(ct)ch.title=ct; }
+    var parts=edoc.querySelectorAll('[data-atlas-field="chapterContent"][data-atlas-chapter="'+i+'"]');
+    if(parts.length){
+      var joined=Array.prototype.map.call(parts,textOf).join('\n\n');
+      if(joined)ch.content=joined;
+    }
+  });
+  (APP.ebook.appendices||[]).forEach(function(ap,i){
+    var apEl=edoc.querySelector('[data-atlas-field="appendixContent"][data-atlas-appendix="'+i+'"]');
+    if(apEl)ap.content=textOf(apEl);
+  });
+}
+
+/* 2026-08-10: "화면과 동일하게" PDF 저장. Word(downloadDocx)처럼 별도 XML을
+   다시 조립하지 않고, 지금 화면에 실제로 그려져 있는 #cv-edoc의 DOM(위
+   편집 기능으로 고친 내용 포함)을 새 탭에 그대로 옮겨 담은 뒤 브라우저
+   인쇄 기능(window.print())을 연다 — 사이드바/버튼 같은 앱 chrome은 애초에
+   #cv-edoc 안에 없으므로 자연히 빠지고, 페이지 나눔은 이미 있는 인쇄용
+   CSS(css/styles.css @media print, V3 Phase 1B)를 그대로 재사용한다. 실제
+   PDF 파일을 서버에서 만드는 게 아니라 사용자가 인쇄 대화상자에서 "PDF로
+   저장"을 선택하는 방식이다. */
+function atlasDownloadEbookPdf(){
+  if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
+  var edoc=document.getElementById('cv-edoc');
+  if(!edoc||!edoc.innerHTML.trim()){showToast('error','전자책을 먼저 생성해주세요.');return;}
+  var w=window.open('','_blank');
+  if(!w){showToast('error','팝업이 차단되어 새 탭을 열 수 없습니다. 팝업 차단을 해제해주세요.');return;}
+  var title=(APP.ebook.title||'전자책').replace(/[<>&]/g,'');
+  w.document.open();
+  w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"/>'
+    +'<title>'+title+'</title>'
+    +'<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet"/>'
+    +'<link rel="stylesheet" href="css/styles.css"/>'
+    +'<style>body{background:#fff;margin:0;padding:24px}.ebook-preview-inner{max-width:820px;margin:0 auto}@media print{body{padding:0}}</style>'
+    +'</head><body><div class="ebook-preview-inner">'+edoc.innerHTML+'</div></body></html>');
+  w.document.close();
+  var printed=false;
+  function printOnce(){ if(printed)return; printed=true; try{ w.focus(); w.print(); }catch(e){} }
+  // document.write 이후 onload가 이미 지나쳐 있을 수도 있어(동기적으로 즉시
+  // 완료되는 경우) 두 경로 모두 걸어두되, printed 플래그로 한 번만 실행한다.
+  w.onload=function(){ setTimeout(printOnce,400); };
+  setTimeout(printOnce,900);
 }
 
 function stopIncrementalEbookGeneration(){
