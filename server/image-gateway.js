@@ -1,10 +1,11 @@
-/* server/image-gateway.js — 2026-08-10: 사용자 지시로 썸네일/상세페이지(이미지
-   생성) 기능이 전면 삭제되면서, 이 서버가 실제로 서빙하는 것은 이제
-   Anthropic 텍스트 게이트웨이(/api/anthropic-gateway/*, 제목·전자책 생성)와
-   정적 파일 서빙뿐이다. 파일 이름/스크립트(package.json start/dev)는 diff를
-   불필요하게 키우지 않기 위해 그대로 유지한다 — 실제 라우트만 바뀌었다.
-   원래(Phase 15) 목적이었던 OpenAI Images API 프록시 라우트(/api/image-gateway/*)
-   와 그 전용 의존성(Contract/validator/rateLimiter/openaiProvider)은 삭제했다.
+/* server/image-gateway.js — 2026-08-10: 사용자 지시로 상세페이지(Sales Page
+   Studio)/썸네일 스튜디오 전체가 전면 삭제되면서 한때 이 서버가 서빙하던
+   범용 다중 자산 OpenAI Images API 프록시(Contract/validator/Registry 기반)도
+   함께 삭제됐었다. 2026-08-11: 전자책 완성 후 고정 4테마 썸네일 배경 이미지
+   생성 기능이 다시 필요해져, 그 옛 파이프라인 전체가 아니라 꼭 필요한 절반
+   (openaiProvider/rateLimiter, /api/image-gateway/*)만 최소 범위로 복원했다 —
+   임의 프롬프트를 받는 범용 Contract/Registry/Composition Engine은 다시 만들지
+   않는다(4개 고정 프롬프트만 필요하므로 그 무게가 불필요).
    session/trial 관리(image-usage-store.js)는 이미지 생성 전용이 아니라
    Anthropic 무료 체험 1회 게이트에도 쓰이는 공유 모듈이라 그대로 유지한다.
 
@@ -47,12 +48,30 @@ var fs = require('fs');
 
 var usageStoreModule = require('./image-usage-store.js');
 var anthropicProvider = require('./providers/anthropic-text-provider.js');
+var openaiProvider = require('./providers/openai-image-provider.js');
+var imageRateLimiter = require('./image-rate-limiter.js');
+
+/* 2026-08-11: 썸네일 4테마(베스트셀러 에디토리얼/마켓플레이스 임팩트/문제 해결형/
+   퍼블리셔 프리미엄) 배경 이미지 생성용 고정 프롬프트. 사용자가 실제로 GPT
+   이미지 생성으로 만든 참고 이미지 4장(파일명이 이 4개 테마와 정확히 일치)의
+   실제 내용을 확인해 반영했다 — 책+램프(베스트셀러)/쇼핑카트(마켓플레이스)/
+   퍼즐+돋보기(문제 해결형)/왕관+월계관(퍼블리셔 프리미엄). 한글 텍스트는 이미지
+   안에 넣지 않는다(OpenAI 이미지 생성이 한글 텍스트를 정확히 그리지 못함) —
+   제목/부제/배지는 Atlas가 이 이미지를 배경으로 깔고 CSS로 얹는다. */
+var THUMB_AI_THEME_PROMPTS = {
+  bestseller: 'A warm, moody editorial still-life photograph of a neat stack of hardcover books on a dark wooden desk, illuminated by a classic brass desk lamp casting warm golden light, deep navy background, dramatic soft shadows, premium bestseller book-cover photography, cinematic lighting.',
+  marketplace: 'A friendly flat-illustration style shopping cart filled with colorful shopping bags, warm cream and beige background, soft shadow beneath the cart, clean minimal commercial e-commerce illustration, vibrant orange and blue accent colors.',
+  problem: 'A bold flat-illustration of a large jigsaw puzzle piece being examined by a magnifying glass, deep forest green background, clean modern vector-style illustration, confident problem-solving visual metaphor.',
+  publisher: 'A luxurious illustration of a golden crown resting above a laurel wreath, deep navy background with subtle gold sparkle particles, premium majestic publishing-house emblem style, elegant symmetrical composition, soft golden rim light.'
+};
+var THUMB_AI_THEME_IDS = Object.keys(THUMB_AI_THEME_PROMPTS);
 
 function createApp(opts){
   opts = opts || {};
   var env = opts.env || process.env;
   var fetchImpl = opts.fetchImpl; /* 테스트 전용 주입 — 프로덕션에서는 undefined(전역 fetch 사용) */
   var usageStore = usageStoreModule.createUsageStore(env);
+  var thumbSemaphore = imageRateLimiter.createSemaphore(parseInt(env.OPENAI_IMAGE_MAX_CONCURRENCY, 10) || 2);
 
   /* Atlas는 GitHub Pages 같은 정적 호스팅에서도 열릴 수 있다 — 그 페이지의 origin과
      이 로컬 Gateway(http://localhost:8910)는 서로 다른 origin이므로, 허용 목록에
@@ -187,6 +206,57 @@ function createApp(opts){
     }).catch(function(err){
       safeLog('anthropic-generate-unexpected-error', { message: err && err.message });
       res.status(500).json({ error: { message:'예기치 않은 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+
+  /* ── 썸네일 4테마 배경 이미지 생성 — 사용자가 각 카드에서 "AI 이미지 생성"을
+     직접 눌렀을 때만 호출된다(자동 4장 생성 없음, 비용 통제). themeId는 4개
+     고정값 중 하나만 허용 — 임의 프롬프트를 받지 않는다(내부 기획 문서 유출
+     위험이 애초에 없는 구조). */
+  app.get('/api/image-gateway/status', function(req, res){
+    res.json({ configured: openaiProvider.isConfigured(env) });
+  });
+
+  app.post('/api/image-gateway/generate', function(req, res){
+    var themeId = (req.body || {}).themeId;
+    if(THUMB_AI_THEME_IDS.indexOf(themeId) === -1){
+      return res.status(400).json({ error: { message:'알 수 없는 테마입니다.', code:'invalid_theme' } });
+    }
+    if(!openaiProvider.isConfigured(env)){
+      return res.status(503).json({ error: { message:'AI 서버에 OpenAI API 키가 설정되지 않았습니다.', code:'not_configured' } });
+    }
+    var cfg = openaiProvider.config(env);
+    safeLog('openai-generate-start', { themeId: themeId, model: cfg.model });
+    thumbSemaphore.acquire().then(function(release){
+      openaiProvider.generateWithRetry(THUMB_AI_THEME_PROMPTS[themeId], {
+        env: env, fetchImpl: fetchImpl, size: '1536x1024'
+      }).then(function(result){
+        release();
+        if(!result.success){
+          var apiError = (result.data && result.data.error) || null;
+          console.error('[image-gateway] openai-generate-failed', {
+            themeId: themeId, status: result.status, errorKind: result.errorKind,
+            message: apiError && apiError.message, retries: result.retries
+          });
+          var httpStatus = result.status || 502;
+          return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({
+            error: {
+              message: (apiError && apiError.message) || (result.errorKind==='network_error' ? '네트워크 오류로 이미지 생성 서버에 연결하지 못했습니다.' : result.errorKind==='timeout' ? '응답 시간이 초과되었습니다.' : '이미지 생성에 실패했습니다.'),
+              code: result.errorKind
+            }
+          });
+        }
+        var imageDataUrl = openaiProvider.decodeOpenAIImage(result.data);
+        if(!imageDataUrl){
+          return res.status(502).json({ error: { message:'이미지 생성 응답을 해석하지 못했습니다.', code:'decode_failed' } });
+        }
+        safeLog('openai-generate-success', { themeId: themeId, retries: result.retries });
+        res.json({ imageDataUrl: imageDataUrl });
+      }).catch(function(err){
+        release();
+        safeLog('openai-generate-unexpected-error', { themeId: themeId, message: err && err.message });
+        res.status(500).json({ error: { message:'예기치 않은 오류가 발생했습니다.', code:'internal_error' } });
+      });
     });
   });
 

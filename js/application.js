@@ -910,6 +910,7 @@ function resetConverter(){
   document.getElementById('cv-upload-state').style.display='';
   document.getElementById('cv-process-state').style.display='none';
   document.getElementById('cv-result-state').style.display='none';
+  var tps=document.getElementById('cv-thumbnail-picker-state');if(tps)tps.style.display='none';
   /* APP.workspaceStage를 직접 대입하는 대신 atlasSetWorkspaceStage()를 호출해야
      상단 워크스페이스 위젯(단계 배지/진행률 바/코치 문구)도 함께 'upload' 단계로
      되돌아간다 — 그렇지 않으면 이전 단계가 화면에 그대로 남아 마치 초기화가
@@ -1611,6 +1612,134 @@ function atlasDownloadEbookPdf(){
   // 완료되는 경우) 두 경로 모두 걸어두되, printed 플래그로 한 번만 실행한다.
   w.onload=function(){ setTimeout(printOnce,400); };
   setTimeout(printOnce,900);
+}
+
+/* 2026-08-11: 완성된 전자책을 보고 4테마 썸네일 중 원하는 것을 고르는 화면.
+   js/thumbnail-templates.js가 실제 템플릿 마크업/PNG 캡처를 담당하고, 여기서는
+   화면 전환 + 지금 APP.ebook의 실제 제목/부제/카테고리를 넘기는 역할 + 카드별
+   "AI 이미지 생성" 버튼(server/image-gateway.js /api/image-gateway/*)을 담당한다.
+   생성은 비용이 들기 때문에 사용자가 카드에서 직접 눌렀을 때만 호출한다(4장을
+   화면 진입과 동시에 자동 생성하지 않음). ATLAS_THUMB_AI_CACHE는 세션 동안만
+   유지되는 테마별 생성 결과 캐시 — 같은 테마를 다시 눌러도 재호출하지 않고,
+   선택/다운로드 시에도 미리보기와 동일한 이미지를 그대로 재사용한다
+   (Preview==Export). */
+var ATLAS_SELECTED_THUMB_TPL=null;
+var ATLAS_THUMB_AI_CACHE={};
+var ATLAS_THUMB_AI_CONFIGURED=null;
+function atlasGoToThumbnailPicker(){
+  if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
+  var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='none';
+  var tps=document.getElementById('cv-thumbnail-picker-state');if(tps)tps.style.display='';
+  atlasRenderThumbnailPicker();
+  atlasCheckThumbnailAiStatus();
+  window.scrollTo(0,0);
+}
+function atlasBackToEbookResultFromThumbs(){
+  var tps=document.getElementById('cv-thumbnail-picker-state');if(tps)tps.style.display='none';
+  var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='';
+  window.scrollTo(0,0);
+}
+function atlasThumbnailData(){
+  return { title:APP.ebook.title||'', subtitle:APP.ebook.subtitle||'', category:APP.ebook.category||'' };
+}
+function atlasCheckThumbnailAiStatus(){
+  var banner=document.getElementById('thumb-ai-status-banner');
+  fetch(new URL('/api/image-gateway/status', window.AtlasGatewayBaseUrl.resolve()).href).then(function(res){return res.json();}).then(function(body){
+    ATLAS_THUMB_AI_CONFIGURED=!!body.configured;
+    if(banner)banner.style.display=ATLAS_THUMB_AI_CONFIGURED?'none':'';
+  }).catch(function(){
+    ATLAS_THUMB_AI_CONFIGURED=false;
+    if(banner)banner.style.display='';
+  });
+}
+function atlasRenderThumbnailPicker(){
+  var grid=document.getElementById('thumb-tpl-grid');
+  if(!grid||!APP.ebook||typeof AtlasThumbnailTemplates==='undefined')return;
+  ATLAS_SELECTED_THUMB_TPL=null;
+  ATLAS_THUMB_AI_CACHE={};
+  var data=atlasThumbnailData();
+  var tpls=AtlasThumbnailTemplates.renderAll(data);
+  grid.innerHTML=tpls.map(function(t){
+    return '<div class="thumb-tpl-card" data-thumb-tpl="'+t.id+'">'
+      +'<div class="thumb-tpl-preview" onclick="atlasSelectThumbnailTemplate(\''+t.id+'\')">'+t.html+'</div>'
+      +'<div class="thumb-tpl-card-label"><div><div class="thumb-tpl-card-name">'+x(t.name)+'</div><div class="thumb-tpl-card-desc">'+x(t.desc)+'</div></div><div class="thumb-tpl-card-check" onclick="atlasSelectThumbnailTemplate(\''+t.id+'\')"></div></div>'
+      +'<div class="thumb-tpl-card-actions">'
+        +'<button type="button" class="a2-btn a2-btn-secondary thumb-ai-gen-btn" data-thumb-ai-btn="'+t.id+'" onclick="event.stopPropagation();atlasGenerateThumbnailAiBg(\''+t.id+'\')"><span data-icon="sparkle"></span>AI 이미지 생성</button>'
+        +'<span class="thumb-ai-status" data-thumb-ai-status="'+t.id+'"></span>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+  var btn=document.getElementById('thumb-download-btn');
+  if(btn)btn.disabled=true;
+  if(window.AtlasIcons)AtlasIcons.applyAll(grid);
+}
+function atlasSelectThumbnailTemplate(id){
+  ATLAS_SELECTED_THUMB_TPL=id;
+  document.querySelectorAll('#thumb-tpl-grid .thumb-tpl-card').forEach(function(el){
+    el.classList.toggle('selected', el.getAttribute('data-thumb-tpl')===id);
+  });
+  var btn=document.getElementById('thumb-download-btn');
+  if(btn)btn.disabled=false;
+}
+function atlasRerenderThumbnailCard(id){
+  var card=document.querySelector('#thumb-tpl-grid .thumb-tpl-card[data-thumb-tpl="'+id+'"]');
+  if(!card)return;
+  var preview=card.querySelector('.thumb-tpl-preview');
+  if(!preview)return;
+  var data=atlasThumbnailData();
+  data.bgImageDataUrl=ATLAS_THUMB_AI_CACHE[id]||'';
+  preview.innerHTML=AtlasThumbnailTemplates.render(id, data);
+  if(window.AtlasIcons)AtlasIcons.applyAll(preview);
+}
+function atlasGenerateThumbnailAiBg(themeId){
+  if(!APP.ebook)return;
+  var statusEl=document.querySelector('[data-thumb-ai-status="'+themeId+'"]');
+  var btnEl=document.querySelector('[data-thumb-ai-btn="'+themeId+'"]');
+  if(btnEl)btnEl.disabled=true;
+  if(statusEl)statusEl.textContent='생성 중...';
+  fetch(new URL('/api/image-gateway/generate', window.AtlasGatewayBaseUrl.resolve()).href, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ themeId: themeId })
+  }).then(function(res){
+    return res.json().then(function(body){ return { ok: res.ok, body: body }; });
+  }).then(function(result){
+    if(btnEl)btnEl.disabled=false;
+    if(!result.ok || !result.body || !result.body.imageDataUrl){
+      var msg=(result.body && result.body.error && result.body.error.message)||'이미지 생성에 실패했습니다.';
+      if(statusEl)statusEl.textContent=msg;
+      showToast('error',msg);
+      return;
+    }
+    ATLAS_THUMB_AI_CACHE[themeId]=result.body.imageDataUrl;
+    if(statusEl)statusEl.textContent='';
+    if(btnEl)btnEl.innerHTML='<span data-icon="refresh"></span>다시 생성';
+    atlasRerenderThumbnailCard(themeId);
+    if(window.AtlasIcons)AtlasIcons.applyAll(btnEl.parentElement);
+    showToast('success','AI 배경 이미지가 생성되었습니다.');
+  }).catch(function(err){
+    if(btnEl)btnEl.disabled=false;
+    var msg='네트워크 오류로 이미지 생성 서버에 연결하지 못했습니다.';
+    if(statusEl)statusEl.textContent=msg;
+    showToast('error',msg);
+  });
+}
+function atlasDownloadThumbnailPng(){
+  if(!ATLAS_SELECTED_THUMB_TPL){showToast('error','먼저 스타일을 선택해주세요.');return;}
+  if(!APP.ebook)return;
+  var stage=document.getElementById('thumb-export-stage');
+  if(!stage)return;
+  var data=atlasThumbnailData();
+  data.bgImageDataUrl=ATLAS_THUMB_AI_CACHE[ATLAS_SELECTED_THUMB_TPL]||'';
+  // 미리보기는 CSS로 축소해서 보여주지만(.thumb-tpl-preview .thumb-tpl{transform:scale(...)}),
+  // PNG 저장은 화면 밖에 원본 크기(652×488)로 다시 그려서 캡처한다 — 해상도가 깨지지 않는다.
+  // 선택한 테마에 생성된 AI 배경이 있으면 그 이미지를 그대로 포함해 캡처한다(Preview==Export).
+  stage.innerHTML=AtlasThumbnailTemplates.render(ATLAS_SELECTED_THUMB_TPL, data);
+  if(window.AtlasIcons)AtlasIcons.applyAll(stage);
+  var target=stage.querySelector('.thumb-tpl');
+  if(!target)return;
+  var filename=(APP.ebook.title||'thumbnail').replace(/[\/\\:*?"<>|]/g,'_');
+  AtlasThumbnailTemplates.downloadPng(target,filename).then(function(ok){
+    if(ok)showToast('success','썸네일이 저장되었습니다!');
+  });
 }
 
 function stopIncrementalEbookGeneration(){
