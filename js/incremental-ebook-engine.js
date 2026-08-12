@@ -171,6 +171,7 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
 - 이 책이 실제로 약속하는 결과(제목·부제·description)와 각 챕터가 다루는 내용이 논리적으로 연결되어야 합니다 — 결과와 무관한 챕터로 분량만 채우지 않습니다.
 - 책 전체에서 핵심 개념·용어의 이름을 통일하세요(뒤 챕터에서 같은 개념을 다른 이름으로 부르지 않도록, chapterBrief 단계에서부터 용어를 확정합니다).
 - appendices: 정확히 3개 제목만 먼저 정합니다(본문은 다음 단계에서 작성).
+- copyright.notice/disclaimer: "편집부", "편집팀", "고객센터", "출판사 문의" 등 내부 조직·연락 창구를 언급하지 마세요 — 저작권 표시와 이용 안내 문구만 작성합니다.
 
 ${FACTUALITY_RULES}
 

@@ -1476,11 +1476,52 @@ async function finalizeIncrementalEbook(p){
    다시 그리는 순수 함수다(bootstrap.js의 atlasApplySafeClaims와 같은 패턴).
    따라서 제목 변경은 전자책 재생성 없이 APP.ebook.title 갱신 +
    renderCvEbook() 재호출만으로 충분하다. */
+/* 2026-08-12: 사용자 요청 — 전자책 글씨체를 바꿀 수 있게. 새 웹폰트를 로드하지
+   않고 index.html에 이미 로드돼 있는 한글 웹폰트 중에서만 고른다(추가
+   네트워크 요청 없음). css/styles.css의 --ebook-font 커스텀 프로퍼티 하나만
+   바꾸면 #cv-edoc 안의 모든 텍스트가 상속해서 따라간다. */
+/* 2026-08-12: 사용자 요청으로 글씨체 목록 확대 — index.html에 이미 로드된
+   Google Fonts 링크(줄 27) 안에 있던, 지금까지 안 쓰던 나머지 폰트를 전부
+   추가했다(새 폰트 로딩 없음, 기존 원칙 그대로). */
+var ATLAS_EBOOK_FONTS=[
+  { id:"'Pretendard',sans-serif", name:'프리텐다드(기본)' },
+  { id:"'Noto Serif KR',serif", name:'본명조' },
+  { id:"'Gowun Dodum',sans-serif", name:'고운돋움' },
+  { id:"'Black Han Sans',sans-serif", name:'검은고딕' },
+  { id:"'Do Hyeon',sans-serif", name:'도현체' },
+  { id:"'Jua',sans-serif", name:'주아체' },
+  { id:"'Gaegu',sans-serif", name:'개구체' },
+  { id:"'Stylish',sans-serif", name:'스타일리시' },
+  { id:"'Song Myung',serif", name:'송명체' },
+  { id:"'East Sea Dokdo',sans-serif", name:'동해 독도체' },
+  { id:"'Nanum Brush Script',sans-serif", name:'나눔손글씨 붓' },
+  { id:"'Poor Story',sans-serif", name:'푸어스토리' },
+  { id:"'Hi Melody',sans-serif", name:'하이멜로디' },
+  { id:"'Single Day',sans-serif", name:'싱글데이' },
+  { id:"'Sunflower',sans-serif", name:'선플라워' }
+];
+function atlasRenderEbookFontPicker(){
+  var wrap=document.getElementById('cv-font-picker');
+  if(!wrap||!APP.ebook)return;
+  var current=APP.ebook.fontFamily||ATLAS_EBOOK_FONTS[0].id;
+  wrap.innerHTML=ATLAS_EBOOK_FONTS.map(function(f){
+    return '<button type="button" class="a2-btn a2-btn-secondary'+(f.id===current?' cv-font-btn-active':'')+'" style="font-family:'+f.id+'" onclick="atlasSetEbookFont(\''+f.id.replace(/'/g,"\\'")+'\')">'+x(f.name)+'</button>';
+  }).join('');
+}
+function atlasSetEbookFont(fontId){
+  if(!APP.ebook)return;
+  APP.ebook.fontFamily=fontId;
+  var edoc=document.getElementById('cv-edoc');
+  if(edoc)edoc.style.setProperty('--ebook-font',fontId);
+  atlasSyncEbookToHistory();
+  atlasRenderEbookFontPicker();
+}
 function atlasRenderTitleEditView(){
   var disp=document.getElementById('cv-title-edit-display');
   if(disp)disp.textContent=(APP.ebook&&APP.ebook.title)?APP.ebook.title:'';
   var form=document.getElementById('cv-title-edit-form');
   if(form)form.style.display='none';
+  atlasRenderEbookFontPicker();
 }
 function atlasOpenTitleEditForm(){
   if(!APP.ebook)return;
@@ -1585,33 +1626,48 @@ function atlasCollectEbookEdits(edoc){
 
 /* 2026-08-10: "화면과 동일하게" PDF 저장. Word(downloadDocx)처럼 별도 XML을
    다시 조립하지 않고, 지금 화면에 실제로 그려져 있는 #cv-edoc의 DOM(위
-   편집 기능으로 고친 내용 포함)을 새 탭에 그대로 옮겨 담은 뒤 브라우저
-   인쇄 기능(window.print())을 연다 — 사이드바/버튼 같은 앱 chrome은 애초에
-   #cv-edoc 안에 없으므로 자연히 빠지고, 페이지 나눔은 이미 있는 인쇄용
-   CSS(css/styles.css @media print, V3 Phase 1B)를 그대로 재사용한다. 실제
-   PDF 파일을 서버에서 만드는 게 아니라 사용자가 인쇄 대화상자에서 "PDF로
-   저장"을 선택하는 방식이다. */
+   편집 기능으로 고친 내용/글꼴(atlasSetEbookFont) 포함)를 각 .pg(페이지 하나
+   = 인쇄 CSS가 이미 정의한 한 페이지 단위) 별로 html2canvas로 캡처해 jsPDF로
+   실제 .pdf 파일을 만들어 즉시 다운로드한다. 2026-08-12: 이전에는 새 탭을
+   열고 window.print()로 브라우저 인쇄 대화상자를 여는 방식이었는데, 사용자가
+   "인쇄 화면으로만 넘어가고 저장이 안 된다"고 지적 — Word 저장처럼 클릭
+   한 번에 실제 파일이 바로 저장돼야 한다는 뜻이라 인쇄 대화상자 자체를
+   없앴다. 라이브 #cv-edoc을 그대로 캡처하므로 별도 문서에 스타일시트를
+   다시 링크할 필요가 없고, 화면과 항상 같은 내용이 담긴다(Preview==Export). */
 function atlasDownloadEbookPdf(){
   if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
   var edoc=document.getElementById('cv-edoc');
   if(!edoc||!edoc.innerHTML.trim()){showToast('error','전자책을 먼저 생성해주세요.');return;}
-  var w=window.open('','_blank');
-  if(!w){showToast('error','팝업이 차단되어 새 탭을 열 수 없습니다. 팝업 차단을 해제해주세요.');return;}
-  var title=(APP.ebook.title||'전자책').replace(/[<>&]/g,'');
-  w.document.open();
-  w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"/>'
-    +'<title>'+title+'</title>'
-    +'<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet"/>'
-    +'<link rel="stylesheet" href="css/styles.css"/>'
-    +'<style>body{background:#fff;margin:0;padding:24px}.ebook-preview-inner{max-width:820px;margin:0 auto}@media print{body{padding:0}}</style>'
-    +'</head><body><div class="ebook-preview-inner">'+edoc.innerHTML+'</div></body></html>');
-  w.document.close();
-  var printed=false;
-  function printOnce(){ if(printed)return; printed=true; try{ w.focus(); w.print(); }catch(e){} }
-  // document.write 이후 onload가 이미 지나쳐 있을 수도 있어(동기적으로 즉시
-  // 완료되는 경우) 두 경로 모두 걸어두되, printed 플래그로 한 번만 실행한다.
-  w.onload=function(){ setTimeout(printOnce,400); };
-  setTimeout(printOnce,900);
+  if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'||typeof window.jspdf.jsPDF!=='function'){
+    showToast('error','PDF 생성 기능을 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+    return;
+  }
+  var pageEls=Array.prototype.slice.call(edoc.querySelectorAll('.pg'));
+  if(!pageEls.length){showToast('error','전자책을 먼저 생성해주세요.');return;}
+  var title=(APP.ebook.title||'전자책').replace(/[\/\\:*?"<>|]/g,'_');
+  showToast('info','PDF 생성 중입니다... (전체 '+pageEls.length+'페이지, 잠시만 기다려주세요)');
+  var doc=null;
+  var chain=Promise.resolve();
+  pageEls.forEach(function(pg){
+    chain=chain.then(function(){
+      return html2canvas(pg,{scale:1.5,useCORS:true,allowTaint:true});
+    }).then(function(canvas){
+      var imgData=canvas.toDataURL('image/jpeg',0.92);
+      var w=canvas.width,h=canvas.height;
+      if(!doc){
+        doc=new window.jspdf.jsPDF({unit:'px',format:[w,h],compress:true});
+      }else{
+        doc.addPage([w,h]);
+      }
+      doc.addImage(imgData,'JPEG',0,0,w,h);
+    });
+  });
+  chain.then(function(){
+    doc.save(title+'.pdf');
+    showToast('success','PDF가 저장되었습니다!');
+  }).catch(function(err){
+    showToast('error','PDF 생성 실패: '+((err&&err.message)||'알 수 없는 오류'));
+  });
 }
 
 /* 2026-08-11: 완성된 전자책을 보고 4테마 썸네일 중 원하는 것을 고르는 화면.
@@ -1642,14 +1698,26 @@ function atlasBackToEbookResultFromThumbs(){
 function atlasThumbnailData(){
   return { title:APP.ebook.title||'', subtitle:APP.ebook.subtitle||'', category:APP.ebook.category||'' };
 }
+/* configured:false(서버는 정상 응답했지만 OpenAI 키가 없음)와 서버 자체에
+   연결이 안 되는 경우(구버전 서버가 아직 떠 있어 이 라우트가 없거나, 게이트웨이가
+   실행 중이 아님 — res.json() 파싱 실패로 나타남)를 구분해서 안내한다.
+   두 경우 모두 배너는 뜨지만, 후자는 "서버 재시작이 필요할 수 있다"는 걸
+   명시해야 사용자가 헷갈리지 않는다(실제로 확인된 혼동 사례: 새 코드로
+   교체한 뒤 예전 서버 프로세스를 재시작하지 않으면 이 라우트 자체가 없어
+   모든 요청이 이렇게 실패한다). */
 function atlasCheckThumbnailAiStatus(){
   var banner=document.getElementById('thumb-ai-status-banner');
-  fetch(new URL('/api/image-gateway/status', window.AtlasGatewayBaseUrl.resolve()).href).then(function(res){return res.json();}).then(function(body){
+  var bannerText=document.getElementById('thumb-ai-status-banner-text');
+  fetch(new URL('/api/image-gateway/status', window.AtlasGatewayBaseUrl.resolve()).href).then(function(res){
+    return res.json().catch(function(){ throw new Error('non_json_response'); });
+  }).then(function(body){
     ATLAS_THUMB_AI_CONFIGURED=!!body.configured;
     if(banner)banner.style.display=ATLAS_THUMB_AI_CONFIGURED?'none':'';
+    if(bannerText)bannerText.textContent='서버에 OpenAI API 키가 설정되지 않아 AI 이미지 생성을 사용할 수 없습니다. 지금은 기본 배경으로 미리보기됩니다.';
   }).catch(function(){
     ATLAS_THUMB_AI_CONFIGURED=false;
     if(banner)banner.style.display='';
+    if(bannerText)bannerText.textContent='이미지 생성 서버에 연결하지 못했습니다. 서버(node server/image-gateway.js 또는 npm start)를 최신 코드로 재시작했는지 확인해주세요.';
   });
 }
 function atlasRenderThumbnailPicker(){
@@ -1717,7 +1785,12 @@ function atlasGenerateThumbnailAiBg(themeId){
     showToast('success','AI 배경 이미지가 생성되었습니다.');
   }).catch(function(err){
     if(btnEl)btnEl.disabled=false;
-    var msg='네트워크 오류로 이미지 생성 서버에 연결하지 못했습니다.';
+    /* fetch 자체가 실패(응답을 아예 못 받음)했거나 응답이 JSON이 아니었다는
+       뜻 — 서버가 아예 안 떠 있거나, 이 라우트가 없는 구버전 서버 프로세스가
+       계속 떠 있는 경우(코드 교체 후 재시작을 안 한 경우)가 대부분이다.
+       서버가 정상 응답했는데 키만 없는 경우는 이 catch가 아니라 위 .then의
+       503 처리에서 이미 잡힌다. */
+    var msg='이미지 생성 서버에 연결하지 못했습니다. 서버(node server/image-gateway.js 또는 npm start)를 최신 코드로 재시작했는지 확인해주세요.';
     if(statusEl)statusEl.textContent=msg;
     showToast('error',msg);
   });

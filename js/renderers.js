@@ -54,6 +54,10 @@ function renderTextBlocks(s){
   var blocks=[];
   lines.forEach(function(l){
     var t=l.trim();
+    // LLM이 섹션 구분용으로 남기는, 밑줄/대시만 있는 줄("___", "----" 등)은
+    // 실제 본문이 아니라 잔재이므로 통째로 건너뛴다(사용자 요청: 문단 끝
+    // "___" 기호 제거).
+    if(/^[_\-–—]{3,}$/.test(t))return;
     var mBold=t.match(/^\*\*(.+)\*\*$/);
     var mQuote=!mBold&&t.match(/^["“](.+)["”]$/);
     var mNum=!mBold&&!mQuote&&t.match(/^(\d{1,2})[).]\s+(.+)$/);
@@ -67,8 +71,17 @@ function renderTextBlocks(s){
     }else if(mBul){
       blocks.push('<div class="chb-brow"><span class="chb-bdot"></span><span class="chb-ntext">'+x(mBul[1])+'</span></div>');
     }else{
-      atlasSplitLongParagraph(t.replace(/\*\*/g,'')).forEach(function(chunk){
-        blocks.push('<p>'+x(chunk)+'</p>');
+      atlasSplitLongParagraph(t.replace(/\*\*/g,'')).forEach(function(chunk,ci){
+        // 문단 시작이 짧은 리드인 레이블(예: "1단계, ~", "핵심 포인트: ~")이면
+        // 그 레이블만 굵게+진한 색으로 강조한다(가독성 요청) — 긴 문단이
+        // 여러 조각으로 나뉜 경우 진짜 리드인은 첫 조각에만 있으므로 그때만
+        // 검사한다.
+        var lead=ci===0&&chunk.match(/^([^:,]{1,16}[:,])\s*(.+)$/);
+        if(lead){
+          blocks.push('<p><strong class="chb-lead">'+x(lead[1])+'</strong> '+x(lead[2])+'</p>');
+        }else{
+          blocks.push('<p>'+x(chunk)+'</p>');
+        }
       });
     }
   });
@@ -147,9 +160,12 @@ function renderCvEbook(e){
      인쇄/PDF 시 정확히 한 페이지라는 규칙(css/styles.css @media print)을
      그대로 이용해, 아래 pages.push() 호출 순서와 정확히 같은 순서로 절대
      페이지 번호를 미리 센다(지어내지 않고 실제로 쌓일 순서를 그대로 계산 —
-     Never-Guess). 표지=1, 저작권=2, 서문(있으면)=+1, 목차=그 다음 페이지,
-     서론(있으면)=+1, 이후 각 챕터는 오프너+본문 2페이지씩. */
-  var absPage=2; // 1=표지, 2=저작권
+     Never-Guess). 2026-08-12: 저작권 페이지를 맨 뒤로 옮기면서(사용자 요청)
+     더 이상 2번째 페이지를 차지하지 않는다 — 표지=1, 서문(있으면)=+1,
+     목차=그 다음 페이지, 서론(있으면)=+1, 이후 각 챕터는 오프너+본문
+     2페이지씩. 목차에는 저작권 페이지 번호를 표시하지 않으므로 그 번호는
+     따로 계산할 필요가 없다. */
+  var absPage=1; // 1=표지
   if(e.preface)absPage++;
   var tocPageNum=absPage+1;
   absPage=tocPageNum;
@@ -163,23 +179,19 @@ function renderCvEbook(e){
   var pages=[];
   // 표지 — 참고 전자책 스타일(다크 네이비 + 골드)을 모방한 고정 아이덴티티,
   // 러닝 푸터 없음(원문 참고서도 표지엔 페이지 번호가 없다)
+  // 2026-08-12: 사용자 요청 — (1) 표지 하단 저자명 표시 삭제, (2) 별/눈꽃
+  // 모양으로 보인다는 sparkle 아이콘 장식 삭제, (3) 이후 시도했던 워터마크
+  // (월계관 → 책 모양)도 전부 취소 — 중앙 오브젝트 워터마크 없이 배경
+  // 그라디언트/점/텍스처 장식만으로 화려함을 낸다(css/styles.css .cvr 참고).
   pages.push('<div class="pg cvr">'
-    +'<div class="cvr-spark cvr-spark-a">'+ebIcon('sparkle',13)+'</div>'
-    +'<div class="cvr-spark cvr-spark-b">'+ebIcon('sparkle',10)+'</div>'
     +'<div class="ccat">'+x(e.category)+'</div>'
     +'<div class="ctit-box"><div class="ctit" contenteditable="false" data-atlas-field="title">'+x(e.title)+'</div></div>'
     +'<div class="csub" contenteditable="false" data-atlas-field="subtitle">'+x(e.subtitle)+'</div>'
-    +'<div class="cvr-foot"><div class="caut">'+x(e.author)+'</div><div class="cyr">'+x(c.year||'2025')+' · '+x(e.category)+'</div></div>'
+    +'<div class="cvr-foot"><div class="cyr">'+x(c.year||'2025')+' · '+x(e.category)+'</div></div>'
     +'</div>');
-  // 저작권
-  pages.push('<div class="pg cpg"><div class="cinn"><div class="clbl">저작권 및 법적 고지</div><div class="ctxt">'
-    +'<p><strong>제목:</strong> '+x(e.title)+'</p>'
-    +'<p><strong>저자:</strong> '+x(e.author)+'</p>'
-    +'<p><strong>출판:</strong> '+x(c.publisher||'독립 출판')+' · '+x(c.year||'2025')+'</p><br>'
-    +'<p>'+x(c.notice)+'</p><br><p><strong>면책 조항:</strong> '+x(c.disclaimer)+'</p>'
-    +'<br><p><strong>연락처:</strong> '+x(c.contact)+'</p>'
-    +'<br><p>이 전자책은 저작권법의 보호를 받습니다. PLR 원본을 한국 시장에 맞게 재창작하였습니다.</p>'
-    +'</div>'+nextFooter()+'</div></div>');
+  // 저작권 및 법적 고지 — 2026-08-12: 사용자 요청으로 맨 뒤(뒷표지 다음)로
+  // 옮겼다. 저자/출판사/연락처 줄도 삭제했다(요청: "저자, 출판 연락처는
+  // 삭제해") — 실제 push는 이 함수 맨 아래, 뒷표지 다음에서 한다.
   // 저자 서문
   if(e.preface){
     pages.push('<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' PREFACE</div><div class="sh">저자 서문</div>'
@@ -213,10 +225,12 @@ function renderCvEbook(e){
   // 페이지 상단의 러닝 헤더 역할을 한다).
   for(var i=0;i<chs.length;i++){
     var ch=chs[i];
+    // 2026-08-12: 순서를 원래대로 되돌림(사용자 정정) — "CHAPTER 0N" 라벨이
+    // 위, 챕터 실제 제목이 그 아래. 대제목/소제목 표현은 원래 이 순서(라벨 →
+    // 큰 제목)를 가리킨 것이었다.
     pages.push('<div class="pg chop">'
       +'<div class="chop-badge">CHAPTER '+pad(ch.number)+'</div>'
       +'<div class="chop-title" contenteditable="false" data-atlas-field="chapterTitle" data-atlas-chapter="'+i+'">'+x(ch.title)+'</div>'
-      +'<div class="chop-spark">'+ebIcon('sparkle',12)+'</div>'
       +'</div>');
     var h='<div class="pg inn">';
     h+='<div class="cb"><div class="cp">'+ebIcon('book',14)+' CHAPTER '+pad(ch.number)+'</div><div class="cl">'+x(e.category||'')+'</div></div>';
@@ -331,11 +345,25 @@ function renderCvEbook(e){
     }
   }
   // 뒷표지 — 표지와 같은 계열의 아트워크 페이지, 러닝 푸터 없음
+  // 2026-08-12: 연락처(c.contact) 노출 줄 삭제(사용자 요청 — 연락처는 어디에도
+  // 남기지 않는다).
   pages.push('<div class="pg bkpg"><div class="bkpg-ic">'+ebIcon('book',36)+'</div><h3>'+x(e.title)+'</h3>'
     +'<p>이 전자책이 도움이 되셨다면 주변에 공유해주세요.</p>'
-    +'<p style="font-size:12px;color:rgba(255,255,255,.22)">'+x(c.contact||'')+'</p>'
     +'<div class="bkc">ⓒ '+x(c.year||'2025')+' '+x(e.author)+' · '+x(c.publisher||'독립 출판')+' · ALL RIGHTS RESERVED</div></div>');
-  document.getElementById('cv-edoc').innerHTML=pages.join('');
+  // 저작권 및 법적 고지 — 2026-08-12: 사용자 요청으로 맨 뒤(뒷표지 다음)로
+  // 이동. 저자/출판/연락처 줄은 삭제하고 제목·법적 고지문·면책 조항만 남긴다.
+  pages.push('<div class="pg cpg"><div class="cinn"><div class="clbl">저작권 및 법적 고지</div><div class="ctxt">'
+    +'<p><strong>제목:</strong> '+x(e.title)+'</p><br>'
+    +'<p>'+x(c.notice)+'</p><br><p><strong>면책 조항:</strong> '+x(c.disclaimer)+'</p>'
+    +'<br><p>이 전자책은 저작권법의 보호를 받습니다. PLR 원본을 한국 시장에 맞게 재창작하였습니다.</p>'
+    +'</div>'+nextFooter()+'</div></div>');
+  var edocEl=document.getElementById('cv-edoc');
+  edocEl.innerHTML=pages.join('');
+  // 2026-08-12: 글씨체 선택(js/application.js atlasSetEbookFont())은
+  // APP.ebook.fontFamily에 저장된다 — renderCvEbook()이 다시 불릴 때마다
+  // (초기 생성/제목 실시간 수정/편집 저장/History 재열람) 여기서 다시
+  // 적용해야 새로고침 후에도 선택한 글씨체가 유지된다.
+  if(e.fontFamily)edocEl.style.setProperty('--ebook-font',e.fontFamily);
   if(typeof atlasUpdateResultHeader==='function')atlasUpdateResultHeader(e);
 }
 
