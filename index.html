@@ -27,6 +27,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Nanum+Brush+Script&family=Poor+Story&family=Hi+Melody&family=Single+Day&family=Sunflower:wght@300;500;700&family=Black+Han+Sans&family=Do+Hyeon&family=Jua&family=Gaegu:wght@400;700&family=Song+Myung&family=Stylish&family=Gowun+Dodum&family=East+Sea+Dokdo&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- 2026-08-12: 사용자가 "PDF로 저장"이 브라우저 인쇄 대화상자로만 넘어가고
+     실제 파일로 저장되지 않는다고 지적 — window.print() 방식을 버리고
+     실제 .pdf 파일을 즉시 다운로드하는 방식으로 교체(js/application.js
+     atlasDownloadEbookPdf()). 이미 쓰던 cdnjs 하나만 추가로 사용한다. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="js/atlas-icons.js"></script>
 <script src="js/atlas-state-system.js"></script>
 <script src="js/renderers.js"></script>
@@ -422,6 +427,14 @@
               </div>
             </div>
           </div>
+          <!-- 2026-08-12: 사용자 요청 — 전자책 글씨체를 바꿀 수 있게. 이미
+               로드된 웹폰트 중에서만 고른다(index.html 상단 Google Fonts
+               링크, 새 폰트 로딩 없음). js/application.js
+               atlasRenderEbookFontPicker()/atlasSetEbookFont() 참고. -->
+          <div class="cv-title-edit" style="margin:0 0 14px;padding:14px 16px;border:1px solid var(--a2-border);border-radius:12px;background:var(--a2-surface)">
+            <div style="font-size:11px;font-weight:800;color:var(--a2-text-faint);letter-spacing:.02em;margin-bottom:10px">전자책 글씨체</div>
+            <div id="cv-font-picker" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+          </div>
           <!-- 2026-08-10: 사용자 지시 — 완성 화면에서 전자책 본문(제목/챕터
                제목/챕터 본문/서문/서론/결론/부록)을 직접 고칠 수 있어야 한다.
                표·체크리스트·프레임워크·타임라인처럼 구조로 관리되는 항목은
@@ -472,7 +485,7 @@
             <button class="a2-btn a2-btn-secondary" onclick="atlasBackToEbookResultFromThumbs()"><span data-icon="arrowLeft"></span>전자책으로</button>
           </div>
           <div id="thumb-ai-status-banner" class="a2-banner a2-banner-info" style="display:none;margin-bottom:10px">
-            <span data-icon="sparkle"></span><span>서버에 OpenAI API 키가 설정되지 않아 AI 이미지 생성을 사용할 수 없습니다. 지금은 기본 배경으로 미리보기됩니다.</span>
+            <span data-icon="sparkle"></span><span id="thumb-ai-status-banner-text">서버에 OpenAI API 키가 설정되지 않아 AI 이미지 생성을 사용할 수 없습니다. 지금은 기본 배경으로 미리보기됩니다.</span>
           </div>
           <div id="thumb-tpl-grid" class="thumb-tpl-grid"></div>
           <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">

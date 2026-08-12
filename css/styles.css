@@ -883,21 +883,40 @@ textarea{resize:vertical}
    Word (.docx) export is a wholly separate OOXML builder (application.js)
    and is not affected by this CSS — only the HTML preview (#cv-edoc). */
 .pg{background:#fff;color:#1a1a2e;border-radius:12px;overflow:hidden;box-shadow:0 10px 34px rgba(15,15,35,.10);position:relative;margin-bottom:28px}
+/* 2026-08-12: 사용자 요청 — 글씨체를 바꿀 수 있게. 이미 로드된 웹폰트
+   중에서 고르며(index.html, 새 폰트 로딩 없음), js/application.js
+   atlasSetEbookFont()가 이 커스텀 프로퍼티만 바꾼다 — 전자책 안의 모든
+   텍스트가 이 변수를 상속해서 따라간다(.cht만 예외적으로 폰트를 고정하고
+   있었어서 위에서 같이 바꿨다). */
+#cv-edoc{font-family:var(--ebook-font,'Pretendard'),sans-serif}
+.cv-font-btn-active{border-color:var(--a2-accent)!important;background:var(--a2-accent-soft)!important;color:var(--a2-accent)!important}
 /* 2026-08-10: 사용자가 첨부한 참고 전자책(다크 네이비 + 골드 프리미엄
    에디토리얼 스타일)을 모방 — 표지/챕터 오프너를 매번 랜덤 그라디언트가
    아니라 이 하나의 고정 아이덴티티로 통일한다. 왼쪽 정렬 + 테두리 박스 안
    큰 골드 제목이라는 참고 PDF의 실제 레이아웃을 그대로 따른다(참고 PDF의
    자체 브랜딩/홍보 링크는 가져오지 않음). */
-.cvr{min-height:640px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;background:linear-gradient(165deg,#1c1732 0%,#241d40 100%);padding:64px 52px;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.cvr-spark{position:absolute;color:rgba(232,184,75,.4)}
-.cvr-spark-a{top:36px;left:36px}
-.cvr-spark-b{bottom:60px;right:44px}
+/* 2026-08-12: 중앙 워터마크 오브젝트(반짝임 아이콘 → 월계관 → 책 모양,
+   전부 다시 바꿔달라는 요청을 받음)를 전부 빼고, 사용자가 최종적으로 고른
+   방향대로 "오브젝트 없이 배경 장식만 더 풍부하게"로 정리했다 — 새 이미지
+   자산/AI 생성 없이 순수 CSS 그라디언트/텍스처 레이어만 쌓는다(PDF는 이
+   화면을 그대로 캡처하므로 Preview==Export가 자동 유지, 비용 없음). 위에서
+   부터: 두 방향으로 교차하는 대각선 헤어라인(마름모 격자 텍스처) → 흩뿌린
+   금색 점 7개(별자리 느낌) → 와인/보라 보조 글로우 → 우상단 메인 골드 글로우
+   → 좌하단 보조 글로우 → 상단 비네트 → 와인 톤이 섞인 다색 베이스
+   그라디언트. */
+.cvr{min-height:640px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;background:repeating-linear-gradient(135deg,rgba(232,184,75,.035) 0px,rgba(232,184,75,.035) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(45deg,rgba(232,184,75,.025) 0px,rgba(232,184,75,.025) 1px,transparent 1px,transparent 28px),radial-gradient(circle 3px at 18% 18%,rgba(232,184,75,.55),transparent 100%),radial-gradient(circle 2px at 76% 68%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2.5px at 42% 82%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.8px at 60% 30%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2px at 30% 55%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 2px at 90% 40%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.6px at 55% 65%,rgba(232,184,75,.3),transparent 100%),radial-gradient(ellipse 420px 340px at 20% 90%,rgba(139,92,246,.12),transparent 65%),radial-gradient(ellipse 380px 320px at 60% 96%,rgba(157,42,90,.13),transparent 62%),radial-gradient(ellipse 620px 460px at 88% 12%,rgba(232,184,75,.19),transparent 62%),radial-gradient(ellipse 500px 420px at 6% 92%,rgba(232,184,75,.08),transparent 60%),linear-gradient(to bottom,rgba(0,0,0,.14),transparent 30%),linear-gradient(165deg,#1c1732 0%,#2a1c3a 55%,#241d40 100%);padding:64px 52px;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* 2026-08-12: 표지/챕터 오프너를 좀 더 고급스럽게 — 얇은 골드 코너 프레임. */
+.cvr::before,.cvr::after,.chop::before,.chop::after{content:'';position:absolute;width:34px;height:34px;border:1px solid rgba(232,184,75,.45);pointer-events:none}
+.cvr::before{top:26px;left:26px;border-right:0;border-bottom:0}
+.cvr::after{bottom:26px;right:26px;border-left:0;border-top:0}
+.chop::before{top:22px;left:22px;border-right:0;border-bottom:0}
+.chop::after{bottom:22px;right:22px;border-left:0;border-top:0}
 .ccat{font-size:12px;color:var(--gold);font-weight:600;letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
 .ctit-box{border:1px solid rgba(232,184,75,.4);border-radius:4px;padding:30px 34px;margin-bottom:22px;max-width:100%;box-sizing:border-box}
 .ctit{font-size:clamp(26px,4.2vw,42px);font-weight:800;color:var(--gold);line-height:1.3;letter-spacing:-.4px;word-break:keep-all}
-.csub{font-size:14px;color:rgba(255,255,255,.5);line-height:1.8;max-width:440px;margin-bottom:44px}
+/* 2026-08-12: 사용자 요청으로 부제 글씨를 더 크게(14px→18px). */
+.csub{font-size:18px;color:rgba(255,255,255,.6);line-height:1.7;max-width:480px;margin-bottom:44px}
 .cvr-foot{display:flex;flex-direction:column;gap:4px}
-.caut{font-size:13px;color:rgba(255,255,255,.62);font-weight:600}
 .cyr{font-size:11px;color:rgba(255,255,255,.32)}
 .cpg{background:#fafaf9;padding:40px;display:flex;flex-direction:column;justify-content:flex-end;min-height:240px}
 .cinn{border-top:1px solid #e2e8f0;padding-top:16px}
@@ -925,8 +944,12 @@ textarea{resize:vertical}
 .cp{display:flex;align-items:center;gap:9px;font-size:11px;color:#6366f1;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:4px}
 .cp svg{width:14px;height:14px}
 .cl{font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:.6px}
-.cht{font-family:'Noto Serif KR',serif;font-size:30px;font-weight:700;color:#1a1a2e;line-height:1.28;margin-top:10px;padding-bottom:18px;border-bottom:2px solid #eef0fb;letter-spacing:-.4px}
+.cht{font-family:var(--ebook-font,'Pretendard'),sans-serif;font-size:30px;font-weight:700;color:#1a1a2e;line-height:1.28;margin-top:10px;padding-bottom:18px;border-bottom:2px solid #eef0fb;letter-spacing:-.4px}
 .chb{font-size:14.5px;color:#374151;line-height:2.05;white-space:pre-wrap;word-break:keep-all;margin-bottom:22px}
+/* 2026-08-12: 사용자 요청 — "1단계," "핵심 포인트:" 같은 문단 리드인을
+   굵게+진한 색으로 강조(가독성). js/renderers.js renderTextBlocks()가
+   실제 문단 시작에서만 감지해 감싼다. */
+.chb-lead{font-weight:800;color:#111827}
 /* Numbered / bulleted lines inside body or appendix text — real structure
    already present in the AI-written content, just given hanging-indent,
    two-weight typography instead of flattening into identical paragraphs. */
@@ -939,11 +962,15 @@ textarea{resize:vertical}
    start resets reading pace. 2026-08-10: 사용자가 첨부한 참고 전자책 스타일을
    모방하도록 다크 네이비 + 골드 뱃지(.chop-badge)로 다시 그렸다(표지 .cvr과
    같은 그라디언트 값을 공유 — 책 전체가 하나의 일관된 아이덴티티). */
-.chop{min-height:520px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;background:linear-gradient(165deg,#1c1732 0%,#241d40 100%);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.chop{min-height:520px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;background:repeating-linear-gradient(135deg,rgba(232,184,75,.03) 0px,rgba(232,184,75,.03) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(45deg,rgba(232,184,75,.02) 0px,rgba(232,184,75,.02) 1px,transparent 1px,transparent 28px),radial-gradient(circle 2.5px at 22% 76%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2px at 80% 24%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.8px at 65% 78%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 2px at 30% 20%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 2px at 88% 55%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 1.6px at 12% 48%,rgba(232,184,75,.28),transparent 100%),radial-gradient(ellipse 420px 340px at 85% 85%,rgba(139,92,246,.1),transparent 65%),radial-gradient(ellipse 380px 320px at 15% 15%,rgba(157,42,90,.11),transparent 62%),radial-gradient(ellipse 560px 420px at 50% 30%,rgba(232,184,75,.16),transparent 65%),linear-gradient(165deg,#1c1732 0%,#2a1c3a 55%,#241d40 100%);-webkit-print-color-adjust:exact;print-color-adjust:exact;position:relative}
+/* 2026-08-12: 순서는 원래대로("CHAPTER 0N" 라벨 → 큰 제목, 사용자 정정).
+   글자 크기는 원래 값 그대로 유지(사용자 요청: 글씨 크기를 건드리지 말 것) —
+   대신 원래 있던 max-width:560px 제한만 없앤다. 그 좁은 폭 하나가 페이지
+   안에 실제로 들어갈 수 있는 제목까지 불필요하게 여러 줄로 꺾이게 만들던
+   원인이었다. 진짜로 페이지 폭을 넘는 아주 긴 제목은 자연스럽게 줄바꿈된다
+   (강제로 줄이거나 잘라내지 않음). */
 .chop-badge{display:inline-flex;align-items:center;padding:7px 20px;border:1px solid rgba(232,184,75,.5);border-radius:100px;font-size:11px;color:var(--gold);font-weight:700;letter-spacing:2px;margin-bottom:26px}
-.chop-title{font-size:clamp(24px,3.6vw,34px);font-weight:800;color:#fff;line-height:1.35;max-width:560px;letter-spacing:-.3px;word-break:keep-all}
-.chop-spark{margin-top:26px;color:rgba(232,184,75,.5)}
-.chop-spark svg{width:12px;height:12px}
+.chop-title{font-size:clamp(24px,3.6vw,34px);font-weight:800;color:#fff;line-height:1.35;max-width:100%;letter-spacing:-.3px;word-break:keep-all}
 
 /* Bold "thesis statement" — V3 Phase 1B refinement. The reference repeats a
    single bold declarative sentence several times per book (not just once at
