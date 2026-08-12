@@ -101,6 +101,35 @@ function copyPrompt(id,btn){
 
 function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+/* 2026-08-12: 사용자 요청 — AI가 만든 제목에 대시("링크는 있는데 구매가
+   없다 - 전환 공백의 정체" 같은 형태)가 있으면 대시 앞/뒤를 두 줄(대제목/
+   소제목)로 나눠서 보여주고, 화면에 "-" 글자 자체는 표시하지 않는다. 대시
+   양옆에 공백이 있는 경우만 분리 대상으로 본다("AI-기반"처럼 붙어 쓴
+   하이픈은 건드리지 않음). 대시가 없으면 원래 그대로(main만, sub 없음). */
+function splitHookTitle(title){
+  var t=String(title||'');
+  var m=t.match(/^(.+?)\s[-–—]\s(.+)$/);
+  if(m&&m[1].trim()&&m[2].trim())return {main:m[1].trim(),sub:m[2].trim()};
+  return {main:t,sub:null};
+}
+function fsStyleAttr(px){ px=parseInt(px,10); return px?(' style="font-size:'+px+'px"'):''; }
+/* 편집모드에서만 보이는 대제목/소제목 글씨크기 A-/A+ 컨트롤. contentEditable
+   영역([data-atlas-field]) 바깥의 형제 요소로 둬야 버튼 라벨 텍스트가
+   저장되는 제목에 섞여 들어가지 않는다. */
+function fontSizeCtl(hasSub){
+  var h='<div class="atlas-fontsize-ctl">'
+    +'<span class="afc-lbl">대제목</span>'
+    +'<button type="button" class="afc-btn" onclick="atlasAdjustTitleFontSize(this,\'main\',-1)">A−</button>'
+    +'<button type="button" class="afc-btn" onclick="atlasAdjustTitleFontSize(this,\'main\',1)">A+</button>';
+  if(hasSub){
+    h+='<span class="afc-lbl">소제목</span>'
+      +'<button type="button" class="afc-btn" onclick="atlasAdjustTitleFontSize(this,\'sub\',-1)">A−</button>'
+      +'<button type="button" class="afc-btn" onclick="atlasAdjustTitleFontSize(this,\'sub\',1)">A+</button>';
+  }
+  h+='</div>';
+  return h;
+}
+
 
 /* 2026-08-10: 사용자가 첨부한 참고 전자책(다크 네이비 + 골드 프리미엄 에디토리얼
    스타일)을 모방해달라고 요청 — 매 전자책마다 색이 바뀌던 랜덤 그라디언트
@@ -183,9 +212,19 @@ function renderCvEbook(e){
   // 모양으로 보인다는 sparkle 아이콘 장식 삭제, (3) 이후 시도했던 워터마크
   // (월계관 → 책 모양)도 전부 취소 — 중앙 오브젝트 워터마크 없이 배경
   // 그라디언트/점/텍스처 장식만으로 화려함을 낸다(css/styles.css .cvr 참고).
+  // 2026-08-12: 사용자 요청 — 제목에 대시("A - B")가 있으면 대제목(A)/
+  // 소제목(B)로 칸을 나눠 대시 글자 없이 표시. 편집모드에서 A-/A+로 글씨
+  // 크기 조절 가능(titleFontSizeMain/titleFontSizeSub에 저장).
+  var _ctp=splitHookTitle(e.title);
+  var _ctitHtml=_ctp.sub
+    ? '<div class="ctit-split" contenteditable="false" data-atlas-field="title">'
+      +'<div class="ctit"'+fsStyleAttr(e.titleFontSizeMain)+'>'+x(_ctp.main)+'</div>'
+      +'<div class="ctit-sub2"'+fsStyleAttr(e.titleFontSizeSub)+'>'+x(_ctp.sub)+'</div>'
+      +'</div>'
+    : '<div class="ctit" contenteditable="false" data-atlas-field="title"'+fsStyleAttr(e.titleFontSizeMain)+'>'+x(e.title)+'</div>';
   pages.push('<div class="pg cvr">'
     +'<div class="ccat">'+x(e.category)+'</div>'
-    +'<div class="ctit-box"><div class="ctit" contenteditable="false" data-atlas-field="title">'+x(e.title)+'</div></div>'
+    +'<div class="ctit-box">'+_ctitHtml+fontSizeCtl(!!_ctp.sub)+'</div>'
     +'<div class="csub" contenteditable="false" data-atlas-field="subtitle">'+x(e.subtitle)+'</div>'
     +'<div class="cvr-foot"><div class="cyr">'+x(c.year||'2025')+' · '+x(e.category)+'</div></div>'
     +'</div>');
@@ -228,9 +267,17 @@ function renderCvEbook(e){
     // 2026-08-12: 순서를 원래대로 되돌림(사용자 정정) — "CHAPTER 0N" 라벨이
     // 위, 챕터 실제 제목이 그 아래. 대제목/소제목 표현은 원래 이 순서(라벨 →
     // 큰 제목)를 가리킨 것이었다.
+    var _chtp=splitHookTitle(ch.title);
+    var _chTitleHtml=_chtp.sub
+      ? '<div class="chop-title-split" contenteditable="false" data-atlas-field="chapterTitle" data-atlas-chapter="'+i+'">'
+        +'<div class="chop-title"'+fsStyleAttr(ch.titleFontSizeMain)+'>'+x(_chtp.main)+'</div>'
+        +'<div class="chop-title-sub"'+fsStyleAttr(ch.titleFontSizeSub)+'>'+x(_chtp.sub)+'</div>'
+        +'</div>'
+      : '<div class="chop-title" contenteditable="false" data-atlas-field="chapterTitle" data-atlas-chapter="'+i+'"'+fsStyleAttr(ch.titleFontSizeMain)+'>'+x(ch.title)+'</div>';
     pages.push('<div class="pg chop">'
       +'<div class="chop-badge">CHAPTER '+pad(ch.number)+'</div>'
-      +'<div class="chop-title" contenteditable="false" data-atlas-field="chapterTitle" data-atlas-chapter="'+i+'">'+x(ch.title)+'</div>'
+      +_chTitleHtml
+      +fontSizeCtl(!!_chtp.sub)
       +'</div>');
     var h='<div class="pg inn">';
     h+='<div class="cb"><div class="cp">'+ebIcon('book',14)+' CHAPTER '+pad(ch.number)+'</div><div class="cl">'+x(e.category||'')+'</div></div>';
