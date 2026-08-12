@@ -1598,9 +1598,20 @@ function atlasToggleEbookEditMode(){
   if(window.AtlasIcons)AtlasIcons.applyAll(document.getElementById('cv-result-state'));
 }
 function atlasCollectEbookEdits(edoc){
+  function titleTextOf(el){
+    var mainEl=el.querySelector(':scope > .ctit, :scope > .chop-title');
+    var subEl2=el.querySelector(':scope > .ctit-sub2, :scope > .chop-title-sub');
+    if(mainEl&&subEl2){
+      var mt=(mainEl.innerText||mainEl.textContent||'').trim();
+      var st=(subEl2.innerText||subEl2.textContent||'').trim();
+      if(mt&&st)return mt+' - '+st;
+      if(mt)return mt;
+    }
+    return (el.innerText||el.textContent||'').trim();
+  }
   function textOf(el){ return (el.innerText||el.textContent||'').replace(/ /g,' ').replace(/\n{3,}/g,'\n\n').trim(); }
   var titleEl=edoc.querySelector('[data-atlas-field="title"]');
-  if(titleEl){ var t=textOf(titleEl); if(t){APP.ebook.title=t;APP.lockedTitle=t;} }
+  if(titleEl){ var t=titleTextOf(titleEl); if(t){APP.ebook.title=t;APP.lockedTitle=t;} }
   var subEl=edoc.querySelector('[data-atlas-field="subtitle"]');
   if(subEl){ var s=textOf(subEl); APP.ebook.subtitle=s; APP.lockedSubtitle=s; }
   var prefaceEl=edoc.querySelector('[data-atlas-field="preface"]');
@@ -1611,7 +1622,7 @@ function atlasCollectEbookEdits(edoc){
   if(conclusionEl)APP.ebook.conclusion=textOf(conclusionEl);
   (APP.ebook.chapters||[]).forEach(function(ch,i){
     var chTitleEl=edoc.querySelector('[data-atlas-field="chapterTitle"][data-atlas-chapter="'+i+'"]');
-    if(chTitleEl){ var ct=textOf(chTitleEl); if(ct)ch.title=ct; }
+    if(chTitleEl){ var ct=titleTextOf(chTitleEl); if(ct)ch.title=ct; }
     var parts=edoc.querySelectorAll('[data-atlas-field="chapterContent"][data-atlas-chapter="'+i+'"]');
     if(parts.length){
       var joined=Array.prototype.map.call(parts,textOf).join('\n\n');
@@ -1622,6 +1633,34 @@ function atlasCollectEbookEdits(edoc){
     var apEl=edoc.querySelector('[data-atlas-field="appendixContent"][data-atlas-appendix="'+i+'"]');
     if(apEl)ap.content=textOf(apEl);
   });
+}
+/* 2026-08-12: 편집모드 전용 대제목/소제목 글씨크기 A-/A+ 컨트롤 핸들러.
+   버튼은 [data-atlas-field] 바깥의 형제 요소라 contentEditable과 무관하게
+   동작한다. 클릭한 버튼이 속한 .pg(표지 또는 챕터 오프너)를 찾아 대상
+   줄(main/sub)의 인라인 font-size를 바꾸고, 같은 값을 APP.ebook(표지) 또는
+   APP.ebook.chapters[i](챕터)에 저장해 재렌더/새로고침 후에도 유지되게
+   한다. */
+function atlasAdjustTitleFontSize(btn,part,delta){
+  if(!APP.ebook)return;
+  var pgEl=btn.closest('.pg');
+  if(!pgEl)return;
+  var targetEl=part==='sub'
+    ? pgEl.querySelector('.ctit-sub2, .chop-title-sub')
+    : pgEl.querySelector('.ctit, .chop-title');
+  if(!targetEl)return;
+  var cur=parseInt(targetEl.style.fontSize,10);
+  if(!cur)cur=parseInt(window.getComputedStyle(targetEl).fontSize,10)||24;
+  var next=Math.max(12,Math.min(80,cur+delta*2));
+  targetEl.style.fontSize=next+'px';
+  var chIdxEl=pgEl.querySelector('[data-atlas-chapter]');
+  if(chIdxEl&&APP.ebook.chapters){
+    var idx=parseInt(chIdxEl.getAttribute('data-atlas-chapter'),10);
+    var ch=APP.ebook.chapters[idx];
+    if(ch){ if(part==='sub')ch.titleFontSizeSub=next; else ch.titleFontSizeMain=next; }
+  }else{
+    if(part==='sub')APP.ebook.titleFontSizeSub=next; else APP.ebook.titleFontSizeMain=next;
+  }
+  atlasSyncEbookToHistory();
 }
 
 /* 2026-08-10: "화면과 동일하게" PDF 저장. Word(downloadDocx)처럼 별도 XML을
