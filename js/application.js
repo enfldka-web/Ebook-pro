@@ -1686,10 +1686,32 @@ function atlasDownloadEbookPdf(){
   var title=(APP.ebook.title||'전자책').replace(/[\/\\:*?"<>|]/g,'_');
   showToast('info','PDF 생성 중입니다... (전체 '+pageEls.length+'페이지, 잠시만 기다려주세요)');
   var doc=null;
-  var chain=Promise.resolve();
+  /* 2026-08-13: 사용자 리포트(첨부 PDF) — 표지/챕터 오프너(큰 제목 글씨가
+     있는 페이지)만 골라서 오른쪽 절반 가까이가 통째로 잘려 나왔다(본문
+     페이지는 정상). 두 가지가 함께 원인일 수 있다:
+     (1) 이 화면이 쓰는 웹폰트(글씨체 선택 기능, atlasSetEbookFont)가 캡처
+     시작 시점에 아직 로딩되지 않았을 수 있다 — 대체(fallback) 폰트의 실제
+     글자 폭이 최종 폰트와 다르면 레이아웃이 어긋난다.
+     (2) 제목 글씨 크기가 CSS clamp(...,4.2vw,...)처럼 뷰포트 폭(vw) 단위를
+     쓰는데(.ctit/.chop-title), html2canvas는 기본적으로 "지금 브라우저
+     창 폭"을 그대로 안 쓰고 자체적으로 창 크기를 추정한다 — 이게 실제 화면
+     폭과 어긋나면 vw 계산 결과와 그에 따른 줄바꿈이 화면에 보이는 것과
+     달라지고, .pg의 overflow:hidden에 걸려 잘린 것처럼 보인다(본문처럼
+     작은 글자는 폭 차이가 거의 안 보임 — 실제로 큰 제목이 있는 페이지에서만
+     나타난 것과 일치). document.fonts.ready를 기다린 뒤 캡처를 시작하고,
+     html2canvas에 지금 실제 브라우저 뷰포트 폭/높이를 windowWidth/
+     windowHeight로 명시적으로 넘겨 vw 계산이 항상 화면과 같게 만든다. */
+  var waitFonts=(typeof document.fonts!=='undefined'&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
+  var chain=waitFonts.then(function(){
+    // 폰트가 막 적용된 직후 한 프레임 정도 레이아웃/페인트가 안정될 시간을 준다.
+    return new Promise(function(resolve){
+      requestAnimationFrame(function(){requestAnimationFrame(resolve);});
+    });
+  });
   pageEls.forEach(function(pg){
     chain=chain.then(function(){
-      return html2canvas(pg,{scale:1.5,useCORS:true,allowTaint:true});
+      var vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
+      return html2canvas(pg,{scale:1.5,useCORS:true,allowTaint:true,windowWidth:vw,windowHeight:vh});
     }).then(function(canvas){
       var imgData=canvas.toDataURL('image/jpeg',0.92);
       var w=canvas.width,h=canvas.height;
@@ -2116,7 +2138,13 @@ function downloadDocx(e){
   try{
     var zip=new JSZip();
     var title=e.title||'전자책';
-    var author=e.author||'저자';
+    // 표지의 "저자:" 줄은 사용자 요청으로 완전히 삭제했지만(위 "── 표지"
+    // 참고), 뒷표지 저작권 스탬프("ⓒ YEAR 저자 · 출판사 · ALL RIGHTS
+    // RESERVED")는 미리보기(js/renderers.js .bkc)가 지금도 e.author를 그대로
+    // 쓰고 있어 Preview == Export를 지키려면 DOCX도 똑같이 맞춰야 한다 —
+    // 미리보기와 동일하게 값이 없으면 빈 문자열로 폴백한다("저자" 같은
+    // 가짜 placeholder를 새로 지어내지 않음).
+    var author=e.author||'';
     var chs=e.chapters||[];
 
     // cleanText와 동일한 처리 (미리보기와 일치)
@@ -2206,13 +2234,32 @@ function downloadDocx(e){
             +'</w:rPr><w:t xml:space="preserve">'+esc(rest)+'</w:t></w:r></w:p>'});
           return;
         }
-        splitLongParagraph(t.replace(/\*\*/g,'')).forEach(function(chunk){
-          blocks.push({type:'plain',xml:'<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
-            +'<w:r><w:rPr>'
-            +'<w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/>'
-            +(color?'<w:color w:val="'+color+'"/>':'')
-            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
-            +'</w:rPr><w:t xml:space="preserve">'+esc(chunk)+'</w:t></w:r></w:p>'});
+        splitLongParagraph(t.replace(/\*\*/g,'')).forEach(function(chunk,ci){
+          // 2026-08-13: 사용자 요청 — "원인 1:", "단계 1:" 같은 문단 리드인이
+          // 미리보기(js/renderers.js renderTextBlocks() .chb-lead)에서는 굵게
+          // 나오는데 DOCX에서는 그냥 일반 글씨였다는 리포트. 같은 정규식으로
+          // 리드인만 별도 <w:r>(굵게+진한 색)으로 나누고 나머지는 그대로 이어
+          // 붙인다(긴 문단이 여러 조각으로 나뉜 경우 진짜 리드인은 첫 조각에만
+          // 있으므로 그때만 검사).
+          var lead=ci===0&&chunk.match(/^([^:,]{1,16}[:,])\s*(.+)$/);
+          if(lead){
+            blocks.push({type:'plain',xml:'<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
+              +'<w:r><w:rPr><w:b/><w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/><w:color w:val="111827"/>'
+              +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+              +'</w:rPr><w:t xml:space="preserve">'+esc(lead[1])+' </w:t></w:r>'
+              +'<w:r><w:rPr>'
+              +'<w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/>'
+              +(color?'<w:color w:val="'+color+'"/>':'')
+              +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+              +'</w:rPr><w:t xml:space="preserve">'+esc(lead[2])+'</w:t></w:r></w:p>'});
+          }else{
+            blocks.push({type:'plain',xml:'<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
+              +'<w:r><w:rPr>'
+              +'<w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/>'
+              +(color?'<w:color w:val="'+color+'"/>':'')
+              +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+              +'</w:rPr><w:t xml:space="preserve">'+esc(chunk)+'</w:t></w:r></w:p>'});
+          }
         });
       });
       return blocks;
@@ -2375,10 +2422,10 @@ function downloadDocx(e){
         +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
         +'</w:rPr><w:t xml:space="preserve">'+esc(ct(e.subtitle))+'</w:t></w:r></w:p>';
     }
-    body+='<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="40" w:after="40"/></w:pPr>'
-      +'<w:r><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/><w:color w:val="475569"/>'
-      +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
-      +'</w:rPr><w:t xml:space="preserve">저자: '+esc(ct(author))+'</w:t></w:r></w:p>';
+    // 2026-08-13: 사용자 요청 — DOCX 첫 페이지에 "저자: 편집부"가 그대로
+    // 나온다는 리포트. 저자/출판/연락처는 이미 이전에 표지·저작권 페이지
+    // (js/renderers.js)에서 전부 삭제하기로 확정한 항목이라, DOCX 표지도
+    // 같은 결정을 따라 저자 줄 자체를 완전히 없앤다(Preview == Export).
     if(e.category){
       body+='<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="20" w:after="20"/></w:pPr>'
         +'<w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="94a3b8"/>'
@@ -2418,20 +2465,29 @@ function downloadDocx(e){
         +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
         +'</w:rPr><w:t xml:space="preserve">  '+esc(ct(chs[i].title||''))+'</w:t></w:r></w:p>';
     }
+    // 2026-08-13: 사용자 요청 — DOCX 목차에 결론/부록이 빠져있다는 리포트.
+    // 미리보기(js/renderers.js) 목차는 이미 결론/부록을 챕터 뒤에 나열하는데
+    // DOCX 목차는 챕터만 나열하고 있었다 — 본문에는 결론/부록 섹션이 항상
+    // 실제로 존재하므로(아래 "── 결론"/"── 부록" 참고, 부록은 실제 데이터가
+    // 없어도 체크리스트로 항상 생성됨) 목차에도 항상 함께 나열한다.
+    body+='<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
+      +'<w:r><w:rPr><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="6366f1"/>'
+      +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+      +'</w:rPr><w:t xml:space="preserve">결론</w:t></w:r></w:p>';
+    body+='<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
+      +'<w:r><w:rPr><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="6366f1"/>'
+      +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+      +'</w:rPr><w:t xml:space="preserve">부록</w:t></w:r></w:p>';
     body+=divider();
 
     // ── 챕터 (V3 Phase 1B: 각 장은 새 페이지에서 시작 — 미리보기의 장 오프너
     // 페이지 리듬과 동일한 "장은 항상 새 페이지에서 시작" 원칙을 DOCX에도 적용)
-    // V3 Phase 1B DOCX 파리티 보정: 미리보기(js/renderers.js renderCvEbook)가
-    // 실제로 보여주는 편집 요소(framework/comparisonTable/timeline/warningBox/
-    // copyBox/summary)를 DOCX에서도 동일한 순서로 내보낸다 — 이전에는 이
-    // 다섯 요소가 DOCX에서 통째로 누락되어 있었다(Preview == Export 위반,
-    // 검증 후 확인된 실제 결함). 순서는 미리보기와 정확히 동일하게 유지:
-    // 본문 전반부 → (comparisonTable → framework → timeline, 존재하는 것만,
-    // Editorial Composition Engine과 동일한 "목록 중간에서 자르지 않는" 분할
-    // 규칙 적용) → 본문 후반부 → actionBox → copyBox → warningBox →
-    // keyPoints → actionItems → summary. 실제 데이터가 없는 필드는 미리보기와
-    // 마찬가지로 완전히 생략한다(아무것도 지어내지 않음).
+    // 2026-08-13: 사용자 요청으로 미리보기(js/renderers.js renderCvEbook)에서
+    // 본문 문단 중간에 끼워 넣던 comparisonTable/framework/timeline을 "본문이
+    // 전부 끝난 뒤"로 옮겼다 — DOCX도 Preview == Export를 지키기 위해 똑같이
+    // 맞춘다. 순서: 본문 전체 → comparisonTable → framework → timeline →
+    // actionBox → copyBox → warningBox → keyPoints → actionItems → summary.
+    // 실제 데이터가 없는 필드는 미리보기와 마찬가지로 완전히 생략한다.
     for(var i=0;i<chs.length;i++){
       var ch=chs[i];
       body+=pageBreak();
@@ -2439,29 +2495,18 @@ function downloadDocx(e){
       body+=heading(ch.title||'',2);
 
       var bodyBlocks=textToParaBlocks(ch.content||'',24);
-      var midDocx='';
+      var afterBodyDocx='';
       if(ch.comparisonTable&&ch.comparisonTable.headers&&ch.comparisonTable.headers.length&&ch.comparisonTable.rows&&ch.comparisonTable.rows.length){
-        midDocx+=docxComparisonTable(ch.comparisonTable);
+        afterBodyDocx+=docxComparisonTable(ch.comparisonTable);
       }
       if(ch.framework&&ch.framework.steps&&ch.framework.steps.length){
-        midDocx+=docxFramework(ch.framework);
+        afterBodyDocx+=docxFramework(ch.framework);
       }
       if(ch.timeline&&ch.timeline.length){
-        midDocx+=docxTimeline(ch.timeline);
+        afterBodyDocx+=docxTimeline(ch.timeline);
       }
-      function docxBlockType(b){return (b.type==='num'||b.type==='bul')?b.type:'other';}
-      var mid=Math.ceil(bodyBlocks.length/2);
-      while(mid<bodyBlocks.length&&docxBlockType(bodyBlocks[mid])!=='other'&&docxBlockType(bodyBlocks[mid])===docxBlockType(bodyBlocks[mid-1])){
-        mid++;
-      }
-      if(midDocx&&bodyBlocks.length>=2&&mid<bodyBlocks.length){
-        body+=bodyBlocks.slice(0,mid).map(function(b){return b.xml;}).join('');
-        body+=midDocx;
-        body+=bodyBlocks.slice(mid).map(function(b){return b.xml;}).join('');
-      }else{
-        body+=bodyBlocks.map(function(b){return b.xml;}).join('');
-        body+=midDocx;
-      }
+      body+=bodyBlocks.map(function(b){return b.xml;}).join('');
+      body+=afterBodyDocx;
 
       // actionBox
       if(ch.actionBox){
