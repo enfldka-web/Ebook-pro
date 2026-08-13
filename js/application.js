@@ -1709,21 +1709,20 @@ function atlasDownloadEbookPdf(){
   var title=(APP.ebook.title||'전자책').replace(/[\/\\:*?"<>|]/g,'_');
   showToast('info','PDF 생성 중입니다... (전체 '+pageEls.length+'페이지, 잠시만 기다려주세요)');
   var doc=null;
-  /* 2026-08-13: 사용자 리포트(첨부 PDF) — 표지/챕터 오프너(큰 제목 글씨가
-     있는 페이지)만 골라서 오른쪽 절반 가까이가 통째로 잘려 나왔다(본문
-     페이지는 정상). 두 가지가 함께 원인일 수 있다:
-     (1) 이 화면이 쓰는 웹폰트(글씨체 선택 기능, atlasSetEbookFont)가 캡처
-     시작 시점에 아직 로딩되지 않았을 수 있다 — 대체(fallback) 폰트의 실제
-     글자 폭이 최종 폰트와 다르면 레이아웃이 어긋난다.
-     (2) 제목 글씨 크기가 CSS clamp(...,4.2vw,...)처럼 뷰포트 폭(vw) 단위를
-     쓰는데(.ctit/.chop-title), html2canvas는 기본적으로 "지금 브라우저
-     창 폭"을 그대로 안 쓰고 자체적으로 창 크기를 추정한다 — 이게 실제 화면
-     폭과 어긋나면 vw 계산 결과와 그에 따른 줄바꿈이 화면에 보이는 것과
-     달라지고, .pg의 overflow:hidden에 걸려 잘린 것처럼 보인다(본문처럼
-     작은 글자는 폭 차이가 거의 안 보임 — 실제로 큰 제목이 있는 페이지에서만
-     나타난 것과 일치). document.fonts.ready를 기다린 뒤 캡처를 시작하고,
-     html2canvas에 지금 실제 브라우저 뷰포트 폭/높이를 windowWidth/
-     windowHeight로 명시적으로 넘겨 vw 계산이 항상 화면과 같게 만든다. */
+  /* 2026-08-13: 사용자가 재현한 PDF에서 표지뿐 아니라 서문/목차/서론 같은
+     일반 본문 페이지까지 전부 오른쪽이 잘려 나왔다 — 큰 제목 글씨만의
+     문제가 아니라 페이지 전체가 같은 비율로 잘린 것이었다. 진짜 원인:
+     .pg(전자책 한 페이지)가 폭을 스스로 정하지 않고 부모 컨테이너가 넓은
+     만큼 그대로 늘어나는 구조였다(css/styles.css .ebook-preview-wrap) —
+     넓은 모니터에서는 페이지 하나가 실제로 매우 넓어지고, html2canvas가
+     이런 비정형적으로 넓은 요소를 캡처할 때 오른쪽을 잘라내는 경우가
+     있었다. 근본 해결: .ebook-preview-wrap에 max-width를 줘서 화면 폭과
+     무관하게 항상 같은 폭의 "책 페이지"로 고정했다(디자인상으로도 더
+     자연스러움 — 부수적 개선). 아래 두 가지는 그 위에 추가로 남겨두는
+     안전장치다: (1) 폰트 로딩을 기다린 뒤 캡처를 시작하고, (2) 캡처
+     대상 요소의 실제 렌더 크기(getBoundingClientRect)를 html2canvas의
+     width/height로 명시적으로 못박아, 뷰포트 폭이 얼마든 캔버스가 항상
+     "지금 화면에 보이는 그 크기"를 그대로 담게 한다. */
   var waitFonts=(typeof document.fonts!=='undefined'&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
   var chain=waitFonts.then(function(){
     // 폰트가 막 적용된 직후 한 프레임 정도 레이아웃/페인트가 안정될 시간을 준다.
@@ -1733,8 +1732,10 @@ function atlasDownloadEbookPdf(){
   });
   pageEls.forEach(function(pg){
     chain=chain.then(function(){
+      var rect=pg.getBoundingClientRect();
+      var pw=Math.ceil(rect.width),ph=Math.ceil(rect.height);
       var vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
-      return html2canvas(pg,{scale:1.5,useCORS:true,allowTaint:true,windowWidth:vw,windowHeight:vh});
+      return html2canvas(pg,{scale:1.5,useCORS:true,allowTaint:true,windowWidth:vw,windowHeight:vh,width:pw,height:ph});
     }).then(function(canvas){
       var imgData=canvas.toDataURL('image/jpeg',0.92);
       var w=canvas.width,h=canvas.height;
@@ -2225,6 +2226,11 @@ function downloadDocx(e){
       lines.forEach(function(line){
         var t=line.trim();
         if(!t){blocks.push({type:'empty',xml:'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr></w:p>'});return;}
+        // 미리보기(js/renderers.js renderTextBlocks())가 이미 걸러내는, LLM이
+        // 섹션 구분용으로 남기는 밑줄/대시만 있는 줄("___", "----" 등)을
+        // DOCX에서도 동일하게 건너뛴다(Preview==Export, 사용자 리포트: 워드
+        // 파일에서 문장 끝마다 "___" 가 그대로 나옴).
+        if(/^[_\-–—]{3,}$/.test(t))return;
         var mBold=t.match(/^\*\*(.+)\*\*$/);
         var mQuote=!mBold&&t.match(/^["“](.+)["”]$/);
         var mNum=!mBold&&!mQuote&&t.match(/^(\d{1,2})[).]\s+(.+)$/);
