@@ -51,20 +51,85 @@ var anthropicProvider = require('./providers/anthropic-text-provider.js');
 var openaiProvider = require('./providers/openai-image-provider.js');
 var imageRateLimiter = require('./image-rate-limiter.js');
 
-/* 2026-08-11: 썸네일 4테마(베스트셀러 에디토리얼/마켓플레이스 임팩트/문제 해결형/
-   퍼블리셔 프리미엄) 배경 이미지 생성용 고정 프롬프트. 사용자가 실제로 GPT
-   이미지 생성으로 만든 참고 이미지 4장(파일명이 이 4개 테마와 정확히 일치)의
-   실제 내용을 확인해 반영했다 — 책+램프(베스트셀러)/쇼핑카트(마켓플레이스)/
-   퍼즐+돋보기(문제 해결형)/왕관+월계관(퍼블리셔 프리미엄). 한글 텍스트는 이미지
-   안에 넣지 않는다(OpenAI 이미지 생성이 한글 텍스트를 정확히 그리지 못함) —
-   제목/부제/배지는 Atlas가 이 이미지를 배경으로 깔고 CSS로 얹는다. */
-var THUMB_AI_THEME_PROMPTS = {
-  bestseller: 'A warm, moody editorial still-life photograph of a neat stack of hardcover books on a dark wooden desk, illuminated by a classic brass desk lamp casting warm golden light, deep navy background, dramatic soft shadows, premium bestseller book-cover photography, cinematic lighting.',
-  marketplace: 'A friendly flat-illustration style shopping cart filled with colorful shopping bags, warm cream and beige background, soft shadow beneath the cart, clean minimal commercial e-commerce illustration, vibrant orange and blue accent colors.',
-  problem: 'A bold flat-illustration of a large jigsaw puzzle piece being examined by a magnifying glass, deep forest green background, clean modern vector-style illustration, confident problem-solving visual metaphor.',
-  publisher: 'A luxurious illustration of a golden crown resting above a laurel wreath, deep navy background with subtle gold sparkle particles, premium majestic publishing-house emblem style, elegant symmetrical composition, soft golden rim light.'
+/* 2026-08-12: 사용자가 실제 참고 이미지 20장(4테마 × 5개 실제 책 예시)을
+   보여줬다 — 각 테마의 "스타일 정체성"(색/조명/구도)은 고정이지만, 그 안의
+   중심 오브제/장면은 책마다 그 책의 실제 주제에 맞춰 전부 달랐다(성공 원칙
+   책엔 체스말, 시간관리 책엔 회중시계, 투자 책엔 황소상, ChatGPT 활용서엔
+   챗봇 아이콘 등). 예전엔 테마당 고정 프롬프트 1개를 모든 책에 그대로
+   재사용했다 — 이제 "스타일 템플릿"(고정)과 "중심 오브제 묘사"(책마다 다름)를
+   분리한다. 오브제 묘사는 Claude(anthropicProvider)가 그 책의 실제 제목/
+   카테고리를 보고 매번 새로 짓는다(generateThumbSubject 참고) — 사용자가
+   "책 제목/내용 보고 매번 새로 결정"을 선택했다. 한글 텍스트는 여전히 이미지
+   안에 절대 넣지 않는다(OpenAI 이미지 생성이 한글은 물론 어떤 글자도 정확히
+   그리지 못함, openai-image-provider.js buildOpenAIPrompt 참고) — 제목/부제/
+   배지는 Atlas가 이 이미지를 배경으로 깔고 CSS로 얹는다. */
+var THUMB_THEME_STYLE_TEMPLATE = {
+  bestseller: 'A warm, moody editorial still-life photograph of {SUBJECT}, deep navy background, dramatic soft shadows, premium bestseller book-cover photography, cinematic lighting.',
+  marketplace: 'A friendly flat-illustration style {SUBJECT}, warm cream and beige background, soft shadow beneath the object, clean minimal commercial e-commerce illustration, vibrant orange and blue accent colors.',
+  problem: 'A bold flat-illustration of {SUBJECT}, deep forest green background, clean modern vector-style illustration, confident problem-solving visual metaphor.',
+  publisher: 'A luxurious illustration of {SUBJECT}, deep navy background with subtle gold sparkle particles, premium majestic publishing-house emblem style, elegant symmetrical composition, soft golden rim light.'
 };
-var THUMB_AI_THEME_IDS = Object.keys(THUMB_AI_THEME_PROMPTS);
+var THUMB_AI_THEME_IDS = Object.keys(THUMB_THEME_STYLE_TEMPLATE);
+/* Claude 호출이 실패했거나(설정 안 됨/오류) 책 제목이 없을 때만 쓰는 폴백 —
+   예전에 쓰던 고정 오브제 그대로(회귀 안전망, 화면이 절대 깨지지 않음). */
+var THUMB_AI_DEFAULT_SUBJECT = {
+  bestseller: 'a neat stack of hardcover books on a dark wooden desk, illuminated by a classic brass desk lamp casting warm golden light',
+  marketplace: 'a shopping cart filled with colorful shopping bags',
+  problem: 'a large jigsaw puzzle piece being examined by a magnifying glass',
+  publisher: 'a golden crown resting above a laurel wreath'
+};
+/* 테마별로 어떤 "종류"의 오브제가 그 테마다운지 Claude에게 알려주는 힌트 —
+   참고 이미지 20장에서 관찰한 패턴을 그대로 요약했다(지어내지 않음). */
+var THUMB_THEME_SUBJECT_HINT = {
+  bestseller: '그 책의 핵심 주제를 은유하는 상징적인 사진 오브제나 장면 하나(예: 체스 말, 사람 옆얼굴/두상 실루엣, 빛나는 문, 산 정상 — 참고 예시일 뿐 실제로는 이 책 주제에 맞는 걸로 새로 생각할 것)',
+  marketplace: '그 책이 다루는 도구/서비스를 나타내는 단순한 아이콘형 오브제(예: 특정 소프트웨어 로고 형태의 앱 아이콘, 쇼핑카트, 성장 그래프) — 플랫 일러스트 스타일',
+  problem: '그 책이 해결하는 문제/과정을 은유하는 단순한 오브제나 장면(예: 퍼즐 조각, 화살표 성장 그래프, 3단계 프로세스 아이콘, 돋보기)',
+  publisher: '그 책 주제를 상징하는 고급스러운 오브제(예: 왕관, 월계관, 회중시계, 황소 조형물, 저울, 두뇌 조형물)'
+};
+/* 2026-08-12: 사용자 리포트 — "다시 생성"을 눌러도 이전과 별로 다르지 않은
+   이미지가 나온다. 원인: 매번 정확히 같은 프롬프트를 그대로 보냈다(이미지
+   생성 모델은 같은 프롬프트에 비슷한 구도를 재현하는 경향이 있음). 테마의
+   핵심 정체성(피사체/색/스타일)은 그대로 두고, 카메라 구도·조명·앵글만
+   뚜렷하게 바꾸는 문구를 순환 적용해 재생성마다 눈에 띄게 달라지게 한다.
+   클라이언트(js/application.js atlasGenerateThumbnailAiBg)가 이 테마에서
+   몇 번째 생성 시도인지(variationIndex)를 보내면 그 값으로 순환 선택한다. */
+var THUMB_AI_VARIATION_MODIFIERS = [
+  'Camera angle: slightly elevated three-quarter view, warm cinematic color grading.',
+  'Camera angle: straight-on symmetrical composition, cooler blue-toned lighting accent.',
+  'Camera angle: close-up dramatic framing with shallow depth of field, high-contrast rim lighting.',
+  'Camera angle: wide establishing shot with generous negative space, soft diffused lighting.',
+  'Camera angle: dynamic diagonal composition, golden-hour warm rim light.'
+];
+function buildThumbAiPrompt(themeId, subjectText, variationIndex){
+  var subject = (subjectText && subjectText.length>0 && subjectText.length<400) ? subjectText : THUMB_AI_DEFAULT_SUBJECT[themeId];
+  var base = THUMB_THEME_STYLE_TEMPLATE[themeId].replace('{SUBJECT}', subject);
+  var idx = ((parseInt(variationIndex, 10) || 0) % THUMB_AI_VARIATION_MODIFIERS.length + THUMB_AI_VARIATION_MODIFIERS.length) % THUMB_AI_VARIATION_MODIFIERS.length;
+  return base + ' ' + THUMB_AI_VARIATION_MODIFIERS[idx];
+}
+/* 책 제목/카테고리를 보고 이 테마 스타일에 맞는 "중심 오브제" 영어 묘사를
+   Claude에게 한 문장으로 받아온다. 실패하거나(Anthropic 미설정/오류) 응답이
+   이상하면(너무 길거나 비어있으면) null을 돌려주고, 호출부(buildThumbAiPrompt)가
+   THUMB_AI_DEFAULT_SUBJECT로 자동 대체한다 — 이 단계가 실패해도 이미지 생성
+   자체는 항상 성공한다(회귀 없음). */
+function generateThumbSubject(themeId, ebookTitle, ebookCategory, opts){
+  var sys = '당신은 전자책 표지 아트 디렉터입니다. 주어진 책 제목/카테고리를 보고, '
+    + '이 책의 핵심 아이디어를 한눈에 표현하는 시각적 오브제나 장면 하나를 영어로 '
+    + '짧게(10~25 단어) 묘사하세요.\n스타일 힌트: ' + THUMB_THEME_SUBJECT_HINT[themeId] + '.\n'
+    + '반드시 지킬 것: (1) 오직 하나의 오브제/장면만 묘사할 것(두 개 이상 섞지 말 것), '
+    + '(2) 글자·텍스트·로고·워터마크는 절대 포함하지 말 것(이미지 생성 모델이 글자를 '
+    + '정확히 못 그림 — 묘사 자체에 "text", "letters", "title" 같은 단어를 넣지 말 것), '
+    + '(3) 다른 설명 없이 영어 묘사 문장 하나만 출력할 것(따옴표/번호/줄바꿈 없이).';
+  var userMsg = 'Book title: ' + ebookTitle + (ebookCategory ? ('\nCategory: ' + ebookCategory) : '');
+  return anthropicProvider.generateWithRetry({
+    model: anthropicProvider.DEFAULT_MODEL, max_tokens: 200, system: sys,
+    messages: [{ role:'user', content: userMsg }]
+  }, { env: opts.env, fetchImpl: opts.fetchImpl, timeoutMs: 30000 }).then(function(result){
+    if(!result.success) return null;
+    var block = result.data && result.data.content && result.data.content[0];
+    var text = block && typeof block.text==='string' ? block.text.trim() : '';
+    return text || null;
+  }).catch(function(){ return null; });
+}
 
 function createApp(opts){
   opts = opts || {};
@@ -226,36 +291,52 @@ function createApp(opts){
       return res.status(503).json({ error: { message:'AI 서버에 OpenAI API 키가 설정되지 않았습니다.', code:'not_configured' } });
     }
     var cfg = openaiProvider.config(env);
-    safeLog('openai-generate-start', { themeId: themeId, model: cfg.model });
-    thumbSemaphore.acquire().then(function(release){
-      openaiProvider.generateWithRetry(THUMB_AI_THEME_PROMPTS[themeId], {
-        env: env, fetchImpl: fetchImpl, size: '1536x1024'
-      }).then(function(result){
-        release();
-        if(!result.success){
-          var apiError = (result.data && result.data.error) || null;
-          console.error('[image-gateway] openai-generate-failed', {
-            themeId: themeId, status: result.status, errorKind: result.errorKind,
-            message: apiError && apiError.message, retries: result.retries
-          });
-          var httpStatus = result.status || 502;
-          return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({
-            error: {
-              message: (apiError && apiError.message) || (result.errorKind==='network_error' ? '네트워크 오류로 이미지 생성 서버에 연결하지 못했습니다.' : result.errorKind==='timeout' ? '응답 시간이 초과되었습니다.' : '이미지 생성에 실패했습니다.'),
-              code: result.errorKind
-            }
-          });
-        }
-        var imageDataUrl = openaiProvider.decodeOpenAIImage(result.data);
-        if(!imageDataUrl){
-          return res.status(502).json({ error: { message:'이미지 생성 응답을 해석하지 못했습니다.', code:'decode_failed' } });
-        }
-        safeLog('openai-generate-success', { themeId: themeId, retries: result.retries });
-        res.json({ imageDataUrl: imageDataUrl });
-      }).catch(function(err){
-        release();
-        safeLog('openai-generate-unexpected-error', { themeId: themeId, message: err && err.message });
-        res.status(500).json({ error: { message:'예기치 않은 오류가 발생했습니다.', code:'internal_error' } });
+    var variationIndex = (req.body || {}).variationIndex;
+    var ebookTitle = String((req.body || {}).ebookTitle || '').slice(0, 300);
+    var ebookCategory = String((req.body || {}).ebookCategory || '').slice(0, 100);
+    safeLog('openai-generate-start', { themeId: themeId, model: cfg.model, variationIndex: variationIndex, hasTitle: !!ebookTitle });
+
+    /* 2026-08-12: 책 제목이 있고 Anthropic이 설정돼 있으면 먼저 Claude에게
+       이 책 주제에 맞는 중심 오브제 묘사를 받아온다(generateThumbSubject) —
+       이 단계가 실패하거나 건너뛰어도(제목 없음/Anthropic 미설정/오류)
+       buildThumbAiPrompt가 자동으로 예전 고정 오브제로 대체하므로 이미지
+       생성 자체는 항상 그대로 성공한다. */
+    var subjectPromise = (ebookTitle && anthropicProvider.isConfigured(env))
+      ? generateThumbSubject(themeId, ebookTitle, ebookCategory, { env: env, fetchImpl: fetchImpl })
+      : Promise.resolve(null);
+
+    subjectPromise.then(function(subjectText){
+      safeLog('thumb-subject-resolved', { themeId: themeId, source: subjectText ? 'ai' : 'fallback' });
+      return thumbSemaphore.acquire().then(function(release){
+        openaiProvider.generateWithRetry(buildThumbAiPrompt(themeId, subjectText, variationIndex), {
+          env: env, fetchImpl: fetchImpl, size: '1536x1024'
+        }).then(function(result){
+          release();
+          if(!result.success){
+            var apiError = (result.data && result.data.error) || null;
+            console.error('[image-gateway] openai-generate-failed', {
+              themeId: themeId, status: result.status, errorKind: result.errorKind,
+              message: apiError && apiError.message, retries: result.retries
+            });
+            var httpStatus = result.status || 502;
+            return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({
+              error: {
+                message: (apiError && apiError.message) || (result.errorKind==='network_error' ? '네트워크 오류로 이미지 생성 서버에 연결하지 못했습니다.' : result.errorKind==='timeout' ? '응답 시간이 초과되었습니다.' : '이미지 생성에 실패했습니다.'),
+                code: result.errorKind
+              }
+            });
+          }
+          var imageDataUrl = openaiProvider.decodeOpenAIImage(result.data);
+          if(!imageDataUrl){
+            return res.status(502).json({ error: { message:'이미지 생성 응답을 해석하지 못했습니다.', code:'decode_failed' } });
+          }
+          safeLog('openai-generate-success', { themeId: themeId, retries: result.retries });
+          res.json({ imageDataUrl: imageDataUrl });
+        }).catch(function(err){
+          release();
+          safeLog('openai-generate-unexpected-error', { themeId: themeId, message: err && err.message });
+          res.status(500).json({ error: { message:'예기치 않은 오류가 발생했습니다.', code:'internal_error' } });
+        });
       });
     });
   });

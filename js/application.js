@@ -1721,6 +1721,16 @@ function atlasDownloadEbookPdf(){
 var ATLAS_SELECTED_THUMB_TPL=null;
 var ATLAS_THUMB_AI_CACHE={};
 var ATLAS_THUMB_AI_CONFIGURED=null;
+/* 2026-08-12: 사용자 요청 3건 추가 상태.
+   - ATLAS_THUMB_TEXT_OVERRIDE: 카드에서 직접 고친 제목/부제/배지 텍스트.
+     4개 카드는 같은 책의 다른 "스타일"일 뿐이라 이 셋은 카드 전체에 동기화된다.
+   - ATLAS_THUMB_CTA_OVERRIDE: 테마별 CTA 문구("바로 시작"/"지금 확인하기")는
+     테마마다 원래 다른 문구라 테마 id별로 따로 저장한다(동기화하지 않음).
+   - ATLAS_THUMB_GEN_ATTEMPTS: 테마별 "AI 이미지 생성" 클릭 횟수 — 재생성할
+     때마다 서버(variationIndex)에 넘겨 구도/조명이 확연히 달라지게 한다. */
+var ATLAS_THUMB_TEXT_OVERRIDE=null;
+var ATLAS_THUMB_CTA_OVERRIDE={};
+var ATLAS_THUMB_GEN_ATTEMPTS={};
 function atlasGoToThumbnailPicker(){
   if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
   var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='none';
@@ -1734,9 +1744,60 @@ function atlasBackToEbookResultFromThumbs(){
   var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='';
   window.scrollTo(0,0);
 }
+/* 2026-08-12: fontFamily 추가(전자책에서 고른 글씨체, atlasSetEbookFont가
+   저장한 APP.ebook.fontFamily) — 썸네일 글씨체가 전자책과 항상 같게.
+   ATLAS_THUMB_TEXT_OVERRIDE가 있으면(사용자가 카드에서 직접 고친 경우) 그
+   값을 우선한다. */
 function atlasThumbnailData(){
-  return { title:APP.ebook.title||'', subtitle:APP.ebook.subtitle||'', category:APP.ebook.category||'' };
+  var d = { title:APP.ebook.title||'', subtitle:APP.ebook.subtitle||'', category:APP.ebook.category||'', fontFamily:APP.ebook.fontFamily||'' };
+  var ov = ATLAS_THUMB_TEXT_OVERRIDE;
+  if(ov){
+    if(ov.title!=null)d.title=ov.title;
+    if(ov.subtitle!=null)d.subtitle=ov.subtitle;
+    if(ov.category!=null)d.category=ov.category;
+  }
+  return d;
 }
+/* 카드에서 제목/부제/배지/CTA를 직접 고쳤을 때(contentEditable oninput,
+   js/thumbnail-templates.js editAttrs()) 호출된다. 제목/부제/배지는 "같은
+   책"의 내용이라 4개 카드 전부에 동기화하고, CTA는 테마마다 원래 다른
+   문구라 지금 편집 중인 카드(테마)에만 저장한다. */
+function atlasThumbnailFieldInput(el){
+  var field=el.getAttribute('data-atlas-thumb-field');
+  if(!field)return;
+  var text=(el.innerText||el.textContent||'').replace(/\n+/g,' ').trim();
+  var card=el.closest('.thumb-tpl-card');
+  var tplId=card?card.getAttribute('data-thumb-tpl'):null;
+  if(field==='cta'){
+    if(tplId)ATLAS_THUMB_CTA_OVERRIDE[tplId]=text;
+    return;
+  }
+  if(!ATLAS_THUMB_TEXT_OVERRIDE)ATLAS_THUMB_TEXT_OVERRIDE={};
+  ATLAS_THUMB_TEXT_OVERRIDE[field]=text;
+  document.querySelectorAll('#thumb-tpl-grid [data-atlas-thumb-field="'+field+'"]').forEach(function(other){
+    if(other!==el)other.textContent=text;
+  });
+}
+/* 2026-08-12: 카드 미리보기(.thumb-tpl-preview)는 이제 카드 폭에 맞춰
+   반응형(width:100%)이지만, 내부 캔버스(.thumb-tpl)는 PNG 저장 해상도를
+   지키기 위해 652×488 고정 크기를 유지한다 — 실제 렌더 폭을 재서 그 비율만큼
+   축소하는 배율을 여기서 계산한다(CSS만으로는 % 대 px 고정폭을 나눌 수
+   없음). 그리드/재생성/창 크기 변경마다 다시 계산한다. */
+function atlasScaleThumbnailPreviews(){
+  var native=(typeof AtlasThumbnailTemplates!=='undefined'&&AtlasThumbnailTemplates.SIZE)?AtlasThumbnailTemplates.SIZE.width:652;
+  document.querySelectorAll('#thumb-tpl-grid .thumb-tpl-preview').forEach(function(preview){
+    var inner=preview.querySelector('.thumb-tpl');
+    if(!inner||!preview.clientWidth)return;
+    inner.style.transform='scale('+(preview.clientWidth/native)+')';
+  });
+}
+(function(){
+  var t=null;
+  window.addEventListener('resize',function(){
+    clearTimeout(t);
+    t=setTimeout(atlasScaleThumbnailPreviews,120);
+  });
+})();
 /* configured:false(서버는 정상 응답했지만 OpenAI 키가 없음)와 서버 자체에
    연결이 안 되는 경우(구버전 서버가 아직 떠 있어 이 라우트가 없거나, 게이트웨이가
    실행 중이 아님 — res.json() 파싱 실패로 나타남)를 구분해서 안내한다.
@@ -1764,12 +1825,23 @@ function atlasRenderThumbnailPicker(){
   if(!grid||!APP.ebook||typeof AtlasThumbnailTemplates==='undefined')return;
   ATLAS_SELECTED_THUMB_TPL=null;
   ATLAS_THUMB_AI_CACHE={};
+  ATLAS_THUMB_TEXT_OVERRIDE=null;
+  ATLAS_THUMB_CTA_OVERRIDE={};
+  ATLAS_THUMB_GEN_ATTEMPTS={};
   var data=atlasThumbnailData();
-  var tpls=AtlasThumbnailTemplates.renderAll(data);
+  // renderAll() 대신 카드별로 직접 render()를 호출한다 — 테마별 CTA 문구
+  // override(ATLAS_THUMB_CTA_OVERRIDE)를 카드마다 다르게 얹어야 하기 때문.
+  var tpls=AtlasThumbnailTemplates.LIST.map(function(t){
+    var cardData=Object.assign({},data,{cta:ATLAS_THUMB_CTA_OVERRIDE[t.id]});
+    return { id:t.id, name:t.name, desc:t.desc, html:AtlasThumbnailTemplates.render(t.id,cardData) };
+  });
+  // 2026-08-12: 미리보기 안의 제목/부제/배지/CTA가 이제 클릭해서 바로 편집
+  // 가능하므로(contentEditable), 미리보기 자체는 더 이상 "클릭=템플릿 선택"이
+  // 아니다 — 선택은 체크 표시나 카드 라벨(이름/설명)을 클릭해서 한다.
   grid.innerHTML=tpls.map(function(t){
     return '<div class="thumb-tpl-card" data-thumb-tpl="'+t.id+'">'
-      +'<div class="thumb-tpl-preview" onclick="atlasSelectThumbnailTemplate(\''+t.id+'\')">'+t.html+'</div>'
-      +'<div class="thumb-tpl-card-label"><div><div class="thumb-tpl-card-name">'+x(t.name)+'</div><div class="thumb-tpl-card-desc">'+x(t.desc)+'</div></div><div class="thumb-tpl-card-check" onclick="atlasSelectThumbnailTemplate(\''+t.id+'\')"></div></div>'
+      +'<div class="thumb-tpl-preview">'+t.html+'</div>'
+      +'<div class="thumb-tpl-card-label" onclick="atlasSelectThumbnailTemplate(\''+t.id+'\')"><div><div class="thumb-tpl-card-name">'+x(t.name)+'</div><div class="thumb-tpl-card-desc">'+x(t.desc)+'</div></div><div class="thumb-tpl-card-check"></div></div>'
       +'<div class="thumb-tpl-card-actions">'
         +'<button type="button" class="a2-btn a2-btn-secondary thumb-ai-gen-btn" data-thumb-ai-btn="'+t.id+'" onclick="event.stopPropagation();atlasGenerateThumbnailAiBg(\''+t.id+'\')"><span data-icon="sparkle"></span>AI 이미지 생성</button>'
         +'<span class="thumb-ai-status" data-thumb-ai-status="'+t.id+'"></span>'
@@ -1779,6 +1851,7 @@ function atlasRenderThumbnailPicker(){
   var btn=document.getElementById('thumb-download-btn');
   if(btn)btn.disabled=true;
   if(window.AtlasIcons)AtlasIcons.applyAll(grid);
+  atlasScaleThumbnailPreviews();
 }
 function atlasSelectThumbnailTemplate(id){
   ATLAS_SELECTED_THUMB_TPL=id;
@@ -1795,8 +1868,10 @@ function atlasRerenderThumbnailCard(id){
   if(!preview)return;
   var data=atlasThumbnailData();
   data.bgImageDataUrl=ATLAS_THUMB_AI_CACHE[id]||'';
+  data.cta=ATLAS_THUMB_CTA_OVERRIDE[id];
   preview.innerHTML=AtlasThumbnailTemplates.render(id, data);
   if(window.AtlasIcons)AtlasIcons.applyAll(preview);
+  atlasScaleThumbnailPreviews();
 }
 function atlasGenerateThumbnailAiBg(themeId){
   if(!APP.ebook)return;
@@ -1804,8 +1879,22 @@ function atlasGenerateThumbnailAiBg(themeId){
   var btnEl=document.querySelector('[data-thumb-ai-btn="'+themeId+'"]');
   if(btnEl)btnEl.disabled=true;
   if(statusEl)statusEl.textContent='생성 중...';
+  // 2026-08-12: 사용자 리포트 — "다시 생성"을 눌러도 이미지가 별로 안 바뀐다.
+  // 매번 같은 테마 프롬프트를 그대로 보냈던 게 원인 — 이 테마에서 몇 번째
+  // 시도인지(variationIndex)를 서버에 같이 보내면, 서버가 구도/조명/앵글이
+  // 뚜렷이 다른 문구를 순환 적용한다(server/image-gateway.js
+  // THUMB_AI_VARIATION_MODIFIERS 참고).
+  var attempt=ATLAS_THUMB_GEN_ATTEMPTS[themeId]||0;
+  ATLAS_THUMB_GEN_ATTEMPTS[themeId]=attempt+1;
+  // 2026-08-12: 사용자가 실제 참고 이미지 20장을 보여준 뒤 확인한 방향 —
+  // 배경의 중심 오브제가 책마다 그 책 주제에 맞게 달라져야 한다(예: 성공
+  // 원칙 책=체스말, 투자 책=황소상). 서버가 책 제목/카테고리를 받아 Claude로
+  // 오브제를 새로 짓는다(server/image-gateway.js generateThumbSubject).
+  // atlasThumbnailData()를 써서 사용자가 카드에서 직접 고친 제목/카테고리가
+  // 있으면 그 값을 그대로 보낸다(원본 APP.ebook 값이 아니라).
+  var thumbData=atlasThumbnailData();
   fetch(new URL('/api/image-gateway/generate', window.AtlasGatewayBaseUrl.resolve()).href, {
-    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ themeId: themeId })
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ themeId: themeId, variationIndex: attempt, ebookTitle: thumbData.title, ebookCategory: thumbData.category })
   }).then(function(res){
     return res.json().then(function(body){ return { ok: res.ok, body: body }; });
   }).then(function(result){
@@ -1841,7 +1930,8 @@ function atlasDownloadThumbnailPng(){
   if(!stage)return;
   var data=atlasThumbnailData();
   data.bgImageDataUrl=ATLAS_THUMB_AI_CACHE[ATLAS_SELECTED_THUMB_TPL]||'';
-  // 미리보기는 CSS로 축소해서 보여주지만(.thumb-tpl-preview .thumb-tpl{transform:scale(...)}),
+  data.cta=ATLAS_THUMB_CTA_OVERRIDE[ATLAS_SELECTED_THUMB_TPL];
+  // 미리보기는 CSS로 축소해서 보여주지만(.thumb-tpl-preview .thumb-tpl JS로 계산한 transform:scale(...)),
   // PNG 저장은 화면 밖에 원본 크기(652×488)로 다시 그려서 캡처한다 — 해상도가 깨지지 않는다.
   // 선택한 테마에 생성된 AI 배경이 있으면 그 이미지를 그대로 포함해 캡처한다(Preview==Export).
   stage.innerHTML=AtlasThumbnailTemplates.render(ATLAS_SELECTED_THUMB_TPL, data);
@@ -2537,4 +2627,29 @@ function toggleCvEdit(){
   if(!APP.editMode)showToast('success','편집이 저장되었습니다');
 }
 function getRandomTheme(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+/* 2026-08-12: 사용자 요청 — 전자책 미리보기(표지~부록까지 이어지는 긴 화면)
+   맨 위/맨 아래로 바로 이동하는 버튼. #cv-scroll-fab-btn은 #cv-edoc
+   바깥이므로 Export 캡처와 무관하다. */
+function atlasScrollEbookPreview(dir){
+  var edoc=document.getElementById('cv-edoc');
+  if(!edoc)return;
+  var pages=edoc.querySelectorAll('.pg');
+  if(!pages.length)return;
+  var target=dir==='top'?pages[0]:pages[pages.length-1];
+  target.scrollIntoView({behavior:'smooth',block:dir==='top'?'start':'end'});
+}
+/* 미리보기가 실제로 화면에 보일 때만 스크롤 버튼을 띄운다(적용 범위: 전자책
+   미리보기 영역만) — cv-result-state를 숨기는 모든 지점을 일일이 훅하는
+   대신, IntersectionObserver 하나로 #cv-edoc 자체의 가시성만 관찰한다(조상
+   요소의 display:none 전환에도 자동으로 갱신됨). */
+document.addEventListener('DOMContentLoaded',function(){
+  var edoc=document.getElementById('cv-edoc');
+  var fab=document.getElementById('cv-scroll-fab');
+  if(!edoc||!fab||typeof IntersectionObserver==='undefined')return;
+  var io=new IntersectionObserver(function(entries){
+    fab.style.display=entries[0].isIntersecting?'flex':'none';
+  });
+  io.observe(edoc);
+});
 

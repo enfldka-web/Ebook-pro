@@ -57,14 +57,34 @@ window.AtlasThumbnailTemplates = window.AtlasThumbnailTemplates || {};
       return '<div class="tt-icon-chip">'+icon(it.icon,15)+'<span>'+esc(it.label)+'</span></div>';
     }).join('')+'</div>';
   }
-  /* bgImageDataUrl이 있으면 배경 이미지 + 텍스트 가독성용 어두운 스크림을
-     인라인 style로 얹는다(테마별 flat 그라디언트는 CSS 클래스가 계속 처리하는
-     기본값 — 이미지가 없을 때 자연스러운 폴백). */
-  function bgStyle(data){
-    if(!data.bgImageDataUrl) return '';
-    return ' style="background-image:linear-gradient(180deg,rgba(10,10,20,.15),rgba(10,10,20,.55)),url(&quot;'+data.bgImageDataUrl+'&quot;);background-size:cover;background-position:center"';
+  /* bgImageDataUrl이 있으면 배경 이미지 + 텍스트 가독성용 어두운 스크림을,
+     fontFamily가 있으면(전자책에서 고른 글씨체, js/application.js
+     atlasThumbnailData()) 그 글씨체를 인라인 style로 얹는다 — 둘 다 같은
+     루트 요소의 style 속성 하나로 합쳐야 한다(style 속성은 요소당 하나뿐).
+     2026-08-12: 사용자 요청 — 썸네일 글씨체가 전자책에서 고른 글씨체와
+     같아야 한다. */
+  function rootStyleAttr(data){
+    var decls = [];
+    if(data.bgImageDataUrl){
+      decls.push('background-image:linear-gradient(180deg,rgba(10,10,20,.15),rgba(10,10,20,.55)),url(&quot;'+data.bgImageDataUrl+'&quot;)');
+      decls.push('background-size:cover');
+      decls.push('background-position:center');
+    }
+    if(data.fontFamily) decls.push('font-family:'+data.fontFamily);
+    return decls.length ? ' style="'+decls.join(';')+'"' : '';
   }
   function bgClass(data){ return data.bgImageDataUrl ? ' has-ai-bg' : ''; }
+  /* 2026-08-12: 사용자 요청 — 썸네일 안의 제목/부제/배지/CTA 문구를 화면에서
+     바로 클릭해 고칠 수 있어야 한다(전자책 편집 화면과 같은 철학). 아이콘
+     배지 4개처럼 테마 정체성을 이루는 구조적 장식 요소는 전자책 편집 때와
+     같은 이유로 편집 대상에서 제외한다 — 자유 텍스트만 고친다.
+     data-atlas-thumb-field로 필드 종류를 표시하고, oninput은
+     js/application.js의 atlasThumbnailFieldInput()이 처리한다(제목/부제/배지는
+     4개 카드에 동일하게 동기화, CTA 문구는 테마마다 원래 다른 문구라 카드별로
+     따로 저장). */
+  function editAttrs(field){
+    return ' contenteditable="true" data-atlas-thumb-field="'+field+'" oninput="atlasThumbnailFieldInput(this)"';
+  }
 
   var ARROW_SVG = '<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">'
     +'<path d="M9 31 29 11" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'
@@ -72,43 +92,43 @@ window.AtlasThumbnailTemplates = window.AtlasThumbnailTemplates || {};
     +'</svg>';
 
   function renderBestseller(data){
-    return '<div class="thumb-tpl tt-bestseller'+bgClass(data)+'"'+bgStyle(data)+'>'
-      +'<div class="tt-badge">'+esc(data.category||'베스트셀러 인사이트')+'</div>'
-      +'<div class="tt-title">'+esc(data.title)+'</div>'
-      +(data.subtitle?'<div class="tt-subtitle">'+esc(data.subtitle)+'</div>':'')
+    return '<div class="thumb-tpl tt-bestseller'+bgClass(data)+'"'+rootStyleAttr(data)+'>'
+      +'<div class="tt-badge"'+editAttrs('category')+'>'+esc(data.category||'베스트셀러 인사이트')+'</div>'
+      +'<div class="tt-title"'+editAttrs('title')+'>'+esc(data.title)+'</div>'
+      +(data.subtitle?'<div class="tt-subtitle"'+editAttrs('subtitle')+'>'+esc(data.subtitle)+'</div>':'')
       +(data.bgImageDataUrl?'':'<div class="tt-dots"><span></span><span></span><span></span></div>')
       +iconRow('bestseller')
       +'</div>';
   }
 
   function renderMarketplace(data){
-    return '<div class="thumb-tpl tt-marketplace'+bgClass(data)+'"'+bgStyle(data)+'>'
-      +'<div class="tt-badge">'+esc(data.category||'템플릿')+'</div>'
+    return '<div class="thumb-tpl tt-marketplace'+bgClass(data)+'"'+rootStyleAttr(data)+'>'
+      +'<div class="tt-badge"'+editAttrs('category')+'>'+esc(data.category||'템플릿')+'</div>'
       +(data.bgImageDataUrl?'':'<div class="tt-mock"><div class="tt-mock-line l1"></div><div class="tt-mock-line l2"></div><div class="tt-mock-line l3"></div><div class="tt-mock-cta"></div></div>')
       +'<div class="tt-bottom">'
-        +'<div class="tt-title">'+esc(data.title)+'</div>'
-        +(data.subtitle?'<div class="tt-subtitle">'+esc(data.subtitle)+'</div>':'')
-        +'<div class="tt-cta">바로 시작</div>'
+        +'<div class="tt-title"'+editAttrs('title')+'>'+esc(data.title)+'</div>'
+        +(data.subtitle?'<div class="tt-subtitle"'+editAttrs('subtitle')+'>'+esc(data.subtitle)+'</div>':'')
+        +'<div class="tt-cta"'+editAttrs('cta')+'>'+esc(data.cta||'바로 시작')+'</div>'
       +'</div>'
       +iconRow('marketplace')
       +'</div>';
   }
 
   function renderProblem(data){
-    return '<div class="thumb-tpl tt-problem'+bgClass(data)+'"'+bgStyle(data)+'>'
-      +'<div class="tt-badge">'+esc(data.category||'실전 가이드')+'</div>'
+    return '<div class="thumb-tpl tt-problem'+bgClass(data)+'"'+rootStyleAttr(data)+'>'
+      +'<div class="tt-badge"'+editAttrs('category')+'>'+esc(data.category||'실전 가이드')+'</div>'
       +(data.bgImageDataUrl?'':'<div class="tt-arrow-wrap"><div class="tt-arrow-box"></div><div class="tt-arrow-icon">'+ARROW_SVG+'</div></div>')
       +'<div class="tt-bottom">'
-        +'<div class="tt-title">'+esc(data.title)+'</div>'
-        +(data.subtitle?'<div class="tt-subtitle">'+esc(data.subtitle)+'</div>':'')
-        +'<div class="tt-cta">지금 확인하기</div>'
+        +'<div class="tt-title"'+editAttrs('title')+'>'+esc(data.title)+'</div>'
+        +(data.subtitle?'<div class="tt-subtitle"'+editAttrs('subtitle')+'>'+esc(data.subtitle)+'</div>':'')
+        +'<div class="tt-cta"'+editAttrs('cta')+'>'+esc(data.cta||'지금 확인하기')+'</div>'
       +'</div>'
       +iconRow('problem')
       +'</div>';
   }
 
   function renderPublisher(data){
-    return '<div class="thumb-tpl tt-publisher'+bgClass(data)+'"'+bgStyle(data)+'>'
+    return '<div class="thumb-tpl tt-publisher'+bgClass(data)+'"'+rootStyleAttr(data)+'>'
       +(data.bgImageDataUrl?'':('<div class="tt-card-shadow"></div>'
         +'<div class="tt-card">'
           +'<div class="tt-card-rule"></div>'
@@ -116,8 +136,8 @@ window.AtlasThumbnailTemplates = window.AtlasThumbnailTemplates || {};
           +'<div class="tt-card-line l1"></div><div class="tt-card-line l2"></div><div class="tt-card-line l3"></div>'
         +'</div>'))
       +'<div class="tt-bottom">'
-        +'<div class="tt-title">'+esc(data.title)+'</div>'
-        +(data.subtitle?'<div class="tt-subtitle">'+esc(data.subtitle)+'</div>':'')
+        +'<div class="tt-title"'+editAttrs('title')+'>'+esc(data.title)+'</div>'
+        +(data.subtitle?'<div class="tt-subtitle"'+editAttrs('subtitle')+'>'+esc(data.subtitle)+'</div>':'')
       +'</div>'
       +iconRow('publisher')
       +'</div>';
@@ -132,7 +152,7 @@ window.AtlasThumbnailTemplates = window.AtlasThumbnailTemplates || {};
 
   function renderOne(tplId, data){
     var fn = RENDERERS[tplId] || renderBestseller;
-    return fn({ title: data.title||'', subtitle: data.subtitle||'', category: data.category||'', bgImageDataUrl: data.bgImageDataUrl||'' });
+    return fn({ title: data.title||'', subtitle: data.subtitle||'', category: data.category||'', bgImageDataUrl: data.bgImageDataUrl||'', fontFamily: data.fontFamily||'', cta: data.cta||'' });
   }
 
   T.render = function(tplId, data){

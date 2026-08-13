@@ -847,6 +847,15 @@ textarea{resize:vertical}
    exported product — Preview==Export stays untouched, Design Bible §invariant). */
 .ebook-preview-wrap{background:var(--a2-bg);border-radius:var(--a2-r-lg);overflow:hidden;padding:20px;border:1px solid var(--a2-border)}
 
+/* 2026-08-12: 전자책 미리보기 맨 위/맨 아래 이동 버튼. position:fixed라 DOM상
+   위치와 무관하게 항상 화면 우측 하단에 떠 있고, #cv-edoc(Export 캡처 대상)
+   바깥의 형제 요소라 PDF 저장에는 전혀 영향을 주지 않는다. 표시 여부는
+   js/application.js의 IntersectionObserver가 제어(미리보기가 실제로 화면에
+   보일 때만 나타남). */
+.cv-scroll-fab{position:fixed;right:28px;bottom:28px;z-index:40;display:flex;flex-direction:column;gap:8px}
+.cv-scroll-fab-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--a2-shadow-lg);transition:background .18s,transform .18s}
+.cv-scroll-fab-btn:hover{background:var(--a2-accent-soft);color:var(--a2-accent);transform:translateY(-2px)}
+
 /* 2026-08-10: 완성 화면에서 전자책 내용을 직접 수정하는 기능(js/application.js
    atlasToggleEbookEditMode). 편집 모드일 때만 지정된 자유 서술형 필드
    ([data-atlas-field], contentEditable=true)에 점선 아웃라인을 준다 — 표/
@@ -963,6 +972,11 @@ textarea{resize:vertical}
 .cl{font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:.6px}
 .cht{font-family:var(--ebook-font,'Pretendard'),sans-serif;font-size:30px;font-weight:700;color:#1a1a2e;line-height:1.28;margin-top:10px;padding-bottom:18px;border-bottom:2px solid #eef0fb;letter-spacing:-.4px}
 .chb{font-size:14.5px;color:#374151;line-height:2.05;white-space:pre-wrap;word-break:keep-all;margin-bottom:22px}
+/* 2026-08-12: 사용자 요청 — 문장(문단)마다 간격이 없어서 계속 이어져 보임.
+   renderTextBlocks()가 각 문단을 별도 <p>로 쪼개 놓았지만 그 사이 여백이
+   없었던 게 원인 — 문단 사이 간격을 추가한다. */
+.chb p{margin:0 0 16px}
+.chb p:last-child{margin-bottom:0}
 /* 2026-08-12: 사용자 요청 — "1단계," "핵심 포인트:" 같은 문단 리드인을
    굵게+진한 색으로 강조(가독성). js/renderers.js renderTextBlocks()가
    실제 문단 시작에서만 감지해 감싼다. */
@@ -1094,12 +1108,13 @@ textarea{resize:vertical}
 .ctable{margin:24px 0}
 .ctable h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#9333ea;letter-spacing:.6px;text-transform:uppercase;margin-bottom:12px}
 .ctable h4 svg{width:14px;height:14px}
-.ctable-scroll{overflow-x:auto;border:1px solid #eef0fb;border-radius:12px}
+/* 2026-08-12: 사용자 요청으로 표 색상을 더 진하게(연한 라벤더 → 진한 보라 계열). */
+.ctable-scroll{overflow-x:auto;border:1px solid #ddd6fe;border-radius:12px}
 .ctable table{width:100%;border-collapse:collapse;font-size:12.5px}
-.ctable th{background:#f7f6fe;color:#4c1d95;font-weight:700;text-align:left;padding:11px 14px;border-bottom:1px solid #eef0fb;white-space:nowrap}
-.ctable td{padding:11px 14px;border-bottom:1px solid #f5f5fb;color:#374151;line-height:1.6}
+.ctable th{background:#ede9fe;color:#3b0764;font-weight:800;text-align:left;padding:11px 14px;border-bottom:1px solid #c4b5fd;white-space:nowrap}
+.ctable td{padding:11px 14px;border-bottom:1px solid #e4e0f7;color:#1f2937;line-height:1.6}
 .ctable tr:last-child td{border-bottom:none}
-.ctable tr:nth-child(even) td{background:#fbfaff}
+.ctable tr:nth-child(even) td{background:#f3f1fc}
 
 /* Chapter Summary (real ch.summary field) — a genuine AI-written recap,
    distinct from the Tip box above; positioned at the chapter's close. */
@@ -1514,19 +1529,32 @@ textarea{resize:vertical}
    AI 이미지 생성이 아니라 지금 책의 실제 title/subtitle/category를 CSS
    템플릿에 얹어 그리는 순수 프론트엔드 기능 — 위에서 지운 AI 파이프라인과는
    무관하다. 규격은 이 프로젝트에서 이미 검증했던 Kmong 표준 652×488(4:3)을
-   그대로 쓴다. 미리보기 축소 비율(300/652≈0.4601)도 과거 Round 34에서 이미
-   확정했던 300×224 후보 미리보기 크기와 같은 값을 재사용한다(새로 짓지 않음). */
+   그대로 쓴다.
+   2026-08-12: 사용자 리포트 — 카드 미리보기 영역 오른쪽에 빈 여백이 생겼다
+   (스크린샷으로 확인). 원인: .thumb-tpl-preview가 고정 300×224px였는데,
+   실제 카드 폭(그리드 컬럼)은 그보다 넓어서 300px 이미지 옆에 남는 공간이
+   빈 여백으로 보였다. width:100%+aspect-ratio로 카드 폭에 맞게 반응형으로
+   바꾸고, 내부 652×488 고정 캔버스를 실제 렌더 폭에 맞는 배율로 축소하는 건
+   JS(js/application.js atlasScaleThumbnailPreviews())가 담당한다(퍼센트
+   기반 transform은 CSS만으로 정확히 계산할 수 없음). */
 .thumb-tpl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:16px}
 .thumb-tpl-card{border:2px solid var(--a2-border);border-radius:var(--a2-r);overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s;background:var(--a2-surface)}
 .thumb-tpl-card:hover{border-color:var(--a2-accent)}
 .thumb-tpl-card.selected{border-color:var(--a2-accent);box-shadow:0 0 0 3px rgba(99,102,241,.18)}
-.thumb-tpl-preview{position:relative;width:300px;height:224px;overflow:hidden;background:#000;max-width:100%}
-.thumb-tpl-preview .thumb-tpl{transform:scale(.4601);transform-origin:top left}
-.thumb-tpl-card-label{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.thumb-tpl-preview{position:relative;width:100%;aspect-ratio:652/488;overflow:hidden;background:#000}
+.thumb-tpl-preview .thumb-tpl{transform-origin:top left;cursor:default}
+.thumb-tpl-card-label{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
 .thumb-tpl-card-name{font-size:13px;font-weight:800;color:var(--a2-text)}
 .thumb-tpl-card-desc{font-size:11px;color:var(--a2-text-faint);margin-top:2px;line-height:1.5}
 .thumb-tpl-card-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--a2-border);flex-shrink:0}
 .thumb-tpl-card.selected .thumb-tpl-card-check{background:var(--a2-accent);border-color:var(--a2-accent)}
+/* 2026-08-12: 사용자 요청 — 썸네일 안의 제목/부제/배지/CTA를 클릭해서 바로
+   수정할 수 있어야 한다(전자책 편집과 같은 철학). contentEditable 요소를
+   호버하면 점선 아웃라인으로 "여기 클릭해서 수정 가능"을 알려준다(전자책
+   편집모드 [data-atlas-field] 힌트와 같은 색). */
+.thumb-tpl [data-atlas-thumb-field]{cursor:text}
+.thumb-tpl [data-atlas-thumb-field]:hover{outline:1.5px dashed rgba(99,102,241,.75);outline-offset:3px;border-radius:3px}
+.thumb-tpl [data-atlas-thumb-field]:focus{outline:1.5px solid rgba(99,102,241,.9);outline-offset:3px;border-radius:3px}
 #thumb-export-stage{position:absolute;left:-9999px;top:-9999px}
 /* 2026-08-11: 카드별 "AI 이미지 생성" 버튼 + 상태 텍스트(생성 중.../실패
    메시지). 카드 클릭(=선택)과 이 버튼 클릭이 겹치지 않도록 별도 행에 둔다. */
