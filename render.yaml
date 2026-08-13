@@ -1,7 +1,19 @@
 # Render.com 배포용 Blueprint. Render 대시보드에서 "New +" → "Blueprint"로
-# 이 저장소를 연결하면 아래 설정이 자동으로 읽혀 서버가 배포된다.
-# ANTHROPIC_API_KEY / OPENAI_API_KEY는 여기 값이 없으므로(sync:false) Render
-# 대시보드에서 직접 입력해야 한다 — Git에는 절대 API Key를 커밋하지 않는다.
+# 이 저장소를 연결하면 아래 설정이 자동으로 읽혀 서버 + DB가 함께 배포된다.
+# sync:false로 표시된 값들은 여기 값이 없으므로 Render 대시보드에서 직접
+# 입력해야 한다 — Git에는 절대 API Key/시크릿을 커밋하지 않는다.
+# 2026-08-13: 썸네일 AI 이미지 생성 기능(OpenAI 연동)이 완전히 제거되어
+# OPENAI_API_KEY는 더 이상 아무 곳에서도 쓰이지 않으므로 삭제했다. 대신
+# 실제 회원가입/로그인/구독 상태를 저장하는 PostgreSQL 데이터베이스와
+# JWT 서명용 비밀 값(JWT_SECRET, generateValue로 Render가 자동 생성)을
+# 추가했다 — 토스페이먼츠 결제·무료체험 1회 제한이 여기 저장된 실제 계정을
+# 기준으로 동작한다(server/db.js, server/image-gateway.js /api/auth/*).
+databases:
+  - name: atlas-db
+    plan: free
+    databaseName: atlas
+    user: atlas
+
 services:
   - type: web
     name: atlas-image-gateway
@@ -12,7 +24,15 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: OPENAI_API_KEY
-        sync: false
       - key: ATLAS_CORS_ALLOWED_ORIGINS
         value: https://enfldka-web.github.io
+      - key: DATABASE_URL
+        fromDatabase:
+          name: atlas-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TOSS_CLIENT_KEY
+        sync: false
+      - key: TOSS_SECRET_KEY
+        sync: false

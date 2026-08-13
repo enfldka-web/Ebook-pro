@@ -2,12 +2,14 @@
    Studio)/썸네일 스튜디오 전체가 전면 삭제되면서 한때 이 서버가 서빙하던
    범용 다중 자산 OpenAI Images API 프록시(Contract/validator/Registry 기반)도
    함께 삭제됐었다. 2026-08-11: 전자책 완성 후 고정 4테마 썸네일 배경 이미지
-   생성 기능이 다시 필요해져, 그 옛 파이프라인 전체가 아니라 꼭 필요한 절반
-   (openaiProvider/rateLimiter, /api/image-gateway/*)만 최소 범위로 복원했다 —
-   임의 프롬프트를 받는 범용 Contract/Registry/Composition Engine은 다시 만들지
-   않는다(4개 고정 프롬프트만 필요하므로 그 무게가 불필요).
-   session/trial 관리(image-usage-store.js)는 이미지 생성 전용이 아니라
-   Anthropic 무료 체험 1회 게이트에도 쓰이는 공유 모듈이라 그대로 유지한다.
+   생성 기능이 다시 필요해져 절반만 복원했었으나, 2026-08-13: 사용자가
+   "썸네일·상세페이지는 개인이 AI를 이용해서 만드는 게 낫다"고 다시 판단해
+   이번엔 이미지 생성 기능 자체(/api/image-gateway/*, openaiProvider,
+   image-rate-limiter.js)를 완전히 제거했다 — 클라이언트가 AI 호출 없이
+   프롬프트 문자열만 조합해 보여주는 방식으로 대체됐다(js/application.js
+   atlasBuildThumbnailPrompt/atlasBuildSalesPagePrompt 참고). 이 파일은 이제
+   Anthropic 텍스트 생성 게이트웨이(/api/anthropic-gateway/*)만 서빙한다.
+   session/trial 관리(image-usage-store.js)는 그대로 유지한다.
 
    선택한 구조: 순수 Node.js + Express. 이 프로젝트는 지금까지 빌드 도구/서버가 전혀
    없는 정적 프론트엔드였고(package.json도 없었음), Vercel/Netlify/Cloudflare Worker
@@ -46,97 +48,79 @@ var fs = require('fs');
   });
 })();
 
-var usageStoreModule = require('./image-usage-store.js');
 var anthropicProvider = require('./providers/anthropic-text-provider.js');
-var openaiProvider = require('./providers/openai-image-provider.js');
-var imageRateLimiter = require('./image-rate-limiter.js');
+var tossProvider = require('./providers/toss-payments-provider.js');
+var bcrypt = require('bcryptjs');
+var jwt = require('jsonwebtoken');
+var dbModule = require('./db.js');
 
-/* 2026-08-12: 사용자가 실제 참고 이미지 20장(4테마 × 5개 실제 책 예시)을
-   보여줬다 — 각 테마의 "스타일 정체성"(색/조명/구도)은 고정이지만, 그 안의
-   중심 오브제/장면은 책마다 그 책의 실제 주제에 맞춰 전부 달랐다(성공 원칙
-   책엔 체스말, 시간관리 책엔 회중시계, 투자 책엔 황소상, ChatGPT 활용서엔
-   챗봇 아이콘 등). 예전엔 테마당 고정 프롬프트 1개를 모든 책에 그대로
-   재사용했다 — 이제 "스타일 템플릿"(고정)과 "중심 오브제 묘사"(책마다 다름)를
-   분리한다. 오브제 묘사는 Claude(anthropicProvider)가 그 책의 실제 제목/
-   카테고리를 보고 매번 새로 짓는다(generateThumbSubject 참고) — 사용자가
-   "책 제목/내용 보고 매번 새로 결정"을 선택했다. 한글 텍스트는 여전히 이미지
-   안에 절대 넣지 않는다(OpenAI 이미지 생성이 한글은 물론 어떤 글자도 정확히
-   그리지 못함, openai-image-provider.js buildOpenAIPrompt 참고) — 제목/부제/
-   배지는 Atlas가 이 이미지를 배경으로 깔고 CSS로 얹는다. */
-var THUMB_THEME_STYLE_TEMPLATE = {
-  bestseller: 'A warm, moody editorial still-life photograph of {SUBJECT}, deep navy background, dramatic soft shadows, premium bestseller book-cover photography, cinematic lighting.',
-  marketplace: 'A friendly flat-illustration style {SUBJECT}, warm cream and beige background, soft shadow beneath the object, clean minimal commercial e-commerce illustration, vibrant orange and blue accent colors.',
-  problem: 'A bold flat-illustration of {SUBJECT}, deep forest green background, clean modern vector-style illustration, confident problem-solving visual metaphor.',
-  publisher: 'A luxurious illustration of {SUBJECT}, deep navy background with subtle gold sparkle particles, premium majestic publishing-house emblem style, elegant symmetrical composition, soft golden rim light.'
-};
-var THUMB_AI_THEME_IDS = Object.keys(THUMB_THEME_STYLE_TEMPLATE);
-/* Claude 호출이 실패했거나(설정 안 됨/오류) 책 제목이 없을 때만 쓰는 폴백 —
-   예전에 쓰던 고정 오브제 그대로(회귀 안전망, 화면이 절대 깨지지 않음). */
-var THUMB_AI_DEFAULT_SUBJECT = {
-  bestseller: 'a neat stack of hardcover books on a dark wooden desk, illuminated by a classic brass desk lamp casting warm golden light',
-  marketplace: 'a shopping cart filled with colorful shopping bags',
-  problem: 'a large jigsaw puzzle piece being examined by a magnifying glass',
-  publisher: 'a golden crown resting above a laurel wreath'
-};
-/* 테마별로 어떤 "종류"의 오브제가 그 테마다운지 Claude에게 알려주는 힌트 —
-   참고 이미지 20장에서 관찰한 패턴을 그대로 요약했다(지어내지 않음). */
-var THUMB_THEME_SUBJECT_HINT = {
-  bestseller: '그 책의 핵심 주제를 은유하는 상징적인 사진 오브제나 장면 하나(예: 체스 말, 사람 옆얼굴/두상 실루엣, 빛나는 문, 산 정상 — 참고 예시일 뿐 실제로는 이 책 주제에 맞는 걸로 새로 생각할 것)',
-  marketplace: '그 책이 다루는 도구/서비스를 나타내는 단순한 아이콘형 오브제(예: 특정 소프트웨어 로고 형태의 앱 아이콘, 쇼핑카트, 성장 그래프) — 플랫 일러스트 스타일',
-  problem: '그 책이 해결하는 문제/과정을 은유하는 단순한 오브제나 장면(예: 퍼즐 조각, 화살표 성장 그래프, 3단계 프로세스 아이콘, 돋보기)',
-  publisher: '그 책 주제를 상징하는 고급스러운 오브제(예: 왕관, 월계관, 회중시계, 황소 조형물, 저울, 두뇌 조형물)'
-};
-/* 2026-08-12: 사용자 리포트 — "다시 생성"을 눌러도 이전과 별로 다르지 않은
-   이미지가 나온다. 원인: 매번 정확히 같은 프롬프트를 그대로 보냈다(이미지
-   생성 모델은 같은 프롬프트에 비슷한 구도를 재현하는 경향이 있음). 테마의
-   핵심 정체성(피사체/색/스타일)은 그대로 두고, 카메라 구도·조명·앵글만
-   뚜렷하게 바꾸는 문구를 순환 적용해 재생성마다 눈에 띄게 달라지게 한다.
-   클라이언트(js/application.js atlasGenerateThumbnailAiBg)가 이 테마에서
-   몇 번째 생성 시도인지(variationIndex)를 보내면 그 값으로 순환 선택한다. */
-var THUMB_AI_VARIATION_MODIFIERS = [
-  'Camera angle: slightly elevated three-quarter view, warm cinematic color grading.',
-  'Camera angle: straight-on symmetrical composition, cooler blue-toned lighting accent.',
-  'Camera angle: close-up dramatic framing with shallow depth of field, high-contrast rim lighting.',
-  'Camera angle: wide establishing shot with generous negative space, soft diffused lighting.',
-  'Camera angle: dynamic diagonal composition, golden-hour warm rim light.'
-];
-function buildThumbAiPrompt(themeId, subjectText, variationIndex){
-  var subject = (subjectText && subjectText.length>0 && subjectText.length<400) ? subjectText : THUMB_AI_DEFAULT_SUBJECT[themeId];
-  var base = THUMB_THEME_STYLE_TEMPLATE[themeId].replace('{SUBJECT}', subject);
-  var idx = ((parseInt(variationIndex, 10) || 0) % THUMB_AI_VARIATION_MODIFIERS.length + THUMB_AI_VARIATION_MODIFIERS.length) % THUMB_AI_VARIATION_MODIFIERS.length;
-  return base + ' ' + THUMB_AI_VARIATION_MODIFIERS[idx];
-}
-/* 책 제목/카테고리를 보고 이 테마 스타일에 맞는 "중심 오브제" 영어 묘사를
-   Claude에게 한 문장으로 받아온다. 실패하거나(Anthropic 미설정/오류) 응답이
-   이상하면(너무 길거나 비어있으면) null을 돌려주고, 호출부(buildThumbAiPrompt)가
-   THUMB_AI_DEFAULT_SUBJECT로 자동 대체한다 — 이 단계가 실패해도 이미지 생성
-   자체는 항상 성공한다(회귀 없음). */
-function generateThumbSubject(themeId, ebookTitle, ebookCategory, opts){
-  var sys = '당신은 전자책 표지 아트 디렉터입니다. 주어진 책 제목/카테고리를 보고, '
-    + '이 책의 핵심 아이디어를 한눈에 표현하는 시각적 오브제나 장면 하나를 영어로 '
-    + '짧게(10~25 단어) 묘사하세요.\n스타일 힌트: ' + THUMB_THEME_SUBJECT_HINT[themeId] + '.\n'
-    + '반드시 지킬 것: (1) 오직 하나의 오브제/장면만 묘사할 것(두 개 이상 섞지 말 것), '
-    + '(2) 글자·텍스트·로고·워터마크는 절대 포함하지 말 것(이미지 생성 모델이 글자를 '
-    + '정확히 못 그림 — 묘사 자체에 "text", "letters", "title" 같은 단어를 넣지 말 것), '
-    + '(3) 다른 설명 없이 영어 묘사 문장 하나만 출력할 것(따옴표/번호/줄바꿈 없이).';
-  var userMsg = 'Book title: ' + ebookTitle + (ebookCategory ? ('\nCategory: ' + ebookCategory) : '');
-  return anthropicProvider.generateWithRetry({
-    model: anthropicProvider.DEFAULT_MODEL, max_tokens: 200, system: sys,
-    messages: [{ role:'user', content: userMsg }]
-  }, { env: opts.env, fetchImpl: opts.fetchImpl, timeoutMs: 30000 }).then(function(result){
-    if(!result.success) return null;
-    var block = result.data && result.data.content && result.data.content[0];
-    var text = block && typeof block.text==='string' ? block.text.trim() : '';
-    return text || null;
-  }).catch(function(){ return null; });
-}
+var BCRYPT_ROUNDS = 10;
+var JWT_EXPIRES_IN = '30d';
+var SUBSCRIPTION_AMOUNT = 29000;
+var BILLING_CHECK_INTERVAL_MS = 24*60*60*1000; /* 하루 1회 — next_billing_at이 지난 구독을 찾아 청구 */
 
 function createApp(opts){
   opts = opts || {};
   var env = opts.env || process.env;
   var fetchImpl = opts.fetchImpl; /* 테스트 전용 주입 — 프로덕션에서는 undefined(전역 fetch 사용) */
-  var usageStore = usageStoreModule.createUsageStore(env);
-  var thumbSemaphore = imageRateLimiter.createSemaphore(parseInt(env.OPENAI_IMAGE_MAX_CONCURRENCY, 10) || 2);
+
+  /* 2026-08-13: 실제 회원가입/로그인 + DB 기반 구독 상태. DATABASE_URL/
+     JWT_SECRET이 없으면(로컬 개발 초기 설정 전, 또는 Render 대시보드에
+     아직 값을 안 넣은 상태) 서버 전체가 죽지 않고 /api/auth/*·/api/payments/*
+     라우트만 503으로 "설정되지 않음"을 알린다 — ANTHROPIC_API_KEY가 없을 때
+     기존 라우트가 취하는 것과 같은 원칙(부분 기능 저하, 전체 크래시 아님).
+     테스트에서는 opts.db(연결 문자열을 이미 주입한 db 인스턴스)를 직접
+     넘겨 실제 로컬 Postgres를 붙이거나, opts.dbConnectionString으로 다른
+     접속 문자열을 지정할 수 있다. */
+  var db = opts.db || null;
+  if(!db){
+    var dbConnStr = opts.dbConnectionString || env.DATABASE_URL;
+    if(dbConnStr){
+      try{ db = dbModule.createDb({ connectionString: dbConnStr }); }
+      catch(e){ console.error('[image-gateway] db-init-failed', e.message); db = null; }
+    }
+  }
+  var JWT_SECRET = opts.jwtSecret || env.JWT_SECRET || null;
+  var dbReady = db ? db.ensureSchema().catch(function(e){
+    console.error('[image-gateway] db-schema-init-failed', e.message);
+    db = null; /* 스키마 준비 자체가 실패하면(접속 불가 등) 이후 쿼리도 다 실패할 것이므로 db를 비워 503으로 통일한다 */
+  }) : Promise.resolve();
+
+  function authConfigured(){ return !!(db && JWT_SECRET); }
+  function issueToken(userId){ return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN }); }
+  /* Authorization: Bearer <token> 헤더를 검증해 user id를 돌려준다 — 유효하지
+     않거나 없으면 null. 예전의 쿠키 기반 익명 세션(atlas_session_id, 서버
+     재시작 시 초기화되던 image-usage-store.js — 이제 삭제됨) 대신 토큰
+     방식을 쓰는 이유: ATLAS_CORS_ALLOWED_ORIGINS로 크로스오리진(GitHub
+     Pages↔Render) 배포가 이미 전제된 구조인데, 이 CORS 미들웨어가
+     Access-Control-Allow-Credentials를
+     보내지 않아 쿠키가 크로스오리진에서 안정적으로 오가지 못한다 —
+     Authorization 헤더는 이 제약이 없다. */
+  function verifyAuthHeader(req){
+    var header = req.headers.authorization || '';
+    var m = header.match(/^Bearer\s+(.+)$/);
+    if(!m) return null;
+    try{
+      var payload = jwt.verify(m[1], JWT_SECRET);
+      return payload && payload.sub ? payload.sub : null;
+    }catch(e){ return null; }
+  }
+  function userPublicShape(userRow, subRow){
+    return {
+      id: userRow.id, email: userRow.email, name: userRow.name,
+      trialUsed: !!userRow.trial_used,
+      subscriptionStatus: (subRow && subRow.status) || 'inactive'
+    };
+  }
+  function fetchUserWithSub(userId){
+    return db.query('SELECT * FROM users WHERE id=$1', [userId]).then(function(ur){
+      var userRow = ur.rows[0];
+      if(!userRow) return null;
+      return db.query('SELECT * FROM subscriptions WHERE user_id=$1', [userId]).then(function(sr){
+        return { userRow: userRow, subRow: sr.rows[0] || null };
+      });
+    });
+  }
 
   /* Atlas는 GitHub Pages 같은 정적 호스팅에서도 열릴 수 있다 — 그 페이지의 origin과
      이 로컬 Gateway(http://localhost:8910)는 서로 다른 origin이므로, 허용 목록에
@@ -183,10 +167,19 @@ function createApp(opts){
   /* API Key/Prompt 원문을 로그에 남기지 않는다 — 요청 메타데이터만 남긴다. */
   function safeLog(label, meta){ console.log('[image-gateway] '+label, JSON.stringify(meta)); }
 
-  function getSessionUser(req, res){
-    var cookieHeader = req.headers.cookie || '';
-    return usageStore.resolveSessionUser(cookieHeader, function(name, value){
-      res.setHeader('Set-Cookie', name+'='+value+'; Path=/; HttpOnly; SameSite=Lax');
+  /* 2026-08-13: "1회 무료 체험"이 예전엔 usageStore(메모리, 익명 세션 쿠키)
+     기준이었다 — 서버 재시작 시 초기화되고 실제 계정과 무관했다. 이제 실제
+     로그인 계정의 users.trial_used / subscriptions.status(DB, 영구 저장)를
+     기준으로 판단한다. 구독 중(status==='active')이면 무료체험 소진 여부와
+     무관하게 항상 허용한다. */
+  function fetchTrialSubStatus(userId){
+    return db.query('SELECT trial_used FROM users WHERE id=$1', [userId]).then(function(ur){
+      var userRow = ur.rows[0];
+      if(!userRow) return null;
+      return db.query('SELECT status FROM subscriptions WHERE user_id=$1', [userId]).then(function(sr){
+        var subRow = sr.rows[0];
+        return { trialUsed: !!userRow.trial_used, subscribed: !!(subRow && subRow.status==='active') };
+      });
     });
   }
 
@@ -195,9 +188,23 @@ function createApp(opts){
      거친다. API Key는 서버 프로세스 환경변수에서만 읽고 브라우저로 전달하지
      않는다(구조: Browser → localhost:8910 → Node → Anthropic). */
   app.get('/api/anthropic-gateway/status', function(req, res){
-    var sessionUser = getSessionUser(req, res);
-    var trialCheck = usageStore.checkTrialAllowed(sessionUser.userId);
-    res.json({ configured: anthropicProvider.isConfigured(env), trialUsed: !trialCheck.allowed });
+    var configured = anthropicProvider.isConfigured(env);
+    var userId = authConfigured() ? verifyAuthHeader(req) : null;
+    if(!userId){
+      /* 로그인 전이면 아직 생성 버튼 자체에 도달할 수 없으므로(클라이언트가
+         로그인해야만 변환기 화면에 진입한다) trialUsed:false가 안전한 기본값
+         — 실제 차단은 어차피 /generate가 인증을 다시 요구한다. */
+      return res.json({ configured: configured, trialUsed: false, subscribed: false });
+    }
+    dbReady.then(function(){
+      if(!db) return { trialUsed:false, subscribed:false };
+      return fetchTrialSubStatus(userId).then(function(s){ return s || { trialUsed:false, subscribed:false }; });
+    }).then(function(s){
+      res.json({ configured: configured, trialUsed: s.trialUsed, subscribed: s.subscribed });
+    }).catch(function(err){
+      safeLog('status-check-error', { message: err && err.message });
+      res.json({ configured: configured, trialUsed: false, subscribed: false });
+    });
   });
 
   app.post('/api/anthropic-gateway/generate', function(req, res){
@@ -209,139 +216,277 @@ function createApp(opts){
       return res.status(400).json({ error: { message:'요청 형식이 올바르지 않습니다.', code:'invalid_request' } });
     }
     var callType = body.callType || 'general';
-    var sessionUser = getSessionUser(req, res);
+
+    function runGeneration(outlineUserId){
+      var requestBody = {
+        model: body.model || anthropicProvider.DEFAULT_MODEL,
+        max_tokens: body.max_tokens || 4096,
+        system: body.system,
+        messages: body.messages
+      };
+      /* callType은 Anthropic에 보내는 requestBody에는 포함하지 않는다(유효한 API
+         필드가 아님) — 서버가 유닛 종류별로 타임아웃만 다르게 고르는 데 쓴다.
+         Prompt 전문/API Key는 여기서도 절대 로그에 남기지 않는다. */
+      var acfg = anthropicProvider.config(env);
+      /* outline(목차/서문/서론/결론/7개 챕터 브리핑/부록 제목/저작권/판매 카피)과
+         appendices(체크리스트/도구 비교표/실행 플랜 3개)는 모두 max_tokens가
+         chapter 못지않게 크다(실제 Windows에서 각각 6000/5000으로는 부족해
+         응답이 중간에 잘려 JSON이 깨지는 문제가 재현됨) — 같은 넉넉한 타임아웃을
+         적용한다. */
+      var timeoutMs = (callType==='chapter'||callType==='outline'||callType==='appendices') ? acfg.chapterTimeoutMs : acfg.timeoutMs;
+      safeLog('anthropic-generate-start', { callType: callType, model: requestBody.model, max_tokens: requestBody.max_tokens, timeoutMs: timeoutMs });
+      anthropicProvider.generateWithRetry(requestBody, { env: env, fetchImpl: fetchImpl, timeoutMs: timeoutMs }).then(function(result){
+        if(!result.success){
+          /* Anthropic이 실제로 반환한 error.type/error.message/response body를 절대
+             숨기지 않는다 — 예전처럼 "요청 내용에 문제가 있습니다" 같은 뭉뚱그린
+             한국어 메시지로 감싸지 않는다(디버깅 불가능했던 원인). API Key 값
+             자체만 여전히 로그/응답 어디에도 남기지 않는다(Anthropic 에러 바디에는
+             애초에 키 값이 포함되지 않는다). */
+          var anthropicError = (result.data && result.data.error) || null;
+          console.error('[image-gateway] anthropic-generate-failed', {
+            callType: callType,
+            status: result.status,
+            type: anthropicError && anthropicError.type,
+            message: anthropicError && anthropicError.message,
+            errorKind: result.errorKind,
+            retries: result.retries,
+            body: result.data || null
+          });
+          var httpStatus = result.status || 502;
+          return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({
+            error: {
+              status: result.status || null,
+              type: (anthropicError && anthropicError.type) || result.errorKind,
+              message: (anthropicError && anthropicError.message) || (result.errorKind==='network_error' ? '네트워크 오류로 Anthropic 서버에 연결하지 못했습니다.' : result.errorKind==='timeout' ? '응답 시간이 초과되었습니다.' : 'AI 응답 생성에 실패했습니다.'),
+              raw: result.data || null
+            }
+          });
+        }
+        if(callType === 'outline' && outlineUserId){
+          db.query('UPDATE users SET trial_used=true WHERE id=$1', [outlineUserId]).catch(function(e){
+            safeLog('trial-mark-failed', { userId: outlineUserId, message: e && e.message });
+          });
+        }
+        safeLog('anthropic-generate-success', { callType: callType, retries: result.retries });
+        res.json(result.data);
+      }).catch(function(err){
+        safeLog('anthropic-generate-unexpected-error', { message: err && err.message });
+        res.status(500).json({ error: { message:'예기치 않은 오류가 발생했습니다.', code:'internal_error' } });
+      });
+    }
+
     /* "1회 무료 체험"은 전자책 본문 생성이 시작되는 시점(outline 호출, 전자책당
        정확히 1번만 발생)에서만 검사한다 — 제목 분석(callType 없음)이나 개별
        chapter/appendices 재시도는 체험 횟수를 소모하지 않는다(하나의 전자책을
-       만드는 도중 재시도 때마다 막히면 안 되므로). */
+       만드는 도중 재시도 때마다 막히면 안 되므로). 실제 로그인 계정 기준이라
+       인증이 반드시 필요하다 — 클라이언트는 이미 로그인해야만 이 화면에
+       도달하므로 여기서 막히는 건 토큰 만료/변조 같은 비정상 상황뿐이다. */
     if(callType === 'outline'){
-      var trialCheck = usageStore.checkTrialAllowed(sessionUser.userId);
-      if(!trialCheck.allowed){
-        return res.status(403).json({ error: { message:'무료 체험(1회)을 이미 사용하셨습니다. 구독 후 계속 이용해주세요.', code:'trial_exhausted' } });
-      }
+      if(!authConfigured()) return res.status(503).json({ error: { message:'회원 인증이 아직 설정되지 않았습니다.', code:'not_configured' } });
+      var userId = verifyAuthHeader(req);
+      if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+      dbReady.then(function(){
+        if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+        return fetchTrialSubStatus(userId);
+      }).then(function(s){
+        if(!s) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+        if(!s.subscribed && s.trialUsed){
+          return res.status(403).json({ error: { message:'무료 체험(1회)을 이미 사용하셨습니다. 구독 후 계속 이용해주세요.', code:'trial_exhausted' } });
+        }
+        runGeneration(userId);
+      }).catch(function(err){
+        if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+        safeLog('trial-check-error', { message: err && err.message });
+        res.status(500).json({ error: { message:'무료체험 확인 중 오류가 발생했습니다.', code:'internal_error' } });
+      });
+    } else {
+      runGeneration(null);
     }
-    var requestBody = {
-      model: body.model || anthropicProvider.DEFAULT_MODEL,
-      max_tokens: body.max_tokens || 4096,
-      system: body.system,
-      messages: body.messages
-    };
-    /* callType은 Anthropic에 보내는 requestBody에는 포함하지 않는다(유효한 API
-       필드가 아님) — 서버가 유닛 종류별로 타임아웃만 다르게 고르는 데 쓴다.
-       Prompt 전문/API Key는 여기서도 절대 로그에 남기지 않는다. */
-    var callType = body.callType || 'general';
-    var acfg = anthropicProvider.config(env);
-    /* outline(목차/서문/서론/결론/7개 챕터 브리핑/부록 제목/저작권/판매 카피)과
-       appendices(체크리스트/도구 비교표/실행 플랜 3개)는 모두 max_tokens가
-       chapter 못지않게 크다(실제 Windows에서 각각 6000/5000으로는 부족해
-       응답이 중간에 잘려 JSON이 깨지는 문제가 재현됨) — 같은 넉넉한 타임아웃을
-       적용한다. */
-    var timeoutMs = (callType==='chapter'||callType==='outline'||callType==='appendices') ? acfg.chapterTimeoutMs : acfg.timeoutMs;
-    safeLog('anthropic-generate-start', { callType: callType, model: requestBody.model, max_tokens: requestBody.max_tokens, timeoutMs: timeoutMs });
-    anthropicProvider.generateWithRetry(requestBody, { env: env, fetchImpl: fetchImpl, timeoutMs: timeoutMs }).then(function(result){
-      if(!result.success){
-        /* Anthropic이 실제로 반환한 error.type/error.message/response body를 절대
-           숨기지 않는다 — 예전처럼 "요청 내용에 문제가 있습니다" 같은 뭉뚱그린
-           한국어 메시지로 감싸지 않는다(디버깅 불가능했던 원인). API Key 값
-           자체만 여전히 로그/응답 어디에도 남기지 않는다(Anthropic 에러 바디에는
-           애초에 키 값이 포함되지 않는다). */
-        var anthropicError = (result.data && result.data.error) || null;
-        console.error('[image-gateway] anthropic-generate-failed', {
-          callType: callType,
-          status: result.status,
-          type: anthropicError && anthropicError.type,
-          message: anthropicError && anthropicError.message,
-          errorKind: result.errorKind,
-          retries: result.retries,
-          body: result.data || null
-        });
-        var httpStatus = result.status || 502;
-        return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({
-          error: {
-            status: result.status || null,
-            type: (anthropicError && anthropicError.type) || result.errorKind,
-            message: (anthropicError && anthropicError.message) || (result.errorKind==='network_error' ? '네트워크 오류로 Anthropic 서버에 연결하지 못했습니다.' : result.errorKind==='timeout' ? '응답 시간이 초과되었습니다.' : 'AI 응답 생성에 실패했습니다.'),
-            raw: result.data || null
-          }
-        });
-      }
-      if(callType === 'outline') usageStore.recordTrialUsed(sessionUser.userId);
-      safeLog('anthropic-generate-success', { callType: callType, retries: result.retries });
-      res.json(result.data);
+  });
+
+  /* ── 실제 회원가입/로그인 — 2026-08-13: 기존 로그인은 브라우저
+     localStorage에만 저장되는 가짜 계정(비밀번호도 btoa일 뿐 해시가 아님)
+     이었고, 세션이 없으면 무조건 pro 유저로 자동 로그인시켜 로그인 화면
+     자체를 우회했다. 이제 진짜 서버 검증 + bcrypt 해시 + Postgres 영구
+     저장으로 바뀐다. */
+  app.post('/api/auth/signup', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'회원가입 기능이 아직 설정되지 않았습니다(DATABASE_URL/JWT_SECRET 필요).', code:'not_configured' } });
+    var body = req.body || {};
+    var name = String(body.name || '').trim();
+    var email = String(body.email || '').trim().toLowerCase();
+    var password = String(body.password || '');
+    if(!name || !email || !password) return res.status(400).json({ error: { message:'이름, 이메일, 비밀번호를 모두 입력해주세요.', code:'invalid_request' } });
+    if(password.length < 8) return res.status(400).json({ error: { message:'비밀번호는 8자 이상이어야 합니다.', code:'weak_password' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message: 'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('SELECT id FROM users WHERE email=$1', [email]);
+    }).then(function(existing){
+      if(existing.rows.length) return Promise.reject({ httpStatus: 409, message:'이미 사용 중인 이메일입니다.', code:'email_taken' });
+      return bcrypt.hash(password, BCRYPT_ROUNDS);
+    }).then(function(hash){
+      return db.query('INSERT INTO users (email, password_hash, name) VALUES ($1,$2,$3) RETURNING *', [email, hash, name]);
+    }).then(function(ur){
+      var userRow = ur.rows[0];
+      return db.query('INSERT INTO subscriptions (user_id, status) VALUES ($1,$2) RETURNING *', [userRow.id, 'inactive']).then(function(sr){
+        var token = issueToken(userRow.id);
+        safeLog('auth-signup-success', { userId: userRow.id });
+        res.json({ token: token, user: userPublicShape(userRow, sr.rows[0]) });
+      });
     }).catch(function(err){
-      safeLog('anthropic-generate-unexpected-error', { message: err && err.message });
-      res.status(500).json({ error: { message:'예기치 않은 오류가 발생했습니다.', code:'internal_error' } });
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('auth-signup-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'회원가입 처리 중 오류가 발생했습니다.', code:'internal_error' } });
     });
   });
 
-  /* ── 썸네일 4테마 배경 이미지 생성 — 사용자가 각 카드에서 "AI 이미지 생성"을
-     직접 눌렀을 때만 호출된다(자동 4장 생성 없음, 비용 통제). themeId는 4개
-     고정값 중 하나만 허용 — 임의 프롬프트를 받지 않는다(내부 기획 문서 유출
-     위험이 애초에 없는 구조). */
-  app.get('/api/image-gateway/status', function(req, res){
-    res.json({ configured: openaiProvider.isConfigured(env) });
-  });
-
-  app.post('/api/image-gateway/generate', function(req, res){
-    var themeId = (req.body || {}).themeId;
-    if(THUMB_AI_THEME_IDS.indexOf(themeId) === -1){
-      return res.status(400).json({ error: { message:'알 수 없는 테마입니다.', code:'invalid_theme' } });
-    }
-    if(!openaiProvider.isConfigured(env)){
-      return res.status(503).json({ error: { message:'AI 서버에 OpenAI API 키가 설정되지 않았습니다.', code:'not_configured' } });
-    }
-    var cfg = openaiProvider.config(env);
-    var variationIndex = (req.body || {}).variationIndex;
-    var ebookTitle = String((req.body || {}).ebookTitle || '').slice(0, 300);
-    var ebookCategory = String((req.body || {}).ebookCategory || '').slice(0, 100);
-    safeLog('openai-generate-start', { themeId: themeId, model: cfg.model, variationIndex: variationIndex, hasTitle: !!ebookTitle });
-
-    /* 2026-08-12: 책 제목이 있고 Anthropic이 설정돼 있으면 먼저 Claude에게
-       이 책 주제에 맞는 중심 오브제 묘사를 받아온다(generateThumbSubject) —
-       이 단계가 실패하거나 건너뛰어도(제목 없음/Anthropic 미설정/오류)
-       buildThumbAiPrompt가 자동으로 예전 고정 오브제로 대체하므로 이미지
-       생성 자체는 항상 그대로 성공한다. */
-    var subjectPromise = (ebookTitle && anthropicProvider.isConfigured(env))
-      ? generateThumbSubject(themeId, ebookTitle, ebookCategory, { env: env, fetchImpl: fetchImpl })
-      : Promise.resolve(null);
-
-    subjectPromise.then(function(subjectText){
-      safeLog('thumb-subject-resolved', { themeId: themeId, source: subjectText ? 'ai' : 'fallback' });
-      return thumbSemaphore.acquire().then(function(release){
-        openaiProvider.generateWithRetry(buildThumbAiPrompt(themeId, subjectText, variationIndex), {
-          env: env, fetchImpl: fetchImpl, size: '1536x1024'
-        }).then(function(result){
-          release();
-          if(!result.success){
-            var apiError = (result.data && result.data.error) || null;
-            console.error('[image-gateway] openai-generate-failed', {
-              themeId: themeId, status: result.status, errorKind: result.errorKind,
-              message: apiError && apiError.message, retries: result.retries
-            });
-            var httpStatus = result.status || 502;
-            return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({
-              error: {
-                message: (apiError && apiError.message) || (result.errorKind==='network_error' ? '네트워크 오류로 이미지 생성 서버에 연결하지 못했습니다.' : result.errorKind==='timeout' ? '응답 시간이 초과되었습니다.' : '이미지 생성에 실패했습니다.'),
-                code: result.errorKind
-              }
-            });
-          }
-          var imageDataUrl = openaiProvider.decodeOpenAIImage(result.data);
-          if(!imageDataUrl){
-            return res.status(502).json({ error: { message:'이미지 생성 응답을 해석하지 못했습니다.', code:'decode_failed' } });
-          }
-          safeLog('openai-generate-success', { themeId: themeId, retries: result.retries });
-          res.json({ imageDataUrl: imageDataUrl });
-        }).catch(function(err){
-          release();
-          safeLog('openai-generate-unexpected-error', { themeId: themeId, message: err && err.message });
-          res.status(500).json({ error: { message:'예기치 않은 오류가 발생했습니다.', code:'internal_error' } });
+  app.post('/api/auth/login', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'로그인 기능이 아직 설정되지 않았습니다(DATABASE_URL/JWT_SECRET 필요).', code:'not_configured' } });
+    var body = req.body || {};
+    var email = String(body.email || '').trim().toLowerCase();
+    var password = String(body.password || '');
+    if(!email || !password) return res.status(400).json({ error: { message:'이메일과 비밀번호를 입력해주세요.', code:'invalid_request' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message: 'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('SELECT * FROM users WHERE email=$1', [email]);
+    }).then(function(ur){
+      var userRow = ur.rows[0];
+      if(!userRow) return Promise.reject({ httpStatus: 401, message:'이메일 또는 비밀번호가 올바르지 않습니다.', code:'invalid_credentials' });
+      return bcrypt.compare(password, userRow.password_hash).then(function(ok){
+        if(!ok) return Promise.reject({ httpStatus: 401, message:'이메일 또는 비밀번호가 올바르지 않습니다.', code:'invalid_credentials' });
+        return db.query('SELECT * FROM subscriptions WHERE user_id=$1', [userRow.id]).then(function(sr){
+          var token = issueToken(userRow.id);
+          safeLog('auth-login-success', { userId: userRow.id });
+          res.json({ token: token, user: userPublicShape(userRow, sr.rows[0]) });
         });
       });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('auth-login-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'로그인 처리 중 오류가 발생했습니다.', code:'internal_error' } });
     });
   });
 
-  return { app: app, usageStore: usageStore };
+  app.get('/api/auth/me', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'인증 기능이 아직 설정되지 않았습니다.', code:'not_configured' } });
+    var userId = verifyAuthHeader(req);
+    if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return fetchUserWithSub(userId);
+    }).then(function(found){
+      if(!found) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+      res.json({ user: userPublicShape(found.userRow, found.subRow) });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('auth-me-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'사용자 정보를 불러오지 못했습니다.', code:'internal_error' } });
+    });
+  });
+
+  /* ── 토스페이먼츠 정기구독 — 2026-08-13: 카드 등록 1회(빌링키 발급) 후
+     매달 서버가 자동으로 청구하는 진짜 정기구독. 시크릿 키는 여기서 절대
+     브라우저로 전달하지 않는다(server/providers/toss-payments-provider.js
+     안에서만 사용). */
+  app.get('/api/payments/toss/config', function(req, res){
+    var cfg = tossProvider.config(env);
+    res.json({ clientKey: cfg.clientKey });
+  });
+
+  function chargeAndAdvance(userId, sub){
+    var orderId = 'sub_'+userId+'_'+Date.now();
+    return tossProvider.chargeBilling({
+      env: env, fetchImpl: fetchImpl,
+      billingKey: sub.billing_key, customerKey: sub.customer_key || userId,
+      amount: sub.plan_amount || SUBSCRIPTION_AMOUNT, orderId: orderId
+    }).then(function(result){
+      if(!result.ok){
+        var errMsg = (result.data && result.data.message) || '결제 실패';
+        safeLog('toss-charge-failed', { userId: userId, message: errMsg });
+        return db.query('UPDATE subscriptions SET status=$1, updated_at=now() WHERE user_id=$2', ['past_due', userId]).then(function(){
+          return db.query('INSERT INTO payments (user_id, order_id, amount, status) VALUES ($1,$2,$3,$4)', [userId, orderId, sub.plan_amount||SUBSCRIPTION_AMOUNT, 'failed']);
+        }).then(function(){ return { ok:false }; });
+      }
+      var paymentKey = result.data && result.data.paymentKey;
+      return db.query('UPDATE subscriptions SET status=$1, next_billing_at=now()+interval \'1 month\', updated_at=now() WHERE user_id=$2', ['active', userId]).then(function(){
+        return db.query('INSERT INTO payments (user_id, order_id, payment_key, amount, status) VALUES ($1,$2,$3,$4,$5)', [userId, orderId, paymentKey, sub.plan_amount||SUBSCRIPTION_AMOUNT, 'paid']);
+      }).then(function(){
+        safeLog('toss-charge-success', { userId: userId, orderId: orderId });
+        return { ok:true };
+      });
+    });
+  }
+
+  app.post('/api/payments/toss/billing-auth', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'결제 기능이 아직 설정되지 않았습니다.', code:'not_configured' } });
+    var userId = verifyAuthHeader(req);
+    if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+    var body = req.body || {};
+    var authKey = body.authKey, customerKey = body.customerKey;
+    if(!authKey || !customerKey) return res.status(400).json({ error: { message:'결제 요청 정보가 올바르지 않습니다.', code:'invalid_request' } });
+    /* customerKey는 클라이언트가 자신의 로그인 user id로 만들어 보낸 값이다 —
+       토큰이 가리키는 실제 계정과 일치하는지 한 번 더 검증한다(다른 사람의
+       카드 등록 결과를 자기 계정에 갖다 붙이는 것을 방지, defense in depth). */
+    if(customerKey !== userId) return res.status(403).json({ error: { message:'요청한 계정과 결제 정보가 일치하지 않습니다.', code:'customer_mismatch' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return tossProvider.issueBillingKey({ env: env, fetchImpl: fetchImpl, authKey: authKey, customerKey: customerKey });
+    }).then(function(result){
+      if(!result.ok){
+        var errMsg = (result.data && result.data.message) || '카드 등록에 실패했습니다.';
+        safeLog('toss-billing-auth-failed', { userId: userId, message: errMsg });
+        return res.status(400).json({ error: { message: errMsg, code:'billing_auth_failed' } });
+      }
+      var billingKey = result.data.billingKey;
+      return db.query(
+        'UPDATE subscriptions SET billing_key=$1, customer_key=$2, plan_amount=$3, updated_at=now() WHERE user_id=$4',
+        [billingKey, customerKey, SUBSCRIPTION_AMOUNT, userId]
+      ).then(function(){
+        /* 카드 등록 직후 첫 달 금액을 바로 청구한다(빌링키 발급 자체는
+           과금이 아니다 — "구독 시작 = 지금 결제 + 다음 달 자동 갱신"이라는
+           일반적인 SaaS 동작과 맞춘다). */
+        return chargeAndAdvance(userId, { billing_key: billingKey, customer_key: customerKey, plan_amount: SUBSCRIPTION_AMOUNT });
+      }).then(function(chargeResult){
+        if(!chargeResult.ok){
+          return res.status(402).json({ error: { message:'카드는 등록됐지만 첫 결제에 실패했습니다. 카드 정보를 확인해주세요.', code:'first_charge_failed' } });
+        }
+        safeLog('toss-subscribe-success', { userId: userId });
+        res.json({ ok:true, subscriptionStatus:'active' });
+      });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('toss-billing-auth-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'결제 처리 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+
+  /* 매달 자동 청구 스케줄러 — 실제 서버 프로세스 부팅 시(require.main===module)
+     에서만 명시적으로 시작한다(아래 startBillingScheduler). 테스트에서
+     createApp()을 호출할 때 자동으로 돌지 않게 해서, 테스트 중 실제 네트워크
+     타이머가 우연히 겹쳐 실행되는 일이 없게 한다(fetchImpl이 안전장치로
+     예외를 던지더라도,애초에 타이머 자체가 안 도는 게 더 확실하다). 실패
+     시 재시도/알림 로직은 없다(MVP 범위) — status가 'past_due'로 표시만
+     되고, 사용자가 Settings에서 재구독하면 다시 active로 돌아간다. */
+  function runDueBillingCycle(){
+    if(!db) return Promise.resolve();
+    return db.query("SELECT user_id, billing_key, customer_key, plan_amount FROM subscriptions WHERE status='active' AND billing_key IS NOT NULL AND next_billing_at <= now()").then(function(r){
+      return r.rows.reduce(function(chain, row){
+        return chain.then(function(){
+          return chargeAndAdvance(row.user_id, row).catch(function(e){
+            safeLog('toss-scheduled-charge-error', { userId: row.user_id, message: e && e.message });
+          });
+        });
+      }, Promise.resolve());
+    });
+  }
+  function startBillingScheduler(){
+    var timer = setInterval(function(){
+      runDueBillingCycle().catch(function(e){ safeLog('toss-billing-cycle-error', { message: e && e.message }); });
+    }, BILLING_CHECK_INTERVAL_MS);
+    if(timer.unref) timer.unref();
+    return timer;
+  }
+
+  return { app: app, db: db, runDueBillingCycle: runDueBillingCycle, startBillingScheduler: startBillingScheduler };
 }
 
 if(require.main === module){
@@ -350,6 +495,7 @@ if(require.main === module){
   built.app.listen(port, function(){
     console.log('Atlas Gateway listening on http://localhost:'+port+' (Anthropic configured: '+anthropicProvider.isConfigured(process.env)+')');
   });
+  if(built.db) built.startBillingScheduler();
 }
 
 module.exports = { createApp: createApp };

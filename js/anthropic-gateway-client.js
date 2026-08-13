@@ -22,9 +22,20 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
   var BASE = '/api/anthropic-gateway';
   var ANTHROPIC_DIRECT_URL = 'https://api.anthropic.com/v1/messages';
   var ANTHROPIC_VERSION = '2023-06-01';
-  var statusCache = { reachable:false, configured:false, checked:false, trialUsed:false };
+  var statusCache = { reachable:false, configured:false, checked:false, trialUsed:false, subscribed:false };
 
   function ownKey(){ return window.AtlasUserApiKey ? window.AtlasUserApiKey.getAnthropicKey() : ''; }
+  /* 2026-08-13: 실제 회원가입/로그인이 생기면서 "무료체험 1회"는 이제 익명
+     세션 쿠키가 아니라 로그인한 실제 계정 기준으로 서버가 판단한다
+     (server/image-gateway.js /api/auth/*, 무료체험 게이팅은 outline 호출
+     시점에서 검사). js/application.js가 저장해둔 JWT를 Authorization 헤더로
+     실어 보내야 서버가 어느 계정인지 알 수 있다 — application.js가 이
+     파일보다 나중에 로드되지만, 실제 호출은 항상 사용자 조작(버튼 클릭) 이후
+     비동기로 일어나므로 그때는 이미 로드가 끝나 있어 안전하다. */
+  function authHeader(){
+    var token = (typeof atlasGetAuthToken==='function') ? atlasGetAuthToken() : null;
+    return token ? { Authorization: 'Bearer '+token } : {};
+  }
 
   /* 페이지 로드 시 한 번 조회해 캐시한다 — isConfigured()/isReachable()는 동기
      함수여야 UI 렌더링(checkCvReady 등)에서 바로 쓸 수 있다. 사용자 키가 있으면
@@ -34,11 +45,11 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
     if(ownKey()){
       /* 본인 키가 있으면 체험 횟수 제한 자체가 무의미하다(자기 키로 무제한
          호출 가능) — trialUsed는 항상 false로 보고한다. */
-      statusCache = { reachable:true, configured:true, checked:true, mode:'own-key', trialUsed:false };
+      statusCache = { reachable:true, configured:true, checked:true, mode:'own-key', trialUsed:false, subscribed:false };
       return Promise.resolve(statusCache);
     }
     var url = new URL(BASE+'/status', window.AtlasGatewayBaseUrl.resolve()).href;
-    return fetch(url).then(function(res){
+    return fetch(url, { headers: authHeader() }).then(function(res){
       return res.text().then(function(raw){
         var body;
         try{ body = JSON.parse(raw); }
@@ -52,11 +63,11 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
         return body;
       });
     }).then(function(body){
-      statusCache = { reachable:true, configured: !!body.configured, checked:true, mode:'gateway', trialUsed: !!body.trialUsed };
+      statusCache = { reachable:true, configured: !!body.configured, checked:true, mode:'gateway', trialUsed: !!body.trialUsed, subscribed: !!body.subscribed };
       return statusCache;
     }).catch(function(err){
       console.error('[AtlasAnthropicGateway] gateway unreachable at '+url+' — is `node server/image-gateway.js` actually the process serving THIS page (same host:port)?', err && err.message);
-      statusCache = { reachable:false, configured:false, checked:true, mode:'gateway', trialUsed:false };
+      statusCache = { reachable:false, configured:false, checked:true, mode:'gateway', trialUsed:false, subscribed:false };
       return statusCache;
     });
   };
@@ -158,7 +169,7 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
     var timer = controller ? setTimeout(function(){ timedOut = true; controller.abort(); }, CLIENT_TIMEOUT_MS) : null;
     return fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
       body: JSON.stringify(payload),
       signal: controller ? controller.signal : undefined
     }).catch(function(err){
