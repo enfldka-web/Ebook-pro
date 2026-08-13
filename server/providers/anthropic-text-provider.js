@@ -2,8 +2,7 @@
    Atlas의 모든 Anthropic Messages API 호출을 서버에서만 수행한다. API Key는 이 서버
    모듈 안에서만 process.env.ANTHROPIC_API_KEY로 읽고, 절대 응답/로그에 그대로
    노출하지 않는다. fetch 구현체를 주입 가능하게 만들어(fetchImpl) 실제 네트워크
-   호출 없이도 429/5xx/timeout/401 재시도 정책을 Node 테스트로 검증할 수 있게 한다.
-   (server/providers/openai-image-provider.js와 동일한 구조를 그대로 따른다.) */
+   호출 없이도 429/5xx/timeout/401 재시도 정책을 Node 테스트로 검증할 수 있게 한다. */
 
 var DEFAULT_MODEL = 'claude-sonnet-4-6';
 var RETRYABLE_STATUS = [429, 500, 502, 503, 504];

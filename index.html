@@ -32,6 +32,11 @@
      실제 .pdf 파일을 즉시 다운로드하는 방식으로 교체(js/application.js
      atlasDownloadEbookPdf()). 이미 쓰던 cdnjs 하나만 추가로 사용한다. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- 2026-08-13: 토스페이먼츠 정기구독(빌링키 등록) 결제위젯. 토스 공식 v2 SDK —
+     클라이언트 키는 공개 값(발급 키가 아니면 노출돼도 안전, Stripe의 publishable
+     key와 같은 성격)이라 브라우저에 실려도 문제없다. 실제 키는 서버가
+     /api/payments/toss/config로 내려준다(js/application.js atlasOpenSubscribeCheckout). -->
+<script src="https://js.tosspayments.com/v2/standard"></script>
 <script src="js/atlas-icons.js"></script>
 <script src="js/atlas-state-system.js"></script>
 <script src="js/renderers.js"></script>
@@ -445,12 +450,14 @@
           <div id="cv-edit-hint" class="a2-banner a2-banner-info" style="display:none;margin-bottom:10px">
             <span data-icon="sparkle"></span><span>점선 표시된 부분(제목·본문 문단)을 클릭해서 바로 수정하세요. 표·체크리스트 같은 항목은 이 화면에서 편집할 수 없습니다.</span>
           </div>
-          <!-- 2026-08-10: 사용자 지시 — 완성된 전자책을 보고 고정 템플릿 4종
-               썸네일 중 원하는 것을 고르게 해달라(AI 이미지 생성 아님,
-               js/thumbnail-templates.js). 다음 단계로 가는 길은 이 버튼
-               하나뿐이라는 기존 원칙을 유지해 강조 CTA로 둔다. -->
+          <!-- 2026-08-13: 사용자 지시로 썸네일 AI 이미지 생성 기능 자체를
+               완전히 제거했다("썸네일·상세페이지는 개인이 AI를 이용해서
+               만드는 게 낫다") — 대신 이 책의 실제 제목/카테고리/판매 카피를
+               반영한 고품질 AI 프롬프트 2종(표지 이미지용/상세페이지 카피용)을
+               보여주고 사용자가 원하는 AI 도구에 붙여넣어 쓰게 한다.
+               atlasGoToPromptStudio()(js/application.js)가 대상 화면을 채운다. -->
           <div style="margin:14px 0">
-            <button class="a2-btn a2-btn-primary" style="font-size:15px;padding:14px 28px" onclick="atlasGoToThumbnailPicker()"><span data-icon="sparkle"></span>썸네일 만들기</button>
+            <button class="a2-btn a2-btn-primary" style="font-size:15px;padding:14px 28px" onclick="atlasGoToPromptStudio()"><span data-icon="sparkle"></span>썸네일·상세페이지 AI 프롬프트 받기</button>
           </div>
           <div class="result-actions">
             <button class="a2-btn a2-btn-secondary" onclick="resetConverter()"><span data-icon="arrowLeft"></span>새 프로젝트</button>
@@ -475,33 +482,39 @@
           <button type="button" class="cv-scroll-fab-btn" onclick="atlasScrollEbookPreview('bottom')" aria-label="미리보기 맨 아래로" title="미리보기 맨 아래로"><span data-icon="chevronDown"></span></button>
         </div>
 
-        <!-- 2026-08-11: 썸네일 4테마 선택 화면. js/thumbnail-templates.js가
-             지금 전자책의 실제 제목/부제/카테고리를 얹어 즉시 미리보기(flat
-             배경)를 그려두고, 사용자가 카드별 "AI 이미지 생성" 버튼을 직접
-             누르면 그때(js/application.js atlasGenerateThumbnailAiBg)만
-             server/image-gateway.js를 통해 실제 OpenAI 이미지 생성이
-             일어난다 — 비용이 드는 호출이라 4장을 자동으로 만들지 않는다.
-             #thumb-export-stage는 화면 밖(-9999px)에 실제 크기(652×488)로
-             선택된 템플릿을 하나 더 그려두는 곳 — 미리보기는 CSS로 축소해서
-             보여주지만 PNG 저장은 항상 원본 크기로 캡처해야 해상도가 깨지지
-             않는다(생성된 AI 배경도 그대로 함께 캡처됨, Preview==Export). -->
-        <div id="cv-thumbnail-picker-state" style="display:none">
+        <!-- 2026-08-13: 썸네일 AI 이미지 생성 화면을 대체하는 "AI 프롬프트
+             제공" 화면. 실제 이미지/카피를 Atlas가 만들지 않고, 이 책의 실제
+             제목/카테고리/판매 카피(APP.ebook.sales)를 반영한 상세한 프롬프트
+             문자열 2개(표지 이미지용/상세페이지 카피용)를 클라이언트에서
+             즉시 조합해서 보여준다(AI 호출 없음, 무료·즉시) — 사용자가
+             원하는 AI 도구(미드저니/ChatGPT 이미지/Gamma 등)에 그대로
+             붙여넣어 쓴다. js/application.js atlasGoToPromptStudio()/
+             atlasBuildThumbnailPrompt()/atlasBuildSalesPagePrompt() 참고. -->
+        <div id="cv-prompt-state" style="display:none">
           <div class="ts-head">
             <div>
-              <div class="cv-step-eyebrow">썸네일 만들기</div>
-              <div class="cv-step-title">원하는 스타일을 고르세요</div>
-              <div class="cv-step-sub">지금 완성된 전자책의 제목으로 4가지 스타일을 미리 만들어봤습니다. 제목·부제·문구는 카드에서 바로 클릭해 수정할 수 있습니다(한 곳에서 고치면 4개 카드에 모두 반영돼요). 마음에 드는 카드에서 "AI 이미지 생성"을 눌러 배경을 만들고, 선택 후 PNG로 저장하세요.</div>
+              <div class="cv-step-eyebrow">AI 프롬프트</div>
+              <div class="cv-step-title">썸네일·상세페이지는 이 프롬프트로 직접 만드세요</div>
+              <div class="cv-step-sub">이 책의 실제 제목·카테고리·판매 포인트를 반영한 프롬프트입니다. 아래 두 프롬프트를 복사해서 미드저니·ChatGPT 이미지·Gamma 등 원하는 AI 도구에 붙여넣으면 됩니다.</div>
             </div>
-            <button class="a2-btn a2-btn-secondary" onclick="atlasBackToEbookResultFromThumbs()"><span data-icon="arrowLeft"></span>전자책으로</button>
+            <button class="a2-btn a2-btn-secondary" onclick="atlasBackToEbookResultFromPrompts()"><span data-icon="arrowLeft"></span>전자책으로</button>
           </div>
-          <div id="thumb-ai-status-banner" class="a2-banner a2-banner-info" style="display:none;margin-bottom:10px">
-            <span data-icon="sparkle"></span><span id="thumb-ai-status-banner-text">서버에 OpenAI API 키가 설정되지 않아 AI 이미지 생성을 사용할 수 없습니다. 지금은 기본 배경으로 미리보기됩니다.</span>
+          <div class="prompt-box">
+            <div class="prompt-box-header"><div class="prompt-box-title">📕 표지·썸네일 이미지 프롬프트</div></div>
+            <div class="prompt-item">
+              <div class="prompt-label">미드저니 / ChatGPT 이미지 / DALL·E 등에 붙여넣으세요</div>
+              <div class="prompt-text" id="prompt-cv-thumb-prompt"></div>
+              <button class="prompt-copy-btn" onclick="copyPrompt('cv-thumb-prompt',this)">복사</button>
+            </div>
           </div>
-          <div id="thumb-tpl-grid" class="thumb-tpl-grid"></div>
-          <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="a2-btn a2-btn-primary" id="thumb-download-btn" disabled onclick="atlasDownloadThumbnailPng()"><span data-icon="file"></span>PNG로 저장</button>
+          <div class="prompt-box" style="margin-top:16px">
+            <div class="prompt-box-header"><div class="prompt-box-title">🛒 상세페이지 카피 프롬프트</div></div>
+            <div class="prompt-item">
+              <div class="prompt-label">ChatGPT·Claude 등 텍스트 AI에 붙여넣으세요</div>
+              <div class="prompt-text" id="prompt-cv-sales-prompt"></div>
+              <button class="prompt-copy-btn" onclick="copyPrompt('cv-sales-prompt',this)">복사</button>
+            </div>
           </div>
-          <div id="thumb-export-stage"></div>
         </div>
 
   </div>
@@ -571,7 +584,7 @@
             <div><div class="settings-label">현재 플랜</div><div class="settings-desc" id="set-plan-desc"></div></div>
             <div style="display:flex;gap:8px;align-items:center">
               <span class="plan-badge" id="set-plan-badge"></span>
-              <button class="a2-btn a2-btn-secondary" disabled><span data-icon="lock"></span>1개월 구독권</button>
+              <button class="a2-btn a2-btn-primary" id="set-subscribe-btn" onclick="atlasOpenSubscribeCheckout()"><span data-icon="sparkle"></span>월 ₩29,000 구독하기</button>
             </div>
           </div>
           <div class="settings-row">
@@ -599,20 +612,6 @@
 
 
 
-<!-- UPGRADE MODAL -->
-<div id="upgrade-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px">
-  <div style="background:var(--bg2);border:1px solid var(--card-border);border-radius:24px;padding:36px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-      <div style="font-size:18px;font-weight:900">플랜 변경</div>
-      <button style="background:none;border:none;font-size:22px;color:var(--text2)" onclick="hideUpgradeModal()">✕</button>
-    </div>
-    <div class="lplan-grid" style="grid-template-columns:1fr;gap:12px">
-      <div class="lplan" id="um-free" onclick="changePlan('free')"><div class="lplan-name">FREE</div><div class="lplan-price">₩0<small>/월</small></div><ul class="lplan-features" style="margin-bottom:0"><li>전자책 3권/월</li><li>기본 기능</li></ul></div>
-      <div class="lplan popular" id="um-starter" onclick="changePlan('starter')"><div class="lplan-badge">🔥 추천</div><div class="lplan-name">STARTER</div><div class="lplan-price">₩29,000<small>/월</small></div><ul class="lplan-features" style="margin-bottom:0"><li>전자책 20권/월</li><li>모든 기능</li></ul></div>
-      <div class="lplan" id="um-pro" onclick="changePlan('pro')"><div class="lplan-name">구독자용</div><div class="lplan-price" style="font-size:16px">래피드 정기구독</div><ul class="lplan-features" style="margin-bottom:0"><li>₩29,000/월</li><li>무제한 이용</li></ul></div>
-    </div>
-  </div>
-</div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -622,7 +621,6 @@
 <script src="js/anthropic-gateway-client.js"></script>
 <script src="js/incremental-ebook-engine.js"></script>
 <script src="js/ebook-progress-store.js"></script>
-<script src="js/thumbnail-templates.js"></script>
 <script src="js/application.js"></script>
 <script src="js/bootstrap.js"></script>
 

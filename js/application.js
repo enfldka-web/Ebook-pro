@@ -94,7 +94,7 @@ function atlasSaveDraft(show){try{localStorage.setItem(atlasProjectStorageKey(),
    호출한다. 후속 단계인데 정작 APP.ebook이 없는 경우(있을 수 없지만 방어적으로)
    는 항상 안전하게 STEP1로 떨어진다 — 절대 throw하지 않는다. */
 function atlasRestoreStageView(stage){
-  ['cv-upload-state','cv-title-state','cv-process-state','cv-result-state'].forEach(function(id){
+  ['cv-upload-state','cv-title-state','cv-process-state','cv-result-state','cv-prompt-state'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.style.display='none';
   });
   function show(id){ var el=document.getElementById(id); if(el) el.style.display=''; return el; }
@@ -168,14 +168,49 @@ function atlasBindDraftAutosave(){
 
 var FF_SKETCH = "'Nanum Pen Script',cursive";
 var FF_NOTEBOOK = "'Gaegu','Nanum Pen Script',cursive";
-var PLANS={free:{name:'BETA',limit:9999,badge:'plan-pro'},starter:{name:'BETA',limit:9999,badge:'plan-pro'},pro:{name:'BETA',limit:9999,badge:'plan-pro'}};
 
-function getUsers(){return JSON.parse(localStorage.getItem('plrbooks_users')||'{}');}
-function saveUsers(u){localStorage.setItem('plrbooks_users',JSON.stringify(u));}
-function getUser(email){return getUsers()[email]||null;}
-function setCurrentUser(u){localStorage.setItem('plrbooks_cu',JSON.stringify(u));APP.user=u;}
-function getCurrentUser(){var u=localStorage.getItem('plrbooks_cu');return u?JSON.parse(u):null;}
-function clearCurrentUser(){localStorage.removeItem('plrbooks_cu');APP.user=null;}
+/* 2026-08-13: 로그인을 실제 서버 인증으로 교체했다. 예전에는 아무 이메일이나
+   입력하면 localStorage에 계정을 자동 생성하고(getUsers/saveUsers, 비밀번호는
+   btoa일 뿐 해시가 아님), 세션이 없으면 initApp()이 무조건 pro 유저로
+   자동 로그인시켜 로그인 화면 자체를 우회했다 — "무료체험 1회 제한"이
+   의미가 있으려면 실제 서버 검증 없이는 불가능하다. 이제 서버가 bcrypt
+   해시 + PostgreSQL로 실제 계정을 관리하고(server/image-gateway.js
+   /api/auth/*), 클라이언트는 로그인 시 발급받은 JWT를 localStorage에
+   저장해두었다가 매 요청마다 Authorization: Bearer 헤더로 보낸다.
+   쿠키 세션 대신 토큰을 쓰는 이유: 이미 ATLAS_CORS_ALLOWED_ORIGINS로
+   크로스오리진(GitHub Pages 프론트엔드 ↔ Render 백엔드) 배포가 전제된
+   구조인데, CORS 미들웨어가 Access-Control-Allow-Credentials를 보내지
+   않아 쿠키가 크로스오리진에서 안정적으로 오가지 못한다. */
+var ATLAS_AUTH_TOKEN_KEY='atlas_auth_token';
+function atlasGetAuthToken(){return localStorage.getItem(ATLAS_AUTH_TOKEN_KEY);}
+function atlasSetAuthToken(t){if(t)localStorage.setItem(ATLAS_AUTH_TOKEN_KEY,t);else localStorage.removeItem(ATLAS_AUTH_TOKEN_KEY);}
+function atlasAuthFetch(path,opts){
+  opts=opts||{};
+  var headers=Object.assign({'Content-Type':'application/json'},opts.headers||{});
+  var token=atlasGetAuthToken();
+  if(token)headers.Authorization='Bearer '+token;
+  return fetch(new URL(path,window.AtlasGatewayBaseUrl.resolve()).href,Object.assign({},opts,{headers:headers}))
+    .then(function(res){
+      return res.json().catch(function(){throw new Error('non_json_response');}).then(function(body){
+        return {ok:res.ok,status:res.status,body:body};
+      });
+    });
+}
+function setCurrentUser(token,user){atlasSetAuthToken(token);APP.user=user;}
+function clearCurrentUser(){atlasSetAuthToken(null);APP.user=null;}
+/* 토큰이 남아있는 재방문자를 위한 자동 로그인 — 예전의 "세션 없으면 무조건
+   pro로 자동 로그인"과 달리, 이건 항상 서버에 실제 토큰을 검증받은 뒤에만
+   로그인 상태로 전환한다(가짜 세션을 절대 만들어내지 않는다). 토큰이
+   없거나 만료/무효면 조용히 landing 화면(기본값)에 남는다. */
+window.addEventListener('load',function(){
+  var token=atlasGetAuthToken();
+  if(!token)return;
+  atlasAuthFetch('/api/auth/me').then(function(result){
+    if(!result.ok||!result.body||!result.body.user){atlasSetAuthToken(null);return;}
+    APP.user=result.body.user;
+    showPage('app','dashboard');
+  }).catch(function(){/* 서버 연결 실패 — landing에 그대로 남는다 */});
+});
 /* 브라우저는 Anthropic API Key를 절대 들고 있지 않는다 — 모든 호출은
    AtlasAnthropicGateway(js/anthropic-gateway-client.js)를 거쳐 서버(localhost:8910)
    → Anthropic 순서로만 이루어진다. 아래는 그 서버 상태를 읽고 표시하는 헬퍼다. */
@@ -238,28 +273,16 @@ function clearUserApiKeys(){
   showToast('info','저장된 API 키를 지웠습니다. 이제 로컬 서버(Gateway) 방식으로 돌아갑니다.');
 }
 
+/* 2026-08-13: 예전엔 email 인자를 무시하고 항상 전역 키 하나(plrbooks_eb_global)
+   에 통합 저장해서, 브라우저 한 대에서 "계정"이 여러 개면 서로의 전자책
+   히스토리를 공유하는 버그가 있었다(가짜 auth 시절엔 계정 구분 자체가
+   의미 없어서 드러나지 않았음). 이제 이메일은 서버가 UNIQUE 제약으로
+   보장하는 실제 계정 식별자이므로, 계정별로 완전히 분리된 키를 쓴다. */
 function getUserEbooks(email){
-  // 전체 localStorage 스캔 - 이메일 무관하게 모든 전자책 통합
-  var all=[];
-  var seen={};
-  for(var i=0;i<localStorage.length;i++){
-    var k=localStorage.key(i);
-    if(k&&k.startsWith('plrbooks_eb_')){
-      try{
-        var arr=JSON.parse(localStorage.getItem(k)||'[]');
-        arr.forEach(function(e){
-          if(e&&e.id&&!seen[e.id]){seen[e.id]=true;all.push(e);}
-        });
-      }catch(e2){}
-    }
-  }
-  // 날짜 내림차순 정렬
-  all.sort(function(a,b){return (b.id||0)-(a.id||0);});
-  // 전역 키에 통합 저장
-  localStorage.setItem('plrbooks_eb_global',JSON.stringify(all));
-  return all;
+  try{ return JSON.parse(localStorage.getItem('plrbooks_eb_'+(email||'anon'))||'[]'); }
+  catch(e){ return []; }
 }
-function saveUserEbooks(email,arr){localStorage.setItem('plrbooks_eb_global',JSON.stringify(arr));}
+function saveUserEbooks(email,arr){localStorage.setItem('plrbooks_eb_'+(email||'anon'),JSON.stringify(arr));}
 function addEbook(email,ebook){var arr=getUserEbooks(email);arr.unshift({id:Date.now(),created:new Date().toLocaleDateString('ko-KR'),title:ebook.title,category:ebook.category||'자기계발',data:ebook});if(arr.length>50)arr=arr.slice(0,50);saveUserEbooks(email,arr);}
 function getThisMonthCount(email){var arr=getUserEbooks(email);var now=new Date();var mon=now.getFullYear()+'-'+(now.getMonth()+1);return arr.filter(function(e){return e.id&&new Date(e.id).getMonth()===now.getMonth()&&new Date(e.id).getFullYear()===now.getFullYear();}).length;}
 
@@ -271,9 +294,10 @@ function getThisMonthCount(email){var arr=getUserEbooks(email);var now=new Date(
 function checkAccessPeriod(){return true;}
 
 
-var LATPEED_URL='https://www.latpeed.com/memberships/69e81cb28dffc208089f1e8e';
-
-function openLatpeed(){window.open(LATPEED_URL,"_blank");}
+/* 2026-08-13: 예전엔 이 버튼이 외부 LatPeed 구독 페이지로 새 탭을 여는 게
+   전부였다(실제 결제 연동 없음). 이제 atlasOpenSubscribeCheckout()이 토스
+   페이먼츠 결제위젯을 이 페이지 안에서 직접 띄운다(카드 등록 → 서버가
+   빌링키 발급 → 매달 자동 청구, js/application.js 하단 결제 섹션 참고). */
 function showTrialLimitPopup(type){
   var p=document.createElement('div');
   p.className='atlas-modal-bg';
@@ -286,8 +310,8 @@ function showTrialLimitPopup(type){
   var btn1=document.createElement('button');
   btn1.className='a2-btn a2-btn-primary';
   btn1.style.cssText='width:100%;margin-bottom:10px';
-  btn1.textContent='월 ₩29,000로 무제한 시작';
-  btn1.onclick=function(){window.open(LATPEED_URL,'_blank');};
+  btn1.textContent='월 ₩29,000로 구독하기';
+  btn1.onclick=function(){p.remove();atlasOpenSubscribeCheckout();};
   var btn2=document.createElement('button');
   btn2.className='a2-btn a2-btn-secondary';
   btn2.style.width='100%';
@@ -322,6 +346,70 @@ function showTrialWelcomePopup(){
   if(window.AtlasIcons)AtlasIcons.applyAll(inner);
 }
 
+/* 2026-08-13: 토스페이먼츠 정기구독(카드 등록 1회 → 매달 서버 자동 청구,
+   server/image-gateway.js /api/payments/toss/*). 클라이언트 키는 서버가
+   /api/payments/toss/config로 내려준다(공개 값이라 브라우저에 노출돼도
+   안전 — Stripe의 publishable key와 같은 성격, 실제 청구는 시크릿 키로
+   서버에서만 이루어진다). customerKey로 로그인한 실제 계정의 id를 그대로
+   써서, 카드 등록 결과가 반드시 그 계정에만 연결되게 한다. */
+function atlasOpenSubscribeCheckout(){
+  if(!APP.user){showToast('error','로그인이 필요합니다.');return;}
+  if(typeof TossPayments==='undefined'){showToast('error','결제 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');return;}
+  atlasAuthFetch('/api/payments/toss/config').then(function(result){
+    if(!result.ok||!result.body||!result.body.clientKey){
+      showToast('error','결제 설정을 불러오지 못했습니다.');
+      return;
+    }
+    var tossPayments=TossPayments(result.body.clientKey);
+    var payment=tossPayments.payment({customerKey:APP.user.id});
+    var redirectBase=window.location.origin+window.location.pathname;
+    payment.requestBillingAuth({
+      method:'CARD',
+      successUrl:redirectBase+'?tosspay=success',
+      failUrl:redirectBase+'?tosspay=fail',
+      customerEmail:APP.user.email,
+      customerName:APP.user.name
+    }).catch(function(err){
+      showToast('error','결제 요청을 시작하지 못했습니다: '+((err&&err.message)||'알 수 없는 오류'));
+    });
+  }).catch(function(){
+    showToast('error','결제 서버에 연결하지 못했습니다.');
+  });
+}
+/* 토스 카드 등록 위젯이 완료되면 브라우저가 실제로 이 페이지로 다시
+   이동해온다(전체 새로고침) — location.search에 실린 authKey/customerKey를
+   서버로 보내 실제 청구까지 마무리한다. 로그인 토큰은 새로고침에도
+   localStorage에 남아있으므로(위쪽 세션 복원 리스너와 별개로) 여기서는
+   토큰만 있으면 바로 호출할 수 있다. */
+window.addEventListener('load',function(){
+  var params=new URLSearchParams(window.location.search);
+  var status=params.get('tosspay');
+  if(!status)return;
+  var cleanUrl=window.location.origin+window.location.pathname;
+  window.history.replaceState({},'',cleanUrl);
+  if(status==='fail'){
+    showToast('error','카드 등록이 취소되었거나 실패했습니다.');
+    return;
+  }
+  if(status!=='success')return;
+  var authKey=params.get('authKey');
+  var customerKey=params.get('customerKey');
+  if(!authKey||!customerKey){showToast('error','결제 정보가 올바르지 않습니다.');return;}
+  showToast('info','구독을 처리하고 있습니다...');
+  atlasAuthFetch('/api/payments/toss/billing-auth',{method:'POST',body:JSON.stringify({authKey:authKey,customerKey:customerKey})}).then(function(result){
+    if(!result.ok||!result.body||!result.body.ok){
+      showToast('error',(result.body&&result.body.error&&result.body.error.message)||'구독 처리에 실패했습니다.');
+      return;
+    }
+    if(APP.user)APP.user.subscriptionStatus='active';
+    if(typeof refreshAtlasGatewayStatus==='function')refreshAtlasGatewayStatus();
+    if(typeof renderSettings==='function'&&document.getElementById('set-plan-badge'))renderSettings();
+    showToast('success','구독이 시작되었습니다! 이제 무제한으로 이용하실 수 있습니다.');
+  }).catch(function(){
+    showToast('error','구독 처리 중 서버에 연결하지 못했습니다.');
+  });
+});
+
 function getTrialCount(){
   try{var t=localStorage.getItem('plrbooks_trial');return t?JSON.parse(t):{file:0,topic:0,url:0,multi:0,text:0,sales:0};}
   catch(e){return {file:0,topic:0,url:0,multi:0,text:0,sales:0};}
@@ -331,15 +419,19 @@ function addTrialCount(type){
   t[type]=(t[type]||0)+1;
   localStorage.setItem('plrbooks_trial',JSON.stringify(t));
 }
-/* V3 Phase 2 Round 33(2026-08-07): 사용자가 명시적으로 요청한 "무료 체험 1회 →
-   넘으면 구독(LatPeed) 유도" 흐름. 본인 API 키(AtlasUserApiKey)가 있으면 그
-   키로 무제한 호출이 가능하므로 항상 허용한다. 없으면 클라우드 Gateway가
-   서버에서 세션 쿠키 기준으로 실제 판단한 trialUsed를 그대로 따른다(서버가
-   유일한 진실 — 클라이언트에서 위조해도 실제 생성 호출 자체가 서버에서
-   403으로 거부된다, image-gateway.js의 outline 게이트 참고). */
+/* 2026-08-13: "무료 체험 1회 → 넘으면 구독(토스페이먼츠) 유도" 흐름. 본인 API
+   키(AtlasUserApiKey)가 있으면 그 키로 무제한 호출이 가능하므로 항상
+   허용한다. 구독 중(gw.subscribed)이면 무료체험 소진 여부와 무관하게 항상
+   허용한다 — 예전엔 이 분기가 없어서 실제로 결제한 구독자도 trialUsed:true
+   때문에 막히는 버그가 있었을 것이다(서버가 subscribed 필드를 새로 보고하기
+   시작하면서 함께 고침). 그 외에는 서버가 실제 로그인 계정 기준으로 판단한
+   trialUsed를 그대로 따른다(서버가 유일한 진실 — 클라이언트에서 위조해도
+   실제 생성 호출 자체가 서버에서 403으로 거부된다, image-gateway.js의
+   outline 게이트 참고). */
 function canGenerate(type){
   if(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey()) return true;
   var gw = window.AtlasAnthropicGateway ? AtlasAnthropicGateway.getStatusCache() : null;
+  if(gw && gw.subscribed) return true;
   return !(gw && gw.trialUsed);
 }
 
@@ -405,7 +497,7 @@ function showApp(section){
 
   // 6. converter 벗어날 때 내부 상태 리셋
   if(section!=='converter'){
-    ['cv-process-state','cv-result-state'].forEach(function(id){
+    ['cv-process-state','cv-result-state','cv-prompt-state'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     var up=document.getElementById('cv-upload-state');
@@ -429,28 +521,23 @@ function switchAuthTab(tab){
   document.getElementById('form-login').style.display=tab==='login'?'':'none';
   document.getElementById('form-signup').style.display=tab==='signup'?'':'none';
 }
-function selectPlan(plan,el){
-  APP.selPlan=plan;
-  document.querySelectorAll('.plan-chip').forEach(function(c){c.classList.remove('sel');});
-  el.classList.add('sel');
-}
 function doLogin(){
   var email=document.getElementById('l-email').value.trim();
   var pw=document.getElementById('l-pw').value;
   var err=document.getElementById('login-err');
   if(!email||!pw){showErr(err,'이메일과 비밀번호를 입력해주세요.');return;}
-  var u=getUser(email);
-  if(!u){
-    // 계정 없으면 자동 생성
-    var name=email.split('@')[0];
-    u={name:name,email:email,pw:btoa(pw),plan:'free',joined:new Date().toLocaleDateString('ko-KR')};
-    var users=getUsers();users[email]=u;saveUsers(users);
-    setCurrentUser(u);showPage('app','dashboard');showToast('success','환영합니다! 자동으로 계정이 생성됐습니다.');
-  } else if(u.pw!==btoa(pw)){
-    showErr(err,'비밀번호가 올바르지 않습니다. 다시 확인해주세요.');return;
-  } else {
-    setCurrentUser(u);showPage('app','dashboard');showToast('success','반갑습니다, '+u.name+'님!');
-  }
+  err.style.display='none';
+  atlasAuthFetch('/api/auth/login',{method:'POST',body:JSON.stringify({email:email,password:pw})}).then(function(result){
+    if(!result.ok||!result.body||!result.body.token){
+      showErr(err,(result.body&&result.body.error&&result.body.error.message)||'로그인에 실패했습니다.');
+      return;
+    }
+    setCurrentUser(result.body.token,result.body.user);
+    showPage('app','dashboard');
+    showToast('success','반갑습니다, '+result.body.user.name+'님!');
+  }).catch(function(){
+    showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+  });
 }
 function doSignup(){
   var name=document.getElementById('s-name').value.trim();
@@ -459,11 +546,18 @@ function doSignup(){
   var err=document.getElementById('signup-err');
   if(!name||!email||!pw){showErr(err,'모든 항목을 입력해주세요.');return;}
   if(pw.length<8){showErr(err,'비밀번호는 8자 이상이어야 합니다.');return;}
-  var users=getUsers();
-  if(users[email]){showErr(err,'이미 사용 중인 이메일입니다.');return;}
-  var u={name:name,email:email,pw:btoa(pw),plan:APP.selPlan,joined:new Date().toLocaleDateString('ko-KR')};
-  users[email]=u;saveUsers(users);setCurrentUser(u);
-  showPage('app','dashboard');showToast('success','가입 완료! 첫 전자책을 만들어보세요.');
+  err.style.display='none';
+  atlasAuthFetch('/api/auth/signup',{method:'POST',body:JSON.stringify({name:name,email:email,password:pw})}).then(function(result){
+    if(!result.ok||!result.body||!result.body.token){
+      showErr(err,(result.body&&result.body.error&&result.body.error.message)||'회원가입에 실패했습니다.');
+      return;
+    }
+    setCurrentUser(result.body.token,result.body.user);
+    showPage('app','dashboard');
+    showToast('success','가입 완료! 첫 전자책을 만들어보세요.');
+  }).catch(function(){
+    showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+  });
 }
 function doLogout(){clearCurrentUser();APP.ebook=null;APP.selFile=null;showPage('landing');showToast('success','로그아웃되었습니다.');}
 function showErr(el,msg){el.textContent=msg;el.style.display='block';}
@@ -472,17 +566,16 @@ function showErr(el,msg){el.textContent=msg;el.style.display='block';}
 // APP INIT
 // ════════════════════════════════════════
 function initApp(){
-  if(!getCurrentUser()){
-    var proUser={email:'pro@user',name:'구독자',plan:'pro'};
-    setCurrentUser(proUser);
-  }
-  var u=getCurrentUser();if(!u){showPage('landing');return;}
-  APP.user=u;
+  /* APP.user는 showPage('app')를 부르기 직전(doLogin/doSignup 성공 시, 또는
+     재방문자 자동 로그인 시 /api/auth/me 검증 후)에 이미 실제 서버가 확인한
+     값으로 채워져 있다 — 여기서 없는 세션을 만들어내지 않는다(예전 pro
+     자동 로그인 버그 제거). 없으면 landing으로 되돌린다. */
+  var u=APP.user;if(!u){showPage('landing');return;}
   // update sidebar
   var uname=document.getElementById('sb-uname');
   if(uname)uname.textContent=u.name;
   var pb=document.getElementById('sb-uplan');
-  if(pb){pb.textContent=PLANS[u.plan]?.name||'FREE';pb.className='plan-badge plan-'+(u.plan||'free');}
+  if(pb){pb.textContent=u.subscriptionStatus==='active'?'구독중':(u.trialUsed?'체험완료':'무료체험');pb.className='plan-badge plan-'+(u.subscriptionStatus==='active'?'pro':'free');}
   // setup converter
   setupConverter();
   // AI 서버(Anthropic Gateway) 연결 상태를 미리 한 번 확인해둔다(Loading이 무한정
@@ -530,8 +623,6 @@ function renderDashboard(){
   var monthCount=getThisMonthCount(u.email);
   var cntEl=document.getElementById('dash-ebook-count');
   if(cntEl)cntEl.textContent=ebooks.length>0?'총 '+ebooks.length+'권 저장됨':'아직 생성한 전자책이 없습니다';
-  var plan=PLANS[u.plan||'free'];
-  var limitLeft=plan.limit-monthCount;
 
   /* Atlas Visual Redesign v2, Phase R2 — Dashboard as publishing control
      center. "What am I working on? / What should I do next?" answered from
@@ -643,17 +734,19 @@ function renderHistory(){
 }
 
 function renderSettings(){
-  if(!APP.user){APP.user={email:'',name:'',plan:'free'};}
+  if(!APP.user){APP.user={email:'',name:'',trialUsed:false,subscriptionStatus:'inactive'};}
   var u=APP.user;
   document.getElementById('set-name').value=u.name||'';
   document.getElementById('set-email').value=u.email||'';
   renderUserApiKeyStatus();
   refreshAtlasGatewayStatus();
-  var plan=PLANS[u.plan||'free'];
+  var subscribed=u.subscriptionStatus==='active';
   var badge=document.getElementById('set-plan-badge');
-  if(badge){badge.textContent='구독자';badge.className='plan-badge plan-pro';}
+  if(badge){badge.textContent=subscribed?'구독중':(u.trialUsed?'체험완료':'무료체험');badge.className='plan-badge plan-'+(subscribed?'pro':'free');}
   var pd=document.getElementById('set-plan-desc');
-  if(pd)pd.textContent='구독자 전용 · 무제한 이용';
+  if(pd)pd.textContent=subscribed?'구독중 · 무제한 이용':(u.trialUsed?'무료체험을 모두 사용했습니다 · 구독하면 계속 이용할 수 있습니다':'무료체험 1회 이용 가능');
+  var subBtn=document.getElementById('set-subscribe-btn');
+  if(subBtn)subBtn.style.display=subscribed?'none':'';
   var monthCount=getThisMonthCount(u.email||'');
   var txt=document.getElementById('set-usage-text');
   var bar=document.getElementById('set-usage-bar');
@@ -910,7 +1003,7 @@ function resetConverter(){
   document.getElementById('cv-upload-state').style.display='';
   document.getElementById('cv-process-state').style.display='none';
   document.getElementById('cv-result-state').style.display='none';
-  var tps=document.getElementById('cv-thumbnail-picker-state');if(tps)tps.style.display='none';
+  var ps=document.getElementById('cv-prompt-state');if(ps)ps.style.display='none';
   /* APP.workspaceStage를 직접 대입하는 대신 atlasSetWorkspaceStage()를 호출해야
      상단 워크스페이스 위젯(단계 배지/진행률 바/코치 문구)도 함께 'upload' 단계로
      되돌아간다 — 그렇지 않으면 이전 단계가 화면에 그대로 남아 마치 초기화가
@@ -1480,7 +1573,6 @@ async function finalizeIncrementalEbook(p){
   ebook.titleAnalysis=APP.titleAnalysis||APP.smartAnalysis||null;
   addEbook(u.email,ebook);
   addTrialCount(CV_MODE);
-  var users=getUsers();u.plan=u.plan||'free';users[u.email]=u;saveUsers(users);
   p.status='completed';
   persistEbookProgress();
   document.getElementById('cv-process-state').style.display='none';
@@ -1739,10 +1831,25 @@ function atlasDownloadEbookPdf(){
     }).then(function(canvas){
       var imgData=canvas.toDataURL('image/jpeg',0.92);
       var w=canvas.width,h=canvas.height;
+      /* 2026-08-13: 실제 html2canvas/jsPDF를 진짜로 돌려서 찾은 진짜 원인 —
+         이 두 안전장치(폰트 대기, width/height 명시)를 다 넣은 뒤에도 매번
+         잘렸던 이유는 html2canvas가 아니라 jsPDF 쪽에 있었다. jsPDF의
+         unit:'px'는 기본적으로 px→pt 환산 배율이 반대로 뒤집혀 있고(공식
+         hotfixes:['px_scaling']로 고쳐야 하는, jsPDF 자체의 알려진 결함),
+         거기에 더해 addPage()/생성자가 orientation을 명시하지 않으면 항상
+         'portrait'로 간주해 폭>높이인 페이지(표지·챕터 시작·목차처럼 짧은
+         페이지 전부가 여기 해당)를 강제로 가로/세로를 뒤바꿔버린다 —
+         전자책 페이지 크기 자체가 이미지와 다른 비율로 뒤틀린 채 저장되고,
+         그 안에 원래 크기의 이미지를 그대로 넣으니 페이지 경계 밖으로
+         넘친 부분이 잘려 보인 것이었다(표지/챕터 시작처럼 세로보다 가로가
+         긴 페이지에서 특히 두드러졌던 것도 이 때문). hotfixes 적용 +
+         페이지마다 실제 가로/세로 비율에 맞는 orientation을 명시적으로
+         넘겨 두 문제를 모두 없앤다. */
+      var orient=w>=h?'l':'p';
       if(!doc){
-        doc=new window.jspdf.jsPDF({unit:'px',format:[w,h],compress:true});
+        doc=new window.jspdf.jsPDF({unit:'px',format:[w,h],compress:true,orientation:orient,hotfixes:['px_scaling']});
       }else{
-        doc.addPage([w,h]);
+        doc.addPage([w,h],orient);
       }
       doc.addImage(imgData,'JPEG',0,0,w,h);
     });
@@ -1755,239 +1862,122 @@ function atlasDownloadEbookPdf(){
   });
 }
 
-/* 2026-08-11: 완성된 전자책을 보고 4테마 썸네일 중 원하는 것을 고르는 화면.
-   js/thumbnail-templates.js가 실제 템플릿 마크업/PNG 캡처를 담당하고, 여기서는
-   화면 전환 + 지금 APP.ebook의 실제 제목/부제/카테고리를 넘기는 역할 + 카드별
-   "AI 이미지 생성" 버튼(server/image-gateway.js /api/image-gateway/*)을 담당한다.
-   생성은 비용이 들기 때문에 사용자가 카드에서 직접 눌렀을 때만 호출한다(4장을
-   화면 진입과 동시에 자동 생성하지 않음). ATLAS_THUMB_AI_CACHE는 세션 동안만
-   유지되는 테마별 생성 결과 캐시 — 같은 테마를 다시 눌러도 재호출하지 않고,
-   선택/다운로드 시에도 미리보기와 동일한 이미지를 그대로 재사용한다
-   (Preview==Export). */
-var ATLAS_SELECTED_THUMB_TPL=null;
-var ATLAS_THUMB_AI_CACHE={};
-var ATLAS_THUMB_AI_CONFIGURED=null;
-/* 2026-08-12: 사용자 요청 3건 추가 상태.
-   - ATLAS_THUMB_TEXT_OVERRIDE: 카드에서 직접 고친 제목/부제/배지 텍스트.
-     4개 카드는 같은 책의 다른 "스타일"일 뿐이라 이 셋은 카드 전체에 동기화된다.
-   - ATLAS_THUMB_CTA_OVERRIDE: 테마별 CTA 문구("바로 시작"/"지금 확인하기")는
-     테마마다 원래 다른 문구라 테마 id별로 따로 저장한다(동기화하지 않음).
-   - ATLAS_THUMB_GEN_ATTEMPTS: 테마별 "AI 이미지 생성" 클릭 횟수 — 재생성할
-     때마다 서버(variationIndex)에 넘겨 구도/조명이 확연히 달라지게 한다. */
-var ATLAS_THUMB_TEXT_OVERRIDE=null;
-var ATLAS_THUMB_CTA_OVERRIDE={};
-var ATLAS_THUMB_GEN_ATTEMPTS={};
-function atlasGoToThumbnailPicker(){
+/* 2026-08-13: 사용자 지시로 썸네일 AI 이미지 생성 기능(구 Thumbnail Studio,
+   OpenAI 이미지 API 호출)을 완전히 제거했다 — "썸네일·상세페이지는 개인이
+   AI를 이용해서 만드는 게 낫다"는 판단. 그 자리를 대신하는 것은 AI 호출이
+   전혀 없는 순수 클라이언트 문자열 조합 기능이다: 지금 완성된 전자책의
+   실제 제목/카테고리/판매 카피(APP.ebook.sales)를 재료로 삼아 (1) 표지
+   이미지용 프롬프트, (2) 상세페이지 카피용 프롬프트를 즉시 만들어 보여주고,
+   사용자가 원하는 AI 도구(미드저니/ChatGPT 이미지/Claude 등)에 직접
+   붙여넣어 쓰게 한다. 두 프롬프트 모두 "지어내지 않는다" 원칙을 지킨다 —
+   sales 필드가 비어 있으면 그 섹션을 프롬프트에서 통째로 생략하지, 없는
+   내용을 채워 넣지 않는다. */
+function atlasGoToPromptStudio(){
   if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
   var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='none';
-  var tps=document.getElementById('cv-thumbnail-picker-state');if(tps)tps.style.display='';
-  atlasRenderThumbnailPicker();
-  atlasCheckThumbnailAiStatus();
+  var ps=document.getElementById('cv-prompt-state');if(ps)ps.style.display='';
+  var thumbEl=document.getElementById('prompt-cv-thumb-prompt');
+  if(thumbEl)thumbEl.textContent=atlasBuildThumbnailPrompt(APP.ebook);
+  var salesEl=document.getElementById('prompt-cv-sales-prompt');
+  if(salesEl)salesEl.textContent=atlasBuildSalesPagePrompt(APP.ebook);
   window.scrollTo(0,0);
 }
-function atlasBackToEbookResultFromThumbs(){
-  var tps=document.getElementById('cv-thumbnail-picker-state');if(tps)tps.style.display='none';
+function atlasBackToEbookResultFromPrompts(){
+  var ps=document.getElementById('cv-prompt-state');if(ps)ps.style.display='none';
   var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='';
   window.scrollTo(0,0);
 }
-/* 2026-08-12: fontFamily 추가(전자책에서 고른 글씨체, atlasSetEbookFont가
-   저장한 APP.ebook.fontFamily) — 썸네일 글씨체가 전자책과 항상 같게.
-   ATLAS_THUMB_TEXT_OVERRIDE가 있으면(사용자가 카드에서 직접 고친 경우) 그
-   값을 우선한다. */
-function atlasThumbnailData(){
-  var d = { title:APP.ebook.title||'', subtitle:APP.ebook.subtitle||'', category:APP.ebook.category||'', fontFamily:APP.ebook.fontFamily||'' };
-  var ov = ATLAS_THUMB_TEXT_OVERRIDE;
-  if(ov){
-    if(ov.title!=null)d.title=ov.title;
-    if(ov.subtitle!=null)d.subtitle=ov.subtitle;
-    if(ov.category!=null)d.category=ov.category;
+/* 표지/썸네일 이미지 생성 프롬프트. 실제 책 제목·부제·카테고리만 재료로
+   쓰고, 구도·타이포·색감·비율까지 구체적으로 지시해 어떤 이미지 생성
+   도구에 붙여넣어도 상업용 표지 수준의 결과가 나오도록 한다. 제목을
+   이미지 안에 직접 렌더링할지 여부는 도구마다 한글 타이포 품질이 달라
+   AI가 스스로 판단하게 이중으로 안내한다(잘 그리면 넣고, 아니면 여백만
+   남기고 별도로 얹으라고). */
+function atlasBuildThumbnailPrompt(ebook){
+  var title=ebook.title||'';
+  var subtitle=ebook.subtitle||'';
+  var category=ebook.category||'';
+  var lines=[];
+  lines.push('아래 전자책의 표지/썸네일 이미지를 만들어주세요. 크몽·탈잉·스마트스토어·인스타그램 등 온라인 판매 채널에서 스크롤 중에도 시선을 붙잡는 "상업용 전자책 표지" 품질이 목표입니다.');
+  lines.push('');
+  lines.push('[책 정보]');
+  lines.push('- 제목: '+title);
+  if(subtitle)lines.push('- 부제: '+subtitle);
+  if(category)lines.push('- 분야: '+category);
+  lines.push('');
+  lines.push('[디자인 방향]');
+  lines.push('- 이 책의 주제와 분야에 가장 잘 어울리는 색감·분위기를 스스로 골라주세요(예: 자기계발/비즈니스는 신뢰감 있는 다크 네이비+골드 또는 딥블루 계열의 프리미엄 톤, 라이프스타일/취미는 밝고 따뜻한 톤 등).');
+  lines.push('- 배경은 과하게 복잡하지 않게, 여백을 살린 미니멀한 구도로 만들어주세요.');
+  lines.push('- 이 책의 핵심 주제를 상징하는 시각적 오브제(사물·아이콘·일러스트) 하나를 중앙 또는 한쪽에 배치해 "무슨 책인지"가 이미지만 봐도 느껴지게 해주세요.');
+  lines.push('- 사람 얼굴/저작권이 있는 캐릭터·로고·브랜드는 넣지 마세요.');
+  lines.push('');
+  lines.push('[제목 타이포그래피]');
+  lines.push('- 한글 타이포그래피를 정확하게 렌더링할 수 있다면, 위 제목을 굵고 가독성 높은 산세리프 서체로 이미지 상단 또는 중앙에 2~3줄 이내로 배치해주세요.');
+  lines.push('- 한글 텍스트 렌더링이 정확하지 않다면 제목 텍스트는 빼고, 대신 상단 또는 중앙에 텍스트를 나중에 얹을 수 있는 여백 공간을 의도적으로 남겨주세요.');
+  lines.push('');
+  lines.push('[규격]');
+  lines.push('- 세로형 표지 비율(예: 2:3) 또는 정사각형(1:1) 중 판매 채널에 맞는 비율로 만들어주세요. 스마트스토어/크몽 등은 정사각형 썸네일을 많이 씁니다.');
+  return lines.join('\n');
+}
+/* 상세페이지(랜딩페이지) 판매 카피 생성 프롬프트. AI 전자책 생성 시 이미
+   만들어진 sales 필드(hook/pains/solution/benefits/before-after/faqs 등,
+   js/incremental-ebook-engine.js salesSchemaString)를 실제 재료로 그대로
+   넘겨서, 상세페이지 AI가 처음부터 다 지어내지 않고 이 책의 진짜 내용을
+   근거로 카피를 쓰게 한다. testimonials는 정책상 항상 빈 배열이므로(가짜
+   후기 생성 금지 원칙, 같은 스키마 주석 참고) 프롬프트에서도 동일하게
+   "실제 후기를 지어내지 말라"고 명시해 이 원칙을 이어간다. 인터뷰 답변
+   (APP.interviewAnswers)이 세션에 남아있으면 타겟 독자/차별점 신호로
+   추가하되, 없으면(예: 히스토리에서 다시 연 책) 조용히 생략한다. */
+function atlasBuildSalesPagePrompt(ebook){
+  var s=ebook.sales||{};
+  var title=ebook.title||'';
+  var subtitle=ebook.subtitle||'';
+  var category=ebook.category||'';
+  var lines=[];
+  lines.push('아래 전자책의 상세페이지(랜딩페이지) 판매 카피를 작성해주세요. 실제 구매 전환을 목표로 하는 온라인 판매 페이지 카피입니다.');
+  lines.push('');
+  lines.push('[책 정보]');
+  lines.push('- 제목: '+title);
+  if(subtitle)lines.push('- 부제: '+subtitle);
+  if(category)lines.push('- 분야: '+category);
+  var interviewLines=atlasInterviewSummaryLines();
+  if(interviewLines.length){
+    lines.push('');
+    lines.push('[타겟 독자·차별점]');
+    interviewLines.forEach(function(l){lines.push('- '+l);});
   }
-  return d;
-}
-/* 카드에서 제목/부제/배지/CTA를 직접 고쳤을 때(contentEditable oninput,
-   js/thumbnail-templates.js editAttrs()) 호출된다. 제목/부제/배지는 "같은
-   책"의 내용이라 4개 카드 전부에 동기화하고, CTA는 테마마다 원래 다른
-   문구라 지금 편집 중인 카드(테마)에만 저장한다. */
-function atlasThumbnailFieldInput(el){
-  var field=el.getAttribute('data-atlas-thumb-field');
-  if(!field)return;
-  var text=(el.innerText||el.textContent||'').replace(/\n+/g,' ').trim();
-  var card=el.closest('.thumb-tpl-card');
-  var tplId=card?card.getAttribute('data-thumb-tpl'):null;
-  if(field==='cta'){
-    if(tplId)ATLAS_THUMB_CTA_OVERRIDE[tplId]=text;
-    return;
+  if(s.hook)lines.push('','[핵심 후킹]','- '+s.hook+(s.subhook?' / '+s.subhook:''));
+  if(Array.isArray(s.pains)&&s.pains.length){lines.push('','[독자가 겪는 문제]');s.pains.forEach(function(p){lines.push('- '+p);});}
+  if(s.solution)lines.push('','[이 책이 제공하는 해결 구조]','- '+s.solution);
+  if(Array.isArray(s.benefits)&&s.benefits.length){lines.push('','[이 책으로 얻는 혜택]');s.benefits.forEach(function(b){lines.push('- '+b);});}
+  if(Array.isArray(s.before)&&s.before.length&&Array.isArray(s.after)&&s.after.length){
+    lines.push('','[읽기 전 / 읽은 후]');
+    s.before.forEach(function(b,i){lines.push('- 전: '+b+(s.after[i]?' → 후: '+s.after[i]:''));});
   }
-  if(!ATLAS_THUMB_TEXT_OVERRIDE)ATLAS_THUMB_TEXT_OVERRIDE={};
-  ATLAS_THUMB_TEXT_OVERRIDE[field]=text;
-  document.querySelectorAll('#thumb-tpl-grid [data-atlas-thumb-field="'+field+'"]').forEach(function(other){
-    if(other!==el)other.textContent=text;
-  });
+  if(Array.isArray(s.faqs)&&s.faqs.length){lines.push('','[예상 질문]');s.faqs.forEach(function(f){lines.push('- Q. '+f.q+' / A. '+f.a);});}
+  lines.push('');
+  lines.push('[작성 지침]');
+  lines.push('- 헤드라인(후킹) → 문제 공감 → 해결책 제시 → 이 책으로 얻는 혜택 → 목차/구성 미리보기 → 예상 질문(FAQ) → 마지막 행동 유도, 순서로 하나의 완성된 상세페이지 카피를 작성해주세요.');
+  lines.push('- 구체적인 수익·매출 금액, 성장률, 달성 기간을 언급하지 마세요.');
+  lines.push('- "보장", "무조건", "100%", "누구나 성공", "자동수익" 같은 과장 표현은 쓰지 마세요.');
+  lines.push('- 실제 구매자 후기(testimonials)는 하나도 없습니다 — 후기를 지어내지 말고, 후기가 필요한 자리는 "(실제 구매 후기가 쌓이면 이 자리에 추가하세요)"로 비워두세요.');
+  lines.push('- 마크다운 섹션 제목으로 구분해서, 바로 복사해 상세페이지에 쓸 수 있는 형태로 출력해주세요.');
+  return lines.join('\n');
 }
-/* 2026-08-12: 카드 미리보기(.thumb-tpl-preview)는 이제 카드 폭에 맞춰
-   반응형(width:100%)이지만, 내부 캔버스(.thumb-tpl)는 PNG 저장 해상도를
-   지키기 위해 652×488 고정 크기를 유지한다 — 실제 렌더 폭을 재서 그 비율만큼
-   축소하는 배율을 여기서 계산한다(CSS만으로는 % 대 px 고정폭을 나눌 수
-   없음). 그리드/재생성/창 크기 변경마다 다시 계산한다. */
-function atlasScaleThumbnailPreviews(){
-  var native=(typeof AtlasThumbnailTemplates!=='undefined'&&AtlasThumbnailTemplates.SIZE)?AtlasThumbnailTemplates.SIZE.width:652;
-  document.querySelectorAll('#thumb-tpl-grid .thumb-tpl-preview').forEach(function(preview){
-    var inner=preview.querySelector('.thumb-tpl');
-    if(!inner||!preview.clientWidth)return;
-    inner.style.transform='scale('+(preview.clientWidth/native)+')';
+/* APP.interviewAnswers는 세션 중(전자책을 막 만든 직후)에만 채워져 있고
+   ebook 객체 자체에는 저장되지 않는다(히스토리에서 다시 연 책은 비어
+   있음) — 있을 때만 "질문: 답변" 형태로 요약해 반환, 없으면 빈 배열. */
+function atlasInterviewSummaryLines(){
+  var qs=APP.interviewQuestions||[];
+  var ans=APP.interviewAnswers||{};
+  var out=[];
+  qs.forEach(function(q){
+    var a=ans[q.id];
+    if(a==null||a==='')return;
+    var aText=Array.isArray(a)?a.join(', '):a;
+    out.push((q.question||q.id)+': '+aText);
   });
-}
-(function(){
-  var t=null;
-  window.addEventListener('resize',function(){
-    clearTimeout(t);
-    t=setTimeout(atlasScaleThumbnailPreviews,120);
-  });
-})();
-/* configured:false(서버는 정상 응답했지만 OpenAI 키가 없음)와 서버 자체에
-   연결이 안 되는 경우(구버전 서버가 아직 떠 있어 이 라우트가 없거나, 게이트웨이가
-   실행 중이 아님 — res.json() 파싱 실패로 나타남)를 구분해서 안내한다.
-   두 경우 모두 배너는 뜨지만, 후자는 "서버 재시작이 필요할 수 있다"는 걸
-   명시해야 사용자가 헷갈리지 않는다(실제로 확인된 혼동 사례: 새 코드로
-   교체한 뒤 예전 서버 프로세스를 재시작하지 않으면 이 라우트 자체가 없어
-   모든 요청이 이렇게 실패한다). */
-function atlasCheckThumbnailAiStatus(){
-  var banner=document.getElementById('thumb-ai-status-banner');
-  var bannerText=document.getElementById('thumb-ai-status-banner-text');
-  fetch(new URL('/api/image-gateway/status', window.AtlasGatewayBaseUrl.resolve()).href).then(function(res){
-    return res.json().catch(function(){ throw new Error('non_json_response'); });
-  }).then(function(body){
-    ATLAS_THUMB_AI_CONFIGURED=!!body.configured;
-    if(banner)banner.style.display=ATLAS_THUMB_AI_CONFIGURED?'none':'';
-    if(bannerText)bannerText.textContent='서버에 OpenAI API 키가 설정되지 않아 AI 이미지 생성을 사용할 수 없습니다. 지금은 기본 배경으로 미리보기됩니다.';
-  }).catch(function(){
-    ATLAS_THUMB_AI_CONFIGURED=false;
-    if(banner)banner.style.display='';
-    if(bannerText)bannerText.textContent='이미지 생성 서버에 연결하지 못했습니다. 서버(node server/image-gateway.js 또는 npm start)를 최신 코드로 재시작했는지 확인해주세요.';
-  });
-}
-function atlasRenderThumbnailPicker(){
-  var grid=document.getElementById('thumb-tpl-grid');
-  if(!grid||!APP.ebook||typeof AtlasThumbnailTemplates==='undefined')return;
-  ATLAS_SELECTED_THUMB_TPL=null;
-  ATLAS_THUMB_AI_CACHE={};
-  ATLAS_THUMB_TEXT_OVERRIDE=null;
-  ATLAS_THUMB_CTA_OVERRIDE={};
-  ATLAS_THUMB_GEN_ATTEMPTS={};
-  var data=atlasThumbnailData();
-  // renderAll() 대신 카드별로 직접 render()를 호출한다 — 테마별 CTA 문구
-  // override(ATLAS_THUMB_CTA_OVERRIDE)를 카드마다 다르게 얹어야 하기 때문.
-  var tpls=AtlasThumbnailTemplates.LIST.map(function(t){
-    var cardData=Object.assign({},data,{cta:ATLAS_THUMB_CTA_OVERRIDE[t.id]});
-    return { id:t.id, name:t.name, desc:t.desc, html:AtlasThumbnailTemplates.render(t.id,cardData) };
-  });
-  // 2026-08-12: 미리보기 안의 제목/부제/배지/CTA가 이제 클릭해서 바로 편집
-  // 가능하므로(contentEditable), 미리보기 자체는 더 이상 "클릭=템플릿 선택"이
-  // 아니다 — 선택은 체크 표시나 카드 라벨(이름/설명)을 클릭해서 한다.
-  grid.innerHTML=tpls.map(function(t){
-    return '<div class="thumb-tpl-card" data-thumb-tpl="'+t.id+'">'
-      +'<div class="thumb-tpl-preview">'+t.html+'</div>'
-      +'<div class="thumb-tpl-card-label" onclick="atlasSelectThumbnailTemplate(\''+t.id+'\')"><div><div class="thumb-tpl-card-name">'+x(t.name)+'</div><div class="thumb-tpl-card-desc">'+x(t.desc)+'</div></div><div class="thumb-tpl-card-check"></div></div>'
-      +'<div class="thumb-tpl-card-actions">'
-        +'<button type="button" class="a2-btn a2-btn-secondary thumb-ai-gen-btn" data-thumb-ai-btn="'+t.id+'" onclick="event.stopPropagation();atlasGenerateThumbnailAiBg(\''+t.id+'\')"><span data-icon="sparkle"></span>AI 이미지 생성</button>'
-        +'<span class="thumb-ai-status" data-thumb-ai-status="'+t.id+'"></span>'
-      +'</div>'
-      +'</div>';
-  }).join('');
-  var btn=document.getElementById('thumb-download-btn');
-  if(btn)btn.disabled=true;
-  if(window.AtlasIcons)AtlasIcons.applyAll(grid);
-  atlasScaleThumbnailPreviews();
-}
-function atlasSelectThumbnailTemplate(id){
-  ATLAS_SELECTED_THUMB_TPL=id;
-  document.querySelectorAll('#thumb-tpl-grid .thumb-tpl-card').forEach(function(el){
-    el.classList.toggle('selected', el.getAttribute('data-thumb-tpl')===id);
-  });
-  var btn=document.getElementById('thumb-download-btn');
-  if(btn)btn.disabled=false;
-}
-function atlasRerenderThumbnailCard(id){
-  var card=document.querySelector('#thumb-tpl-grid .thumb-tpl-card[data-thumb-tpl="'+id+'"]');
-  if(!card)return;
-  var preview=card.querySelector('.thumb-tpl-preview');
-  if(!preview)return;
-  var data=atlasThumbnailData();
-  data.bgImageDataUrl=ATLAS_THUMB_AI_CACHE[id]||'';
-  data.cta=ATLAS_THUMB_CTA_OVERRIDE[id];
-  preview.innerHTML=AtlasThumbnailTemplates.render(id, data);
-  if(window.AtlasIcons)AtlasIcons.applyAll(preview);
-  atlasScaleThumbnailPreviews();
-}
-function atlasGenerateThumbnailAiBg(themeId){
-  if(!APP.ebook)return;
-  var statusEl=document.querySelector('[data-thumb-ai-status="'+themeId+'"]');
-  var btnEl=document.querySelector('[data-thumb-ai-btn="'+themeId+'"]');
-  if(btnEl)btnEl.disabled=true;
-  if(statusEl)statusEl.textContent='생성 중...';
-  // 2026-08-12: 사용자 리포트 — "다시 생성"을 눌러도 이미지가 별로 안 바뀐다.
-  // 매번 같은 테마 프롬프트를 그대로 보냈던 게 원인 — 이 테마에서 몇 번째
-  // 시도인지(variationIndex)를 서버에 같이 보내면, 서버가 구도/조명/앵글이
-  // 뚜렷이 다른 문구를 순환 적용한다(server/image-gateway.js
-  // THUMB_AI_VARIATION_MODIFIERS 참고).
-  var attempt=ATLAS_THUMB_GEN_ATTEMPTS[themeId]||0;
-  ATLAS_THUMB_GEN_ATTEMPTS[themeId]=attempt+1;
-  // 2026-08-12: 사용자가 실제 참고 이미지 20장을 보여준 뒤 확인한 방향 —
-  // 배경의 중심 오브제가 책마다 그 책 주제에 맞게 달라져야 한다(예: 성공
-  // 원칙 책=체스말, 투자 책=황소상). 서버가 책 제목/카테고리를 받아 Claude로
-  // 오브제를 새로 짓는다(server/image-gateway.js generateThumbSubject).
-  // atlasThumbnailData()를 써서 사용자가 카드에서 직접 고친 제목/카테고리가
-  // 있으면 그 값을 그대로 보낸다(원본 APP.ebook 값이 아니라).
-  var thumbData=atlasThumbnailData();
-  fetch(new URL('/api/image-gateway/generate', window.AtlasGatewayBaseUrl.resolve()).href, {
-    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ themeId: themeId, variationIndex: attempt, ebookTitle: thumbData.title, ebookCategory: thumbData.category })
-  }).then(function(res){
-    return res.json().then(function(body){ return { ok: res.ok, body: body }; });
-  }).then(function(result){
-    if(btnEl)btnEl.disabled=false;
-    if(!result.ok || !result.body || !result.body.imageDataUrl){
-      var msg=(result.body && result.body.error && result.body.error.message)||'이미지 생성에 실패했습니다.';
-      if(statusEl)statusEl.textContent=msg;
-      showToast('error',msg);
-      return;
-    }
-    ATLAS_THUMB_AI_CACHE[themeId]=result.body.imageDataUrl;
-    if(statusEl)statusEl.textContent='';
-    if(btnEl)btnEl.innerHTML='<span data-icon="refresh"></span>다시 생성';
-    atlasRerenderThumbnailCard(themeId);
-    if(window.AtlasIcons)AtlasIcons.applyAll(btnEl.parentElement);
-    showToast('success','AI 배경 이미지가 생성되었습니다.');
-  }).catch(function(err){
-    if(btnEl)btnEl.disabled=false;
-    /* fetch 자체가 실패(응답을 아예 못 받음)했거나 응답이 JSON이 아니었다는
-       뜻 — 서버가 아예 안 떠 있거나, 이 라우트가 없는 구버전 서버 프로세스가
-       계속 떠 있는 경우(코드 교체 후 재시작을 안 한 경우)가 대부분이다.
-       서버가 정상 응답했는데 키만 없는 경우는 이 catch가 아니라 위 .then의
-       503 처리에서 이미 잡힌다. */
-    var msg='이미지 생성 서버에 연결하지 못했습니다. 서버(node server/image-gateway.js 또는 npm start)를 최신 코드로 재시작했는지 확인해주세요.';
-    if(statusEl)statusEl.textContent=msg;
-    showToast('error',msg);
-  });
-}
-function atlasDownloadThumbnailPng(){
-  if(!ATLAS_SELECTED_THUMB_TPL){showToast('error','먼저 스타일을 선택해주세요.');return;}
-  if(!APP.ebook)return;
-  var stage=document.getElementById('thumb-export-stage');
-  if(!stage)return;
-  var data=atlasThumbnailData();
-  data.bgImageDataUrl=ATLAS_THUMB_AI_CACHE[ATLAS_SELECTED_THUMB_TPL]||'';
-  data.cta=ATLAS_THUMB_CTA_OVERRIDE[ATLAS_SELECTED_THUMB_TPL];
-  // 미리보기는 CSS로 축소해서 보여주지만(.thumb-tpl-preview .thumb-tpl JS로 계산한 transform:scale(...)),
-  // PNG 저장은 화면 밖에 원본 크기(652×488)로 다시 그려서 캡처한다 — 해상도가 깨지지 않는다.
-  // 선택한 테마에 생성된 AI 배경이 있으면 그 이미지를 그대로 포함해 캡처한다(Preview==Export).
-  stage.innerHTML=AtlasThumbnailTemplates.render(ATLAS_SELECTED_THUMB_TPL, data);
-  if(window.AtlasIcons)AtlasIcons.applyAll(stage);
-  var target=stage.querySelector('.thumb-tpl');
-  if(!target)return;
-  var filename=(APP.ebook.title||'thumbnail').replace(/[\/\\:*?"<>|]/g,'_');
-  AtlasThumbnailTemplates.downloadPng(target,filename).then(function(ok){
-    if(ok)showToast('success','썸네일이 저장되었습니다!');
-  });
+  return out;
 }
 
 function stopIncrementalEbookGeneration(){
