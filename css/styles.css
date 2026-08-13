@@ -845,7 +845,20 @@ textarea{resize:vertical}
    matching the rest of the redesigned Converter. This does not touch the
    ebook page content itself (#cv-edoc's own typography/colors are the real
    exported product — Preview==Export stays untouched, Design Bible §invariant). */
-.ebook-preview-wrap{background:var(--a2-bg);border-radius:var(--a2-r-lg);overflow:hidden;padding:20px;border:1px solid var(--a2-border)}
+/* 2026-08-13: 사용자 리포트(PDF 저장본 확인) — 표지뿐 아니라 서문/목차/서론
+   같은 일반 본문 페이지까지도 전부 오른쪽이 잘려 나왔다(이전에는 큰 제목이
+   있는 페이지만 그런 줄 알았는데, 실제로는 모든 페이지가 같은 비율로
+   잘렸다). 원인 재확인: .pg(전자책 한 페이지)는 지금까지 폭을 스스로
+   정하지 않고 부모(.ebook-preview-wrap)가 넓은 만큼 그대로 늘어나는
+   구조였다 — 화면이 넓은 모니터에서는 책 페이지 하나가 실제로 매우
+   넓어진다는 뜻이다. html2canvas는 캡처 시점의 뷰포트/캔버스 크기에 따라
+   이렇게 비정형적으로 넓은 요소를 정확히 다 담지 못하고 오른쪽을 잘라내는
+   경우가 있다(브라우저/캔버스 크기 제약과 얽힌 문제로 실제 host 환경마다
+   재현 여부가 다르다). 화면 폭이 얼마든 항상 같은, 적당한 "책 페이지" 폭
+   으로 고정하면 이 문제 자체가 원천적으로 사라진다(어떤 모니터에서도 항상
+   같은 폭을 캡처하므로) — 부수적으로 아주 넓은 모니터에서 전자책 페이지가
+   과도하게 늘어나 읽기 불편하던 것도 함께 개선된다. */
+.ebook-preview-wrap{background:var(--a2-bg);border-radius:var(--a2-r-lg);overflow:hidden;padding:20px;border:1px solid var(--a2-border);max-width:860px;margin:0 auto}
 
 /* 2026-08-12: 전자책 미리보기 맨 위/맨 아래 이동 버튼. position:fixed라 DOM상
    위치와 무관하게 항상 화면 우측 하단에 떠 있고, #cv-edoc(Export 캡처 대상)
