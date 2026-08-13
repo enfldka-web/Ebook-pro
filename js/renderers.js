@@ -281,53 +281,29 @@ function renderCvEbook(e){
       +'</div>');
     var h='<div class="pg inn">';
     h+='<div class="cb"><div class="cp">'+ebIcon('book',14)+' CHAPTER '+pad(ch.number)+'</div><div class="cl">'+x(e.category||'')+'</div></div>';
-    // Editorial Composition Engine (final Phase 1B step): structural
-    // "explanation" components — comparisonTable/framework/timeline — used
-    // to stack after the ENTIRE body as one more box in a wall of boxes,
-    // identical rhythm every chapter regardless of length. They now land
-    // between the first and second half of the chapter's real body
-    // paragraphs (renderTextBlocks(), not renderText()) whenever at least
-    // one of them exists, so a long explanatory chapter reads as
-    // explanation → concrete reference → continued explanation instead of
-    // prose-wall-then-box-wall. A chapter with none of these three fields
-    // (a purely narrative chapter) renders its body as a single block
-    // exactly as before — composition only changes shape where there is
-    // real structural content to place, nothing is invented to fill a slot.
+    // 2026-08-13: 사용자 요청 — 비교표/프레임워크/타임라인이 본문 문단 중간에
+    // 끼어들어 글의 흐름이 끊긴다는 지적. 예전(Editorial Composition Engine)
+    // 에는 이 구조화 요소들을 본문 전반부와 후반부 사이에 일부러 끼워
+    // 넣었는데, 그게 바로 이 문제의 원인이었다 — 이제 본문 전체(chb 하나)를
+    // 끝까지 다 보여준 다음에야 구조화 요소가 나온다. 구조화 요소가 없는
+    // 챕터는 원래도 그랬듯 본문만 그대로 렌더링된다.
     var bodyBlocks=renderTextBlocks(ch.content);
-    var midComponents='';
+    var afterBodyComponents='';
     if(ch.comparisonTable&&ch.comparisonTable.headers&&ch.comparisonTable.headers.length&&ch.comparisonTable.rows&&ch.comparisonTable.rows.length){
       var ctab=ch.comparisonTable;
-      midComponents+='<div class="ctable"><h4>'+ebIcon('briefcase',14)+' '+x(ctab.title||'비교')+'</h4><div class="ctable-scroll"><table><thead><tr>'+ctab.headers.map(function(hd){return '<th>'+x(hd)+'</th>';}).join('')+'</tr></thead><tbody>'+ctab.rows.map(function(row){return '<tr>'+row.map(function(cell){return '<td>'+x(cell)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>';
+      afterBodyComponents+='<div class="ctable"><h4>'+ebIcon('briefcase',14)+' '+x(ctab.title||'비교')+'</h4><div class="ctable-scroll"><table><thead><tr>'+ctab.headers.map(function(hd){return '<th>'+x(hd)+'</th>';}).join('')+'</tr></thead><tbody>'+ctab.rows.map(function(row){return '<tr>'+row.map(function(cell){return '<td>'+x(cell)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>';
     }
     if(ch.framework&&ch.framework.steps&&ch.framework.steps.length){
       var fw=ch.framework;
-      midComponents+='<div class="fwb"><h4>'+ebIcon('compass',14)+' 프레임워크</h4><div class="fwb-name">'+x(fw.name||'')+'</div><div class="fwgrid">'+fw.steps.map(function(st,si){return '<div class="fwcard"><div class="fwcard-num">'+pad(si+1)+'</div><div class="fwcard-title">'+x(st.title||'')+'</div><p>'+x(st.description||'')+'</p></div>';}).join('')+'</div></div>';
+      afterBodyComponents+='<div class="fwb"><h4>'+ebIcon('compass',14)+' 프레임워크</h4><div class="fwb-name">'+x(fw.name||'')+'</div><div class="fwgrid">'+fw.steps.map(function(st,si){return '<div class="fwcard"><div class="fwcard-num">'+pad(si+1)+'</div><div class="fwcard-title">'+x(st.title||'')+'</div><p>'+x(st.description||'')+'</p></div>';}).join('')+'</div></div>';
     }
     if(ch.timeline&&ch.timeline.length){
-      midComponents+='<div class="tlb"><h4>'+ebIcon('calendar',14)+' 타임라인</h4>'+ch.timeline.map(function(tl,ti){
+      afterBodyComponents+='<div class="tlb"><h4>'+ebIcon('calendar',14)+' 타임라인</h4>'+ch.timeline.map(function(tl,ti){
         var stageLbl=tl.stage?x(tl.stage)+' · ':'';
         return '<div class="tlrow"><div class="tldot">'+(ti+1)+'</div><div class="tllabel">'+stageLbl+x(tl.label||'')+'</div><div class="tltext">'+x(tl.description||'')+'</div></div>';
       }).join('')+'</div>';
     }
-    // 분할 지점은 목록(번호/글머리) 중간을 자르지 않도록 같은 종류의 목록
-    // 행이 이어지는 동안은 뒤로 미룬다 — "논리적 흐름 보존" 요구사항.
-    // 목록이 본문 끝까지 이어져 안전한 분할 지점이 없으면 분할하지 않는다.
-    function atlasBlockType(b){
-      if(b.indexOf('chb-nrow')>=0)return 'num';
-      if(b.indexOf('chb-brow')>=0)return 'bul';
-      return 'other';
-    }
-    var mid=Math.ceil(bodyBlocks.length/2);
-    while(mid<bodyBlocks.length&&atlasBlockType(bodyBlocks[mid])!=='other'&&atlasBlockType(bodyBlocks[mid])===atlasBlockType(bodyBlocks[mid-1])){
-      mid++;
-    }
-    if(midComponents&&bodyBlocks.length>=2&&mid<bodyBlocks.length){
-      h+='<div class="chb" contenteditable="false" data-atlas-field="chapterContent" data-atlas-chapter="'+i+'" data-atlas-part="0">'+bodyBlocks.slice(0,mid).join('')+'</div>'
-        +midComponents
-        +'<div class="chb" contenteditable="false" data-atlas-field="chapterContent" data-atlas-chapter="'+i+'" data-atlas-part="1">'+bodyBlocks.slice(mid).join('')+'</div>';
-    }else{
-      h+='<div class="chb" contenteditable="false" data-atlas-field="chapterContent" data-atlas-chapter="'+i+'">'+bodyBlocks.join('')+'</div>'+midComponents;
-    }
+    h+='<div class="chb" contenteditable="false" data-atlas-field="chapterContent" data-atlas-chapter="'+i+'">'+bodyBlocks.join('')+'</div>'+afterBodyComponents;
     // Action Box — 오늘의 실행 (real actionBox field, one or more concrete actions)
     if(ch.actionBox&&ch.actionBox.length){
       var actions=Array.isArray(ch.actionBox)?ch.actionBox:[ch.actionBox];
