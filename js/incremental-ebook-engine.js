@@ -416,6 +416,53 @@ ${KOREAN_LOCALIZATION_RULES}
     return out;
   }
 
+  /* 2026-08-13: 사용자 리포트 — 제목 후보(titles-interview, 배열 요소 12개)
+     생성 중 "Expected ',' or ']' after array element"로 위 5단계 보정을 전부
+     통과하고도 실패했다. 배열 요소 12개처럼 긴 배열을 반환할 때 모델이 가끔
+     JSON 구조 밖에서 번호를 매기며 "생각을 정리"하다가 그 번호 매김이 실제
+     JSON 배열 요소 사이에 섞여 들어가는 경우가 있다(예: "},\n2. {..." 처럼
+     콤마 뒤에 마크다운 번호/글머리 기호가 낀 채로 다음 객체가 이어짐) — 콤마
+     자체는 있으니 위의 콤마 보정(insertMissingCommasBetweenElements)으로는
+     못 잡는다. 문자열 밖에서 "," 또는 "[" 바로 뒤에 번호("1.", "2)")나
+     글머리 기호("-", "*", "•")가 오고, 그 뒤에 곧바로 실제 JSON 값이 시작되는
+     토큰({, ", [)이 이어지는 경우에만 그 기호를 제거한다 — 문자열 내부 텍스트나
+     진짜 값과 무관한 위치는 건드리지 않아 정상 JSON을 손상시키지 않는다. */
+  function stripStrayListMarkersBetweenElements(text){
+    var out = '';
+    var inString = false;
+    var escapeNext = false;
+    var i = 0;
+    while(i < text.length){
+      var ch = text[i];
+      if(inString){
+        out += ch;
+        if(escapeNext){ escapeNext = false; }
+        else if(ch === '\\'){ escapeNext = true; }
+        else if(ch === '"'){ inString = false; }
+        i++; continue;
+      }
+      if(ch === '"'){ inString = true; out += ch; i++; continue; }
+      if(ch === ',' || ch === '['){
+        out += ch; i++;
+        var j = i;
+        while(j < text.length && /\s/.test(text[j])) j++;
+        var whitespace = text.slice(i, j);
+        var rest = text.slice(j);
+        var m = rest.match(/^(\d{1,2}[.)]|[-*•])\s+/);
+        if(m && /^[{"\[]/.test(rest.slice(m[0].length))){
+          out += whitespace;
+          i = j + m[0].length;
+          continue;
+        }
+        out += whitespace;
+        i = j;
+        continue;
+      }
+      out += ch; i++;
+    }
+    return out;
+  }
+
   /* §1/§2/§3/§4/§5/§6(사용자 요청) — 실제 Windows 실행에서 "Expected ',' or ']'..."
      파싱 오류가 재현되어 만든 견고화 로직이다.
      - 파싱 전 원문(raw)을 window.__atlasLastRawResponse[unitLabel]에 항상 보관한다
@@ -516,10 +563,26 @@ ${KOREAN_LOCALIZATION_RULES}
     }
 
     console.error('[incremental-ebook] ['+unitLabel+'] 5차(인용부호+콤마 보정 후) JSON.parse도 실패: '+attempt5.err.message);
+    var posMatch5 = /position (\d+)/.exec(attempt5.err.message);
+    if(posMatch5){
+      console.error('[incremental-ebook] ['+unitLabel+'] 실패 위치 주변 문자열(5차 보정 후 기준):', contextAroundPosition(quoteAndCommaFixed, parseInt(posMatch5[1],10), 200));
+    }
 
-    var eFinal = new Error(unitLabel+': JSON 파싱 실패 — '+attempt5.err.message+' (개발자 콘솔의 window.__atlasLastRawResponse.'+unitLabel+' 에서 원문 전체를 확인할 수 있습니다)');
+    /* 2026-08-13: 사용자 리포트로 추가한 6차 시도 — 긴 배열(예: 제목 후보
+       12개)에서 모델이 배열 요소 사이에 마크다운 번호/글머리 기호를 흘려
+       넣는 경우를 마지막으로 한 번 더 정리해본다. */
+    var listMarkerFixed = stripStrayListMarkersBetweenElements(quoteAndCommaFixed);
+    var attempt6 = tryParse(listMarkerFixed);
+    if(attempt6.ok){
+      console.warn('[incremental-ebook] ['+unitLabel+'] 배열 요소 사이 마크다운 번호/글머리 기호 제거 후 6차 파싱 성공(모델이 배열 요소 사이에 "1." 같은 목록 기호를 섞어 넣었을 가능성이 높습니다).');
+      return attempt6.value;
+    }
+
+    console.error('[incremental-ebook] ['+unitLabel+'] 6차(목록 기호 제거 후) JSON.parse도 실패: '+attempt6.err.message);
+
+    var eFinal = new Error(unitLabel+': JSON 파싱 실패 — '+attempt6.err.message+' (개발자 콘솔의 window.__atlasLastRawResponse.'+unitLabel+' 에서 원문 전체를 확인할 수 있습니다)');
     eFinal.rawResponseText = raw;
-    eFinal.parseErrorMessage = attempt5.err.message;
+    eFinal.parseErrorMessage = attempt6.err.message;
     /* 사용자 화면용 쉬운 문구 — 위 e.message(영문 JS 에러+개발자 콘솔 안내)는
        계속 console.error/window.__atlasLastRawResponse로 남아있으니 개발자는
        그대로 원인 추적 가능. 화면에는 이 문구만 보여준다. */

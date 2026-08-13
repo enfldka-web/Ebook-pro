@@ -958,7 +958,28 @@ var TITLE_GENERATION_RULES = `[제목 후보 규칙]
 - 12개는 서로 뚜렷하게 달라야 합니다 — 같은 문장을 단어만 바꾼 유사 문구를 반복하지 마세요. 같은 type 안의 두 후보도 서로 다른 소재·각도·문장 구조를 써야 합니다.
 - "완벽 가이드", "모든 것을 알려드립니다", "총정리" 같은 상투적인 AI 생성 문구를 피하고, 분석된 실제 주제·독자·문제에서 나온 구체적인 표현을 씁니다.
 - 제목은 한국어 14~32자 권장, 부제는 18~48자 권장입니다.
-- scores.total은 다른 점수를 종합해 100점 만점으로 현실적으로 평가합니다.`;
+- scores.total은 다른 점수를 종합해 100점 만점으로 현실적으로 평가합니다.
+- [JSON 형식 주의] title/subtitle/reason 등 모든 문자열 값 안에서는 큰따옴표(")를 절대 쓰지 마세요 — 단어를 강조하거나 인용할 때는 작은따옴표(')나 「」를 대신 쓰세요. 큰따옴표가 문자열 안에 그대로 들어가면 JSON이 깨집니다.
+- [JSON 형식 주의] 12개 후보를 배열 요소로만 나열하세요. 후보 사이에 번호, 설명 문장, 마크다운 목록 기호(1. / - / • 등)를 JSON 구조 밖에 추가하지 마세요.`;
+
+/* 2026-08-13: 사용자 리포트 — 제목 후보 생성 중 JSON 파싱이 실패하면 원인을
+   확인하려면 매번 개발자 콘솔에서 window.__atlasLastRawResponse를 직접
+   찾아 복사해야 했다. 실패 즉시 AI 응답 원문을 클립보드에 자동으로
+   복사해(가능한 경우) 사용자가 바로 붙여넣어 알려줄 수 있게 한다 —
+   Never-Guess 원칙을 사용자도 쉽게 실천할 수 있도록. 클립보드 접근이
+   막힌 환경(권한 거부 등)에서는 조용히 실패하고 기존 메시지만 보여준다. */
+function atlasShowJsonParseErrorToast(e,prefix){
+  var msg=(prefix||'')+(e&&e.message?e.message:'알 수 없는 오류');
+  if(e&&e.rawResponseText&&navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(e.rawResponseText).then(function(){
+      showToast('error',msg+' (AI 응답 원문이 클립보드에 복사됐습니다 — 개발자에게 붙여넣어 알려주시면 원인을 바로 확인할 수 있습니다)',7000);
+    }).catch(function(){
+      showToast('error',msg,5000);
+    });
+  }else{
+    showToast('error',msg,5000);
+  }
+}
 
 /* Atlas V3 Phase 1 — 결정적(비 AI) 제목 유사도 체크. 새 AI 호출을 추가하지
    않고, 이미 받은 12개 후보 안에서 "사실상 같은 제목"을 코드로 감지한다.
@@ -1151,7 +1172,8 @@ async function generateTitlesFromSmartAnalysis(skipped){
     var obj=window.AtlasIncrementalEbookEngine.robustJsonParse(raw,'{','}','titles-interview');
     APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');atlasSetSimpleStep(2);window.scrollTo(0,0);
   }catch(e){
-    showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);
+    if(e.gatewayUnreachable){showToast('error','AI 서버가 실행되지 않았습니다.');}
+    else{atlasShowJsonParseErrorToast(e,'제목 후보 생성 실패: ');}
   }finally{
     if(btn){btn.disabled=false;btn.textContent=old||'답변 반영 & 제목 추천';}
   }
@@ -1197,7 +1219,8 @@ ${TITLE_GENERATION_RULES}
     if(iv.needed&&APP.interviewQuestions.length){APP.titleCandidates=[];renderSmartInterview(iv.reason);}
     else{APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.selectedTitleIndex=0;document.getElementById('cv-upload-state').style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title',{coach:'자료가 충분해 추가 질문 없이 프리미엄 제목 후보를 완성했습니다.'});atlasSetSimpleStep(2);window.scrollTo(0,0);}
   }catch(e){
-    showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'제목 후보 생성 실패: '+e.message,5000);
+    if(e.gatewayUnreachable){showToast('error','AI 서버가 실행되지 않았습니다.');}
+    else{atlasShowJsonParseErrorToast(e,'제목 후보 생성 실패: ');}
     /* 실패 시 상단 워크스페이스 배지를 분석 중 상태에 방치하면 버튼은 다시
        눌러도 실제로 재시도되지만 화면은 계속 멈춰 있는 것처럼 보인다(실제
        사용자 버그 리포트: 눌러도 반응이 없다). 재시도가 아닌 최초 시도가
