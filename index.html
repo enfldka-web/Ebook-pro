@@ -494,7 +494,7 @@
              즉시 조합해서 보여준다(AI 호출 없음, 무료·즉시) — 사용자가
              원하는 AI 도구(미드저니/ChatGPT 이미지/Gamma 등)에 그대로
              붙여넣어 쓴다. js/application.js atlasGoToPromptStudio()/
-             atlasBuildThumbnailPrompt()/atlasBuildSalesPagePrompt() 참고. -->
+             atlasBuildThumbnailPrompt()/atlasBuildSalesPageImagePrompts() 참고. -->
         <div id="cv-prompt-state" style="display:none">
           <div class="ts-head">
             <div>
@@ -513,12 +513,9 @@
             </div>
           </div>
           <div class="prompt-box" style="margin-top:16px">
-            <div class="prompt-box-header"><div class="prompt-box-title">STEP 5 · 🛒 상세페이지 카피+이미지 프롬프트</div></div>
-            <div class="prompt-item">
-              <div class="prompt-label">ChatGPT·Claude 등 텍스트 AI에 붙여넣으세요 — 판매 카피와 이미지 생성용 프롬프트 9장을 함께 받습니다</div>
-              <div class="prompt-text" id="prompt-cv-sales-prompt"></div>
-              <button class="prompt-copy-btn" onclick="copyPrompt('cv-sales-prompt',this)">복사</button>
-            </div>
+            <div class="prompt-box-header"><div class="prompt-box-title">STEP 5 · 🛒 상세페이지 이미지 프롬프트 (9장)</div></div>
+            <div style="font-size:12px;color:#166534;margin-bottom:12px">미드저니 / ChatGPT 이미지 / DALL·E 등에 하나씩 붙여넣어 이미지를 받고, 각 이미지는 그 AI 도구에서 직접 다운로드하세요. 판매 카피 없이 이미지 프롬프트 9장만 제공합니다.</div>
+            <div id="cv-sales-prompts-list"></div>
           </div>
           <div class="prompt-box" style="margin-top:16px">
             <div class="prompt-box-header"><div class="prompt-box-title">STEP 6 · 📦 플랫폼 업로드 자료 프롬프트</div></div>
