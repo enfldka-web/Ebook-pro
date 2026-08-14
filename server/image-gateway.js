@@ -156,13 +156,23 @@ function createApp(opts){
   }
 
   var app = express();
+  /* 2026-08-14: 실제 재현된 버그 — 로그인 토큰(Authorization 헤더)이 이미
+     저장된 브라우저에서는(재방문자 자동 로그인 /api/auth/me, 또는 로그인된
+     채로 다른 요청을 보낼 때) atlasAuthFetch()가 모든 요청에 Authorization
+     헤더를 붙이는데(js/application.js), 이 CORS 미들웨어가 지금까지
+     Access-Control-Allow-Headers에 Content-Type만 허용해서 브라우저가
+     preflight 단계에서 그 요청 자체를 통째로 막아버렸다(콘솔: "Request
+     header field authorization is not allowed by Access-Control-Allow-Headers
+     in preflight response") — 토큰이 없는 최초 로그인/가입은 Authorization을
+     안 보내므로 우연히 통과했었을 뿐, 재방문자 자동 로그인은 배포된 사이트에서
+     계속 조용히 실패하고 있었을 것이다. Authorization을 허용 목록에 추가한다. */
   app.use(function(req, res, next){
     var origin = req.headers.origin;
     if(isAllowedOrigin(origin)){
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     }
     if(req.method==='OPTIONS') return res.sendStatus(204);
     next();
