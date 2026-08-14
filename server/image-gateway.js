@@ -81,6 +81,13 @@ function createApp(opts){
     }
   }
   var JWT_SECRET = opts.jwtSecret || env.JWT_SECRET || null;
+  /* 2026-08-14: 사용자(서비스 운영자 본인) 지시 — 관리자 계정은 무료체험
+     1회 제한/구독 없이 항상 이용할 수 있어야 한다. Render 대시보드
+     Environment 탭에서 본인이 직접 관리할 수 있게 DB 컬럼 대신 이메일
+     허용목록 환경변수(ADMIN_EMAILS, 쉼표로 구분)로 둔다 — 대소문자/공백은
+     무시하고 비교한다. */
+  var ADMIN_EMAILS = String(env.ADMIN_EMAILS||'').split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+  function isAdminEmail(email){ return !!email && ADMIN_EMAILS.indexOf(String(email).toLowerCase())!==-1; }
   var dbReady = db ? db.ensureSchema().catch(function(e){
     console.error('[image-gateway] db-schema-init-failed', e.message);
     db = null; /* 스키마 준비 자체가 실패하면(접속 불가 등) 이후 쿼리도 다 실패할 것이므로 db를 비워 503으로 통일한다 */
@@ -173,9 +180,13 @@ function createApp(opts){
      기준으로 판단한다. 구독 중(status==='active')이면 무료체험 소진 여부와
      무관하게 항상 허용한다. */
   function fetchTrialSubStatus(userId){
-    return db.query('SELECT trial_used FROM users WHERE id=$1', [userId]).then(function(ur){
+    return db.query('SELECT trial_used, email FROM users WHERE id=$1', [userId]).then(function(ur){
       var userRow = ur.rows[0];
       if(!userRow) return null;
+      // 관리자 이메일은 구독 중인 것과 동일하게 취급해 무료체험 제한을
+      // 완전히 우회한다 — 아래 /generate의 outline 게이트도 이 값 하나만
+      // 보고 판단하므로 별도 우회 분기를 추가할 필요가 없다.
+      if(isAdminEmail(userRow.email)) return { trialUsed: false, subscribed: true };
       return db.query('SELECT status FROM subscriptions WHERE user_id=$1', [userId]).then(function(sr){
         var subRow = sr.rows[0];
         return { trialUsed: !!userRow.trial_used, subscribed: !!(subRow && subRow.status==='active') };

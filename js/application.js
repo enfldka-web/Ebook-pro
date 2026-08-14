@@ -1847,6 +1847,18 @@ function atlasDownloadEbookPdf(){
      대상 요소의 실제 렌더 크기(getBoundingClientRect)를 html2canvas의
      width/height로 명시적으로 못박아, 뷰포트 폭이 얼마든 캔버스가 항상
      "지금 화면에 보이는 그 크기"를 그대로 담게 한다. */
+  /* 2026-08-14: 사용자 지시 — "PDF 페이지 수가 워드 페이지 수와 같아야 한다".
+     예전 방식은 .pg(전자책 섹션 하나) 하나를 통째로 스크린샷 찍어 그대로
+     PDF 한 장에 욱여넣었다 — 그래서 챕터 하나가 아무리 길어도(실제로는
+     워드에서 4~6페이지가 되는 분량) PDF에서는 항상 1장이었다(진짜 원인).
+     표지/챕터 구분면/뒤표지/저작권 페이지(.cvr/.chop/.bkpg/.cpg)는 원래도
+     "포스터 한 장" 디자인이라 지금 방식(자기 원본 비율 그대로 1장)을 그대로
+     유지한다 — 억지로 A4 비율에 끼워 맞추면 오히려 여백만 이상하게 남는다.
+     실제 본문이 흐르는 페이지(.pg.inn — 서문/목차/서론/각 챕터/결론/부록)만
+     A4 실제 인쇄 비율(297:210)로 캔버스를 잘라 여러 장으로 나눈다. 짧은
+     내용(목차 등)은 어차피 한 조각 안에 다 들어가므로 자동으로 1장이 되고,
+     긴 챕터만 워드처럼 여러 페이지로 자연스럽게 나뉜다. */
+  var A4_RATIO=297/210;
   var waitFonts=(typeof document.fonts!=='undefined'&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
   var chain=waitFonts.then(function(){
     // 폰트가 막 적용된 직후 한 프레임 정도 레이아웃/페인트가 안정될 시간을 준다.
@@ -1855,13 +1867,13 @@ function atlasDownloadEbookPdf(){
     });
   });
   pageEls.forEach(function(pg){
+    var isFlowPage=pg.classList.contains('inn');
     chain=chain.then(function(){
       var rect=pg.getBoundingClientRect();
       var pw=Math.ceil(rect.width),ph=Math.ceil(rect.height);
       var vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
       return html2canvas(pg,{scale:1.5,useCORS:true,allowTaint:true,windowWidth:vw,windowHeight:vh,width:pw,height:ph});
     }).then(function(canvas){
-      var imgData=canvas.toDataURL('image/jpeg',0.92);
       var w=canvas.width,h=canvas.height;
       /* 2026-08-13: 실제 html2canvas/jsPDF를 진짜로 돌려서 찾은 진짜 원인 —
          이 두 안전장치(폰트 대기, width/height 명시)를 다 넣은 뒤에도 매번
@@ -1877,18 +1889,42 @@ function atlasDownloadEbookPdf(){
          긴 페이지에서 특히 두드러졌던 것도 이 때문). hotfixes 적용 +
          페이지마다 실제 가로/세로 비율에 맞는 orientation을 명시적으로
          넘겨 두 문제를 모두 없앤다. */
-      var orient=w>=h?'l':'p';
-      if(!doc){
-        doc=new window.jspdf.jsPDF({unit:'px',format:[w,h],compress:true,orientation:orient,hotfixes:['px_scaling']});
-      }else{
-        doc.addPage([w,h],orient);
+      if(!isFlowPage){
+        var orient=w>=h?'l':'p';
+        if(!doc){
+          doc=new window.jspdf.jsPDF({unit:'px',format:[w,h],compress:true,orientation:orient,hotfixes:['px_scaling']});
+        }else{
+          doc.addPage([w,h],orient);
+        }
+        doc.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,h);
+        return;
       }
-      doc.addImage(imgData,'JPEG',0,0,w,h);
+      // 본문 페이지: 캡처된 폭을 A4 가로폭으로 보고, 실제 A4 비율로 세로
+      // 한 장 높이를 정한 뒤 그 높이만큼씩 잘라 여러 장으로 나눈다.
+      var pageHeightPx=Math.round(w*A4_RATIO);
+      var sliceCount=Math.max(1,Math.ceil(h/pageHeightPx));
+      for(var i=0;i<sliceCount;i++){
+        var sy=i*pageHeightPx;
+        var sh=Math.min(pageHeightPx,h-sy);
+        var sliceCanvas=document.createElement('canvas');
+        sliceCanvas.width=w;
+        sliceCanvas.height=pageHeightPx;
+        var ctx=sliceCanvas.getContext('2d');
+        ctx.fillStyle='#ffffff';
+        ctx.fillRect(0,0,w,pageHeightPx);
+        ctx.drawImage(canvas,0,sy,w,sh,0,0,w,sh);
+        if(!doc){
+          doc=new window.jspdf.jsPDF({unit:'px',format:[w,pageHeightPx],compress:true,orientation:'p',hotfixes:['px_scaling']});
+        }else{
+          doc.addPage([w,pageHeightPx],'p');
+        }
+        doc.addImage(sliceCanvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,pageHeightPx);
+      }
     });
   });
   chain.then(function(){
     doc.save(title+'.pdf');
-    showToast('success','PDF가 저장되었습니다!');
+    showToast('success','PDF가 저장되었습니다! (총 '+doc.internal.getNumberOfPages()+'페이지)');
   }).catch(function(err){
     showToast('error','PDF 생성 실패: '+((err&&err.message)||'알 수 없는 오류'));
   });
@@ -2099,6 +2135,7 @@ function stopIncrementalEbookGeneration(){
 }
 function resumeIncrementalEbookGeneration(){
   if(!APP.ebookProgress)return;
+  if(typeof dismissToast==='function')dismissToast();
   var p=APP.ebookProgress;
   p.stopRequested=false;
   p.errorMessage=null;
@@ -2120,6 +2157,7 @@ function resumeIncrementalEbookGeneration(){
    들지 않아 그 장만 다시 만들고 싶을 때도) 그 챕터 하나만 재시도할 수 있게 한다. */
 async function retryFailedChapter(i){
   var p=APP.ebookProgress; if(!p||!p.outline)return;
+  if(typeof dismissToast==='function')dismissToast();
   p.unitRetryCount['chapter'+(i+1)]=(p.unitRetryCount['chapter'+(i+1)]||0)+1;
   p.chapterStatus[i]='processing';
   p.status='chapters';p.stopRequested=false;p.errorMessage=null;p.failedUnitId=null;

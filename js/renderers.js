@@ -161,6 +161,16 @@ function showToast(type,msg,dur){
   requestAnimationFrame(function(){t.classList.add('show');});
   t._to=setTimeout(function(){t.classList.remove('show');},dur||3000);
 }
+/* 2026-08-14: 실제 재현된 버그 — 전자책 생성 실패 시 showToast('error',...,6000)로
+   6초짜리 에러 토스트를 띄우는데, 사용자가 그 6초 안에 "이어서 생성"을 누르면
+   재생성이 정상적으로 시작돼도(진행률/단계 목록은 바로 갱신됨) 이 토스트는
+   자기 타이머가 끝날 때까지 화면에 그대로 남아있었다 — 재시도 버튼이 이
+   토스트를 전혀 건드리지 않았기 때문. 재시도를 누르는 순간 무조건 즉시
+   치운다. */
+function dismissToast(){
+  var t=document.getElementById('toast');
+  if(t){clearTimeout(t._to);t.classList.remove('show');}
+}
 
 
 /* Atlas Premium Ebook Output Design, Phase 2: real icons only (no emoji in
