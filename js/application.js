@@ -1930,22 +1930,28 @@ function atlasBuildThumbnailPrompt(ebook){
   lines.push('- 이미지 크기는 가로 652px × 세로 488px로 만들어주세요(가로형, 약 4:3 비율). 이 크기·비율을 벗어나지 않게 구도를 잡아주세요.');
   return lines.join('\n');
 }
-/* 상세페이지(랜딩페이지) 판매 카피 생성 프롬프트. AI 전자책 생성 시 이미
-   만들어진 sales 필드(hook/pains/solution/benefits/before-after/faqs 등,
-   js/incremental-ebook-engine.js salesSchemaString)를 실제 재료로 그대로
-   넘겨서, 상세페이지 AI가 처음부터 다 지어내지 않고 이 책의 진짜 내용을
-   근거로 카피를 쓰게 한다. testimonials는 정책상 항상 빈 배열이므로(가짜
-   후기 생성 금지 원칙, 같은 스키마 주석 참고) 프롬프트에서도 동일하게
-   "실제 후기를 지어내지 말라"고 명시해 이 원칙을 이어간다. 인터뷰 답변
-   (APP.interviewAnswers)이 세션에 남아있으면 타겟 독자/차별점 신호로
-   추가하되, 없으면(예: 히스토리에서 다시 연 책) 조용히 생략한다. */
+/* 상세페이지(랜딩페이지) 판매 카피 + 이미지 프롬프트 생성 프롬프트. AI
+   전자책 생성 시 이미 만들어진 sales 필드(hook/pains/solution/benefits/
+   before-after/faqs 등, js/incremental-ebook-engine.js salesSchemaString)를
+   실제 재료로 그대로 넘겨서, 상세페이지 AI가 처음부터 다 지어내지 않고 이
+   책의 진짜 내용을 근거로 카피를 쓰게 한다. testimonials는 정책상 항상
+   빈 배열이므로(가짜 후기 생성 금지 원칙, 같은 스키마 주석 참고) 프롬프트에서도
+   동일하게 "실제 후기를 지어내지 말라"고 명시해 이 원칙을 이어간다. 인터뷰
+   답변(APP.interviewAnswers)이 세션에 남아있으면 타겟 독자/차별점 신호로
+   추가하되, 없으면(예: 히스토리에서 다시 연 책) 조용히 생략한다.
+   2026-08-14: 사용자 지시로 "카피만" 만들던 걸 "이 페이지에 들어갈 이미지
+   프롬프트까지" 만들도록 확장했다 — Atlas가 직접 이미지를 생성하지 않는다는
+   기존 원칙(atlasBuildThumbnailPrompt와 동일)은 그대로 지키되, ChatGPT·Claude
+   같은 텍스트 AI가 카피를 쓰면서 동시에 각 섹션에 쓸 이미지 생성용 영어
+   프롬프트(미드저니/DALL·E에 그대로 붙여넣을 수 있는 문장)까지 함께
+   출력하게 지시한다. */
 function atlasBuildSalesPagePrompt(ebook){
   var s=ebook.sales||{};
   var title=ebook.title||'';
   var subtitle=ebook.subtitle||'';
   var category=ebook.category||'';
   var lines=[];
-  lines.push('아래 전자책의 상세페이지(랜딩페이지) 판매 카피를 작성해주세요. 실제 구매 전환을 목표로 하는 온라인 판매 페이지 카피입니다.');
+  lines.push('아래 전자책의 상세페이지(랜딩페이지) 판매 카피와, 그 페이지에 들어갈 이미지 생성용 프롬프트를 함께 작성해주세요. 실제 구매 전환을 목표로 하는 온라인 판매 페이지입니다.');
   lines.push('');
   lines.push('[책 정보]');
   lines.push('- 제목: '+title);
@@ -1967,12 +1973,19 @@ function atlasBuildSalesPagePrompt(ebook){
   }
   if(Array.isArray(s.faqs)&&s.faqs.length){lines.push('','[예상 질문]');s.faqs.forEach(function(f){lines.push('- Q. '+f.q+' / A. '+f.a);});}
   lines.push('');
-  lines.push('[작성 지침]');
+  lines.push('[작성 지침 — 카피]');
   lines.push('- 헤드라인(후킹) → 문제 공감 → 해결책 제시 → 이 책으로 얻는 혜택 → 목차/구성 미리보기 → 예상 질문(FAQ) → 마지막 행동 유도, 순서로 하나의 완성된 상세페이지 카피를 작성해주세요.');
   lines.push('- 구체적인 수익·매출 금액, 성장률, 달성 기간을 언급하지 마세요.');
   lines.push('- "보장", "무조건", "100%", "누구나 성공", "자동수익" 같은 과장 표현은 쓰지 마세요.');
   lines.push('- 실제 구매자 후기(testimonials)는 하나도 없습니다 — 후기를 지어내지 말고, 후기가 필요한 자리는 "(실제 구매 후기가 쌓이면 이 자리에 추가하세요)"로 비워두세요.');
   lines.push('- 마크다운 섹션 제목으로 구분해서, 바로 복사해 상세페이지에 쓸 수 있는 형태로 출력해주세요.');
+  lines.push('');
+  lines.push('[작성 지침 — 이미지 프롬프트]');
+  lines.push('- 위 카피를 다 쓴 다음, 이 상세페이지에 들어갈 이미지 3~5개를 제안하고 각각 미드저니·DALL·E 등에 바로 붙여넣을 수 있는 영어 이미지 생성 프롬프트를 작성해주세요.');
+  lines.push('- 최소한 다음 이미지는 포함해주세요: (1) 상단 히어로 배너 이미지, (2) 독자가 겪는 문제를 보여주는 이미지, (3) 이 책의 해결책·혜택을 시각화한 이미지. 읽기 전/읽은 후 대비가 있다면 (4) Before/After를 표현하는 이미지도 추가해주세요.');
+  lines.push('- 각 이미지 프롬프트 앞에는 어느 섹션에 쓸 이미지인지 한글로 라벨을 붙여주세요(예: "[히어로 배너] Midjourney/DALL·E 프롬프트: ...").');
+  lines.push('- 사람 얼굴, 실존 인물, 저작권이 있는 캐릭터·로고·브랜드는 이미지 프롬프트에 넣지 마세요.');
+  lines.push('- 이미지 안에 텍스트(제목·문구)를 렌더링해달라고 요청하지 마세요 — 텍스트는 이 카피를 나중에 디자인 툴에서 별도로 얹는다는 전제로, 여백이 있는 구도만 요청해주세요.');
   return lines.join('\n');
 }
 /* 플랫폼(크몽/탈잉/스마트스토어 등) 업로드용 자료 일체를 만드는 프롬프트.
