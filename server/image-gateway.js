@@ -119,6 +119,14 @@ function createApp(opts){
       id: userRow.id, email: userRow.email, name: userRow.name,
       trialUsed: !!userRow.trial_used,
       subscriptionStatus: (subRow && subRow.status) || 'inactive',
+      // 2026-08-14: 구독 취소 기능 — 취소를 누르면 즉시 해지되지 않고 "이번
+      // 결제 주기가 끝나는 날까지는 계속 이용, 그 다음부터 자동 해지"로
+      // 동작한다(실제 SaaS들의 일반적인 방식이자 사용자가 이미 낸 돈만큼은
+      // 계속 쓸 수 있어야 한다는 원칙). Settings 화면이 이 두 값으로 "다음
+      // 결제일에 자동 해지 예정" 안내와 "구독 유지하기"(취소 철회) 버튼을
+      // 보여줄지 판단한다.
+      subscriptionCancelAtPeriodEnd: !!(subRow && subRow.cancel_at_period_end),
+      subscriptionNextBillingAt: (subRow && subRow.next_billing_at) || null,
       // 2026-08-14: 사용자 지시 — 관리자 계정이면 화면에 "관리자"로 표시되어야
       // 한다. isAdminEmail()이 이미 무료체험 우회 판단에 쓰이는 그 함수 그대로다
       // (기준이 하나로 통일 — ADMIN_EMAILS에 있으면 우회도 되고 배지도 바뀐다).
@@ -551,6 +559,54 @@ function createApp(opts){
     });
   });
 
+  /* 2026-08-14: 사용자 지시 — "구독 취소 기능이 아예 없다"는 실제 발견된
+     공백을 메운다. 취소를 눌러도 그 자리에서 바로 카드가 잠기거나 서비스가
+     끊기지 않는다 — cancel_at_period_end만 표시해두고, 이미 결제한 이번
+     주기가 끝나는 next_billing_at 시점에 위 runDueBillingCycle/
+     finalizeCancellation이 실제로 해지한다. 그 전이면 "구독 유지하기"로
+     언제든 취소를 철회할 수 있다(아직 청구 전이므로 그냥 플래그만 되돌리면
+     됨 — 별도 결제 로직 필요 없음). */
+  app.post('/api/payments/toss/cancel', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'결제 기능이 아직 설정되지 않았습니다.', code:'not_configured' } });
+    var userId = verifyAuthHeader(req);
+    if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query("SELECT status, next_billing_at FROM subscriptions WHERE user_id=$1", [userId]);
+    }).then(function(sr){
+      var subRow = sr.rows[0];
+      if(!subRow || subRow.status !== 'active') return Promise.reject({ httpStatus: 400, message:'현재 구독 중이 아닙니다.', code:'not_subscribed' });
+      return db.query('UPDATE subscriptions SET cancel_at_period_end=true, updated_at=now() WHERE user_id=$1', [userId]).then(function(){
+        safeLog('toss-subscription-cancel-requested', { userId: userId });
+        res.json({ ok:true, subscriptionStatus:'active', cancelAtPeriodEnd:true, nextBillingAt: subRow.next_billing_at });
+      });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('toss-cancel-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'구독 취소 처리 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+  app.post('/api/payments/toss/reactivate', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'결제 기능이 아직 설정되지 않았습니다.', code:'not_configured' } });
+    var userId = verifyAuthHeader(req);
+    if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query("SELECT status FROM subscriptions WHERE user_id=$1", [userId]);
+    }).then(function(sr){
+      var subRow = sr.rows[0];
+      if(!subRow || subRow.status !== 'active') return Promise.reject({ httpStatus: 400, message:'되돌릴 취소 예약이 없습니다.', code:'not_subscribed' });
+      return db.query('UPDATE subscriptions SET cancel_at_period_end=false, updated_at=now() WHERE user_id=$1', [userId]).then(function(){
+        safeLog('toss-subscription-cancel-reverted', { userId: userId });
+        res.json({ ok:true, subscriptionStatus:'active', cancelAtPeriodEnd:false });
+      });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('toss-reactivate-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'구독 재개 처리 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+
   /* 매달 자동 청구 스케줄러 — 실제 서버 프로세스 부팅 시(require.main===module)
      에서만 명시적으로 시작한다(아래 startBillingScheduler). 테스트에서
      createApp()을 호출할 때 자동으로 돌지 않게 해서, 테스트 중 실제 네트워크
@@ -558,12 +614,22 @@ function createApp(opts){
      예외를 던지더라도,애초에 타이머 자체가 안 도는 게 더 확실하다). 실패
      시 재시도/알림 로직은 없다(MVP 범위) — status가 'past_due'로 표시만
      되고, 사용자가 Settings에서 재구독하면 다시 active로 돌아간다. */
+  /* 2026-08-14: 구독 취소를 예약한(cancel_at_period_end=true) 계정은 이번
+     결제일에 청구하지 않고 그대로 해지 처리한다 — "이미 낸 돈만큼(이번
+     결제 주기 끝까지)은 계속 쓰고, 그 다음부터 자동 해지"라는 원칙을 실제로
+     실행하는 지점이 여기다. */
+  function finalizeCancellation(userId){
+    return db.query('UPDATE subscriptions SET status=$1, billing_key=NULL, cancel_at_period_end=false, updated_at=now() WHERE user_id=$2', ['canceled', userId]).then(function(){
+      safeLog('toss-subscription-canceled-finalized', { userId: userId });
+    });
+  }
   function runDueBillingCycle(){
     if(!db) return Promise.resolve();
-    return db.query("SELECT user_id, billing_key, customer_key, plan_amount FROM subscriptions WHERE status='active' AND billing_key IS NOT NULL AND next_billing_at <= now()").then(function(r){
+    return db.query("SELECT user_id, billing_key, customer_key, plan_amount, cancel_at_period_end FROM subscriptions WHERE status='active' AND billing_key IS NOT NULL AND next_billing_at <= now()").then(function(r){
       return r.rows.reduce(function(chain, row){
         return chain.then(function(){
-          return chargeAndAdvance(row.user_id, row).catch(function(e){
+          var action = row.cancel_at_period_end ? finalizeCancellation(row.user_id) : chargeAndAdvance(row.user_id, row);
+          return action.catch(function(e){
             safeLog('toss-scheduled-charge-error', { userId: row.user_id, message: e && e.message });
           });
         });

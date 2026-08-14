@@ -50,10 +50,17 @@ function createDb(opts){
         '  customer_key text,' +
         '  plan_amount integer NOT NULL DEFAULT 29000,' +
         '  next_billing_at timestamptz,' +
+        '  cancel_at_period_end boolean NOT NULL DEFAULT false,' +
         '  created_at timestamptz NOT NULL DEFAULT now(),' +
         '  updated_at timestamptz NOT NULL DEFAULT now()' +
         ')'
       );
+    }).then(function(){
+      /* 2026-08-14: 기존에 이미 만들어진 subscriptions 테이블에는(CREATE TABLE
+         IF NOT EXISTS라 위 정의가 새 컬럼을 안 만들어줌) cancel_at_period_end가
+         없을 수 있다 — 구독 취소 기능 추가 시 실서비스 DB(이미 가입자가 있는
+         상태)에도 안전하게 반영되도록 별도 ALTER로 보강한다. */
+      return pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end boolean NOT NULL DEFAULT false');
     }).then(function(){
       return pool.query(
         'CREATE TABLE IF NOT EXISTS payments (' +
