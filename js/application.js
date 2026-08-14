@@ -382,6 +382,46 @@ function atlasOpenSubscribeCheckout(){
     showToast('error','결제 서버에 연결하지 못했습니다.');
   });
 }
+function atlasFormatDateKo(dateStr){
+  try{ return new Date(dateStr).toLocaleDateString('ko-KR'); }
+  catch(e){ return ''; }
+}
+/* 2026-08-14: 사용자 지시로 추가 — 구독 취소 기능이 아예 없던 실제 공백.
+   즉시 해지가 아니라 "이번 결제 주기가 끝나는 날까지는 계속 이용, 그 다음
+   결제부터 자동 해지"로 동작한다(server/image-gateway.js /api/payments/
+   toss/cancel — cancel_at_period_end만 표시해두고 실제 해지는 다음 결제일에
+   벌어짐). APP.user를 서버가 돌려준 최신 값으로 갱신한 뒤 Settings를 다시
+   그려서 버튼/문구가 즉시 바뀌게 한다. */
+function atlasCancelSubscription(){
+  if(!APP.user)return;
+  if(!confirm('구독을 취소하시겠어요?\n\n지금 바로 끊기지 않고, 이번에 결제한 기간이 끝날 때까지는 계속 이용하실 수 있습니다. 그 전까지는 언제든 다시 "구독 유지하기"를 눌러 취소를 되돌릴 수 있습니다.'))return;
+  atlasAuthFetch('/api/payments/toss/cancel',{method:'POST'}).then(function(result){
+    if(!result.ok||!result.body||!result.body.ok){
+      showToast('error',(result.body&&result.body.error&&result.body.error.message)||'구독 취소에 실패했습니다.');
+      return;
+    }
+    APP.user.subscriptionCancelAtPeriodEnd=true;
+    APP.user.subscriptionNextBillingAt=result.body.nextBillingAt||APP.user.subscriptionNextBillingAt;
+    if(typeof renderSettings==='function')renderSettings();
+    showToast('success','구독 취소를 예약했습니다. '+(result.body.nextBillingAt?atlasFormatDateKo(result.body.nextBillingAt)+'까지 ':'')+'계속 이용하실 수 있어요.');
+  }).catch(function(){
+    showToast('error','서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+  });
+}
+function atlasReactivateSubscription(){
+  if(!APP.user)return;
+  atlasAuthFetch('/api/payments/toss/reactivate',{method:'POST'}).then(function(result){
+    if(!result.ok||!result.body||!result.body.ok){
+      showToast('error',(result.body&&result.body.error&&result.body.error.message)||'구독 재개에 실패했습니다.');
+      return;
+    }
+    APP.user.subscriptionCancelAtPeriodEnd=false;
+    if(typeof renderSettings==='function')renderSettings();
+    showToast('success','구독을 계속 유지합니다!');
+  }).catch(function(){
+    showToast('error','서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+  });
+}
 /* 토스 카드 등록 위젯이 완료되면 브라우저가 실제로 이 페이지로 다시
    이동해온다(전체 새로고침) — location.search에 실린 authKey/customerKey를
    서버로 보내 실제 청구까지 마무리한다. 로그인 토큰은 새로고침에도
@@ -799,12 +839,22 @@ function renderSettings(){
   renderUserApiKeyStatus();
   refreshAtlasGatewayStatus();
   var subscribed=u.subscriptionStatus==='active';
+  var canceling=subscribed&&!!u.subscriptionCancelAtPeriodEnd;
   var badge=document.getElementById('set-plan-badge');
   if(badge){badge.textContent=u.isAdmin?'관리자':(subscribed?'구독중':(u.trialUsed?'체험완료':'무료체험'));badge.className='plan-badge plan-'+(u.isAdmin?'admin':(subscribed?'pro':'free'));}
   var pd=document.getElementById('set-plan-desc');
-  if(pd)pd.textContent=u.isAdmin?'관리자 계정 · 무료체험 제한 없이 무제한 이용':(subscribed?'구독중 · 무제한 이용':(u.trialUsed?'무료체험을 모두 사용했습니다 · 구독하면 계속 이용할 수 있습니다':'무료체험 1회 이용 가능'));
+  if(pd){
+    if(u.isAdmin)pd.textContent='관리자 계정 · 무료체험 제한 없이 무제한 이용';
+    else if(canceling)pd.textContent='구독 취소 예약됨 · '+(u.subscriptionNextBillingAt?atlasFormatDateKo(u.subscriptionNextBillingAt):'다음 결제일')+'까지 계속 이용 가능';
+    else if(subscribed)pd.textContent='구독중 · 무제한 이용';
+    else pd.textContent=u.trialUsed?'무료체험을 모두 사용했습니다 · 구독하면 계속 이용할 수 있습니다':'무료체험 1회 이용 가능';
+  }
   var subBtn=document.getElementById('set-subscribe-btn');
   if(subBtn)subBtn.style.display=(subscribed||u.isAdmin)?'none':'';
+  var cancelBtn=document.getElementById('set-cancel-btn');
+  if(cancelBtn)cancelBtn.style.display=(subscribed&&!canceling&&!u.isAdmin)?'':'none';
+  var reactivateBtn=document.getElementById('set-reactivate-btn');
+  if(reactivateBtn)reactivateBtn.style.display=canceling?'':'none';
   var monthCount=getThisMonthCount(u.email||'');
   var txt=document.getElementById('set-usage-text');
   var bar=document.getElementById('set-usage-bar');

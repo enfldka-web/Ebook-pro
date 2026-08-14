@@ -611,6 +611,13 @@
             <div style="display:flex;gap:8px;align-items:center">
               <span class="plan-badge" id="set-plan-badge"></span>
               <button class="a2-btn a2-btn-primary" id="set-subscribe-btn" onclick="atlasOpenSubscribeCheckout()"><span data-icon="sparkle"></span>월 ₩29,000 구독하기</button>
+              <!-- 2026-08-14: 사용자 지시로 추가 — 구독 취소 기능이 아예 없던
+                   실제 공백을 메운다. 취소 눌러도 바로 끊기지 않고 이번 결제
+                   주기가 끝날 때까지는 계속 이용 가능(atlasCancelSubscription
+                   참고, js/application.js) — 그 사이엔 "구독 유지하기"로
+                   철회할 수 있다. -->
+              <button class="a2-btn a2-btn-secondary" id="set-cancel-btn" style="display:none" onclick="atlasCancelSubscription()">구독 취소</button>
+              <button class="a2-btn a2-btn-secondary" id="set-reactivate-btn" style="display:none" onclick="atlasReactivateSubscription()"><span data-icon="refresh"></span>구독 유지하기</button>
             </div>
           </div>
           <div class="settings-row">
