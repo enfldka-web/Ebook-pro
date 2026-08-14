@@ -581,7 +581,7 @@ function initApp(){
   var uname=document.getElementById('sb-uname');
   if(uname)uname.textContent=u.name;
   var pb=document.getElementById('sb-uplan');
-  if(pb){pb.textContent=u.subscriptionStatus==='active'?'구독중':(u.trialUsed?'체험완료':'무료체험');pb.className='plan-badge plan-'+(u.subscriptionStatus==='active'?'pro':'free');}
+  if(pb){pb.textContent=u.isAdmin?'관리자':(u.subscriptionStatus==='active'?'구독중':(u.trialUsed?'체험완료':'무료체험'));pb.className='plan-badge plan-'+(u.isAdmin?'admin':(u.subscriptionStatus==='active'?'pro':'free'));}
   // setup converter
   setupConverter();
   // AI 서버(Anthropic Gateway) 연결 상태를 미리 한 번 확인해둔다(Loading이 무한정
@@ -748,11 +748,11 @@ function renderSettings(){
   refreshAtlasGatewayStatus();
   var subscribed=u.subscriptionStatus==='active';
   var badge=document.getElementById('set-plan-badge');
-  if(badge){badge.textContent=subscribed?'구독중':(u.trialUsed?'체험완료':'무료체험');badge.className='plan-badge plan-'+(subscribed?'pro':'free');}
+  if(badge){badge.textContent=u.isAdmin?'관리자':(subscribed?'구독중':(u.trialUsed?'체험완료':'무료체험'));badge.className='plan-badge plan-'+(u.isAdmin?'admin':(subscribed?'pro':'free'));}
   var pd=document.getElementById('set-plan-desc');
-  if(pd)pd.textContent=subscribed?'구독중 · 무제한 이용':(u.trialUsed?'무료체험을 모두 사용했습니다 · 구독하면 계속 이용할 수 있습니다':'무료체험 1회 이용 가능');
+  if(pd)pd.textContent=u.isAdmin?'관리자 계정 · 무료체험 제한 없이 무제한 이용':(subscribed?'구독중 · 무제한 이용':(u.trialUsed?'무료체험을 모두 사용했습니다 · 구독하면 계속 이용할 수 있습니다':'무료체험 1회 이용 가능'));
   var subBtn=document.getElementById('set-subscribe-btn');
-  if(subBtn)subBtn.style.display=subscribed?'none':'';
+  if(subBtn)subBtn.style.display=(subscribed||u.isAdmin)?'none':'';
   var monthCount=getThisMonthCount(u.email||'');
   var txt=document.getElementById('set-usage-text');
   var bar=document.getElementById('set-usage-bar');

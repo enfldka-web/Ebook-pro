@@ -116,7 +116,11 @@ function createApp(opts){
     return {
       id: userRow.id, email: userRow.email, name: userRow.name,
       trialUsed: !!userRow.trial_used,
-      subscriptionStatus: (subRow && subRow.status) || 'inactive'
+      subscriptionStatus: (subRow && subRow.status) || 'inactive',
+      // 2026-08-14: 사용자 지시 — 관리자 계정이면 화면에 "관리자"로 표시되어야
+      // 한다. isAdminEmail()이 이미 무료체험 우회 판단에 쓰이는 그 함수 그대로다
+      // (기준이 하나로 통일 — ADMIN_EMAILS에 있으면 우회도 되고 배지도 바뀐다).
+      isAdmin: isAdminEmail(userRow.email)
     };
   }
   function fetchUserWithSub(userId){
