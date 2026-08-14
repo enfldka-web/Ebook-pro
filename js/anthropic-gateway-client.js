@@ -96,6 +96,7 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
       var e = new Error(msg);
       e.status = errBody.status || r.status;
       e.errorType = errBody.type;
+      e.errorCode = errBody.code;
       e.rawErrorBody = errBody.raw;
       throw e;
     }

@@ -1514,6 +1514,12 @@ async function continueEbookPipeline(){
       p.outline=outline;
       p.chapterStatus=new Array(7).fill('pending');
       p.unitTimestamps.outline=Date.now();
+      /* outline 호출이 성공하는 순간 서버 DB의 trial_used가 true로 바뀐다
+         (server/image-gateway.js). 여기서 클라이언트 캐시를 바로 갱신해두지
+         않으면, 같은 세션 안에서 바로 두 번째 전자책을 시도할 때 canGenerate()가
+         여전히 예전 값(false)을 보고 구독 팝업 없이 그냥 생성을 시작해버린다
+         (실제 재현된 버그). */
+      if(typeof refreshAtlasGatewayStatus==='function')refreshAtlasGatewayStatus();
       persistEbookProgress();
       renderEbookProgressUI();
     }
@@ -1548,6 +1554,26 @@ async function continueEbookPipeline(){
     p.status='merging';renderEbookProgressUI();
     await finalizeIncrementalEbook(p);
   }catch(e){
+    /* 2026-08-14: 실제 재현된 버그 — 무료 체험을 이미 쓴 계정이 두 번째
+       전자책을 만들면, 클라이언트 쪽 canGenerate() 캐시(gw.trialUsed)가
+       첫 책을 만든 시점 이후로 한 번도 갱신되지 않아 여전히 false로 남아있어
+       startGenerate()의 사전 체크를 그냥 통과해버렸다 — 그래서 구독 팝업 없이
+       바로 생성 화면으로 넘어갔다. 서버(image-gateway.js, callType==='outline')는
+       DB를 직접 봐서 정확히 403 trial_exhausted로 막지만, 그 실패가 여기
+       catch에서는 "일반 실패 + 이어서 생성" 취급을 받아 — 재시도해도 어차피
+       또 막히는데 마치 재시도하면 될 것처럼 보이는 오해를 줬다. 이 특정
+       에러만 구분해 (1) 캐시를 즉시 최신화하고 (2) 진짜 구독 팝업을 띄우고
+       (3) "이어서 생성" 가능한 실패 상태로 남기지 않는다(재시도해도 소용
+       없으므로). */
+    if(e && e.status===403 && e.errorCode==='trial_exhausted'){
+      APP.ebookProgress=null;
+      if(window.AtlasEbookProgressStore)window.AtlasEbookProgressStore.remove(EBOOK_PROGRESS_STORE_KEY);
+      if(typeof refreshAtlasGatewayStatus==='function')refreshAtlasGatewayStatus();
+      var _proc=document.getElementById('cv-process-state');if(_proc)_proc.style.display='none';
+      var _titleState=document.getElementById('cv-title-state');if(_titleState)_titleState.style.display='';
+      showTrialLimitPopup(CV_MODE);
+      return;
+    }
     p.status='failed';
     /* 사용자 화면에는 e.message(영문 JS 에러/개발자 콘솔 안내가 섞여 있을 수
        있음, 예: incremental-ebook-engine.js의 JSON 파싱 실패)를 그대로 노출하지
