@@ -2281,8 +2281,13 @@ function downloadDocx(e){
         .replace(/\n{3,}/g,'\n\n')
         .trim();
     }
+    // renderers.js x()와 동일한 이유로 동일한 수정 — 표 셀/프레임워크/타임라인/
+    // 경고박스/실행박스처럼 ct()를 거치지 않고 esc()만 직접 거치는 짧은
+    // 필드들에서 "**"가 그대로 노출되던 버그(Preview == Export를 위해 두
+    // 파일 모두 고친다).
     function esc(s){
       return String(s||'')
+        .replace(/\*\*/g,'')
         .replace(/&/g,'&amp;')
         .replace(/</g,'&lt;')
         .replace(/>/g,'&gt;')
