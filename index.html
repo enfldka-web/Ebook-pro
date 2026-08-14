@@ -213,14 +213,17 @@
           </div>
           <div class="aw-progress-head"><span id="aw-stage-label">1단계 · 자료 업로드</span><span id="aw-progress-text">8%</span></div>
           <div class="aw-progress"><div id="aw-progress-bar"></div></div>
-          <!-- 2026-08-10: 사용자 지시로 썸네일/상세페이지/리스팅 자료 단계를
-               전면 삭제하고 전자책 생성 전용 3단계(업로드→제목→전자책)로
-               축소했다. data-aw-simple-step 값은 ATLAS_STAGE_ORDER의
-               문자열 id와 정확히 같다(js/application.js). -->
+          <!-- 2026-08-14: 사용자 지시로 STEP 1~3(업로드→제목→전자책) 뒤에
+               썸네일/상세페이지 프롬프트/업로드 자료 3단계를 추가해 6단계로
+               확장했다. data-aw-simple-step 값은 ATLAS_STAGE_ORDER의 문자열
+               id와 정확히 같다(js/application.js). -->
           <div class="aw-steps-simple" id="aw-steps-simple">
             <div class="aw-step-simple" data-aw-simple-step="upload"><span class="num">STEP 1</span><div class="lbl">자료 업로드</div></div>
             <div class="aw-step-simple" data-aw-simple-step="title"><span class="num">STEP 2</span><div class="lbl">제목 생성</div></div>
             <div class="aw-step-simple" data-aw-simple-step="ebook"><span class="num">STEP 3</span><div class="lbl">전자책 생성</div></div>
+            <div class="aw-step-simple" data-aw-simple-step="thumbnail"><span class="num">STEP 4</span><div class="lbl">썸네일 프롬프트</div></div>
+            <div class="aw-step-simple" data-aw-simple-step="sales"><span class="num">STEP 5</span><div class="lbl">상세페이지 프롬프트</div></div>
+            <div class="aw-step-simple" data-aw-simple-step="listing"><span class="num">STEP 6</span><div class="lbl">업로드 자료</div></div>
           </div>
           <div class="aw-coach"><div class="aw-coach-icon" data-icon="ai"></div><div class="aw-coach-text" id="aw-coach-text">파일, 주제 또는 URL 중 편한 방식을 선택하세요. 입력한 내용은 브라우저에 임시 저장됩니다.</div></div>
         </section>
@@ -493,26 +496,34 @@
         <div id="cv-prompt-state" style="display:none">
           <div class="ts-head">
             <div>
-              <div class="cv-step-eyebrow">AI 프롬프트</div>
-              <div class="cv-step-title">썸네일·상세페이지는 이 프롬프트로 직접 만드세요</div>
-              <div class="cv-step-sub">이 책의 실제 제목·카테고리·판매 포인트를 반영한 프롬프트입니다. 아래 두 프롬프트를 복사해서 미드저니·ChatGPT 이미지·Gamma 등 원하는 AI 도구에 붙여넣으면 됩니다.</div>
+              <div class="cv-step-eyebrow">STEP 4~6 · AI 프롬프트</div>
+              <div class="cv-step-title">썸네일·상세페이지·업로드 자료는 이 프롬프트로 만드세요</div>
+              <div class="cv-step-sub">이 책의 실제 제목·카테고리·판매 포인트를 반영한 프롬프트입니다. 아래 프롬프트를 복사해서 미드저니·ChatGPT 이미지·Claude 등 원하는 AI 도구에 붙여넣으면 됩니다.</div>
             </div>
             <button class="a2-btn a2-btn-secondary" onclick="atlasBackToEbookResultFromPrompts()"><span data-icon="arrowLeft"></span>전자책으로</button>
           </div>
           <div class="prompt-box">
-            <div class="prompt-box-header"><div class="prompt-box-title">📕 표지·썸네일 이미지 프롬프트</div></div>
+            <div class="prompt-box-header"><div class="prompt-box-title">STEP 4 · 📕 표지·썸네일 이미지 프롬프트</div></div>
             <div class="prompt-item">
-              <div class="prompt-label">미드저니 / ChatGPT 이미지 / DALL·E 등에 붙여넣으세요</div>
+              <div class="prompt-label">미드저니 / ChatGPT 이미지 / DALL·E 등에 붙여넣으세요 (652×488px)</div>
               <div class="prompt-text" id="prompt-cv-thumb-prompt"></div>
               <button class="prompt-copy-btn" onclick="copyPrompt('cv-thumb-prompt',this)">복사</button>
             </div>
           </div>
           <div class="prompt-box" style="margin-top:16px">
-            <div class="prompt-box-header"><div class="prompt-box-title">🛒 상세페이지 카피 프롬프트</div></div>
+            <div class="prompt-box-header"><div class="prompt-box-title">STEP 5 · 🛒 상세페이지 카피 프롬프트</div></div>
             <div class="prompt-item">
               <div class="prompt-label">ChatGPT·Claude 등 텍스트 AI에 붙여넣으세요</div>
               <div class="prompt-text" id="prompt-cv-sales-prompt"></div>
               <button class="prompt-copy-btn" onclick="copyPrompt('cv-sales-prompt',this)">복사</button>
+            </div>
+          </div>
+          <div class="prompt-box" style="margin-top:16px">
+            <div class="prompt-box-header"><div class="prompt-box-title">STEP 6 · 📦 플랫폼 업로드 자료 프롬프트</div></div>
+            <div class="prompt-item">
+              <div class="prompt-label">ChatGPT·Claude 등에 붙여넣으면 상세정보·목차·결제 후 안내·검색 키워드·FAQ·요약까지 한 번에 만들어줍니다</div>
+              <div class="prompt-text" id="prompt-cv-listing-prompt"></div>
+              <button class="prompt-copy-btn" onclick="copyPrompt('cv-listing-prompt',this)">복사</button>
             </div>
           </div>
         </div>
