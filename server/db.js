@@ -66,6 +66,20 @@ function createDb(opts){
         '  created_at timestamptz NOT NULL DEFAULT now()' +
         ')'
       );
+    }).then(function(){
+      /* 2026-08-14: 회원가입 이메일 인증. email을 기본키로 써서 "이메일당
+         활성 코드 1개"를 자연스럽게 강제한다 — 재전송 요청은 그냥 같은 행을
+         덮어쓴다(UPSERT). 아직 계정이 없는 이메일을 대상으로 하므로 users를
+         참조하지 않는 독립 테이블이다. */
+      return pool.query(
+        'CREATE TABLE IF NOT EXISTS email_verifications (' +
+        '  email text PRIMARY KEY,' +
+        '  code text NOT NULL,' +
+        '  attempts integer NOT NULL DEFAULT 0,' +
+        '  expires_at timestamptz NOT NULL,' +
+        '  last_sent_at timestamptz NOT NULL DEFAULT now()' +
+        ')'
+      );
     });
   }
 
