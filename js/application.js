@@ -1948,22 +1948,8 @@ function atlasGoToPromptStudio(){
   var ps=document.getElementById('cv-prompt-state');if(ps)ps.style.display='';
   var thumbEl=document.getElementById('prompt-cv-thumb-prompt');
   if(thumbEl)thumbEl.textContent=atlasBuildThumbnailPrompt(APP.ebook);
-  var salesList=document.getElementById('cv-sales-prompts-list');
-  if(salesList){
-    var salesPrompts=atlasBuildSalesPageImagePrompts(APP.ebook);
-    salesList.innerHTML=salesPrompts.map(function(cut,idx){
-      var pid='cv-sales-prompt-'+(idx+1);
-      return '<div class="prompt-item">'
-        +'<div class="prompt-label">'+cut.label+'</div>'
-        +'<div class="prompt-text" id="prompt-'+pid+'"></div>'
-        +'<button class="prompt-copy-btn" onclick="copyPrompt(\''+pid+'\',this)">복사</button>'
-        +'</div>';
-    }).join('');
-    salesPrompts.forEach(function(cut,idx){
-      var el=document.getElementById('prompt-cv-sales-prompt-'+(idx+1));
-      if(el)el.textContent=cut.prompt;
-    });
-  }
+  var salesEl=document.getElementById('prompt-cv-sales-prompt');
+  if(salesEl)salesEl.textContent=atlasBuildSalesPagePrompt(APP.ebook);
   var listingEl=document.getElementById('prompt-cv-listing-prompt');
   if(listingEl)listingEl.textContent=atlasBuildListingMaterialsPrompt(APP.ebook);
   atlasSetWorkspaceStage('listing',{noSave:true});
@@ -2007,90 +1993,68 @@ function atlasBuildThumbnailPrompt(ebook){
   lines.push('- 이미지 크기는 가로 652px × 세로 488px로 만들어주세요(가로형, 약 4:3 비율). 이 크기·비율을 벗어나지 않게 구도를 잡아주세요.');
   return lines.join('\n');
 }
-/* 2026-08-14: 사용자 지시로 상세페이지 프롬프트를 "카피를 쓰는 텍스트 AI에게
-   이미지 프롬프트까지 함께 부탁"하는 간접 방식에서, 썸네일 프롬프트
-   (atlasBuildThumbnailPrompt)와 똑같은 직접 방식으로 바꿨다 — 판매 카피는
-   아예 요청/출력하지 않고, 이 책의 실제 제목·판매 재료(sales.hook/pains/
-   solution/benefits/before-after)를 근거로 삼아 상세페이지 이미지 컷 9장
-   각각의 완성된 프롬프트를 Atlas가 직접 만들어 9개의 독립된 박스로 보여준다.
-   사용자는 각 박스를 하나씩 복사해 미드저니·ChatGPT 이미지 등에 붙여넣고,
-   그 도구에서 이미지를 받아 직접 다운로드한다(Atlas는 이미지를 생성하지
-   않는다 — 기존 "개인이 직접 만드는 게 낫다" 원칙 그대로). 순서·구성은
-   기존에 텍스트 AI에게 지시하던 9컷 구성을 그대로 가져왔다. */
-function atlasBuildSalesPageImagePrompts(ebook){
+/* 2026-08-14: 사용자 지시로 세 번째로 방향을 바꿨다 — (1차) 카피 작성 텍스트
+   AI에게 이미지 프롬프트까지 함께 부탁 → (2차) 썸네일처럼 "하나씩 복사해
+   붙여넣을" 9개의 독립된 텍스트 프롬프트 → (3차, 현재) 사용자가 명확히
+   정정: "복사해서 붙여넣을 프롬프트 9개"가 아니라, ChatGPT 이미지 생성/
+   Gemini처럼 대화 중에 실제 이미지를 만들어내는 AI 도구 하나에 붙여넣으면
+   그 AI가 (a) 이 책의 실제 판매 재료를 근거로 상세페이지 카피 흐름을 속으로
+   구상한 뒤(카피 텍스트 자체는 답변에 보여주지 않음), (b) 그 흐름에 맞는
+   실제 이미지 9장을 대화 안에서 직접 생성해 보여주도록 지시하는 프롬프트
+   "하나"를 만든다. Atlas 자신은 여전히 이미지를 생성하지 않는다(그 요청을
+   받는 건 사용자가 붙여넣는 외부 AI 도구) — 이 원칙은 그대로 유지된다. */
+function atlasBuildSalesPagePrompt(ebook){
   var s=ebook.sales||{};
   var title=ebook.title||'';
   var subtitle=ebook.subtitle||'';
   var category=ebook.category||'';
-  function bookInfoLines(){
-    var l=['[책 정보]','- 제목: '+title];
-    if(subtitle)l.push('- 부제: '+subtitle);
-    if(category)l.push('- 분야: '+category);
-    return l;
-  }
-  var sharedStyle=[
-    '[스타일 통일]',
-    '- 이 이미지는 하나의 상세페이지를 이루는 9장의 연작 중 하나입니다. 이 책의 주제·분야에 어울리는 색감·톤·아트 스타일을 스스로 정하고, 다른 이미지들도 같은 스타일로 이어진다고 가정하고 일관되게 유지해주세요.',
-    '- 사람 얼굴, 실존 인물, 저작권이 있는 캐릭터·로고·브랜드는 넣지 마세요.',
-    '- 이미지 안에 텍스트(제목·문구)를 렌더링해달라고 요청하지 마세요 — 나중에 디자인 툴에서 문구를 별도로 얹는다는 전제로, 여백이 있는 구도만 만들어주세요.',
-    '- 이미지 크기는 가로 860px, 세로 620px 내외(상세페이지 스크롤 컷에 어울리는 가로형 비율)로 만들어주세요.'
-  ];
-  var pains=(Array.isArray(s.pains)&&s.pains.length)?s.pains:null;
-  var benefits=(Array.isArray(s.benefits)&&s.benefits.length)?s.benefits:null;
-  var hasBeforeAfter=Array.isArray(s.before)&&s.before.length&&Array.isArray(s.after)&&s.after.length;
-  var faqs=(Array.isArray(s.faqs)&&s.faqs.length)?s.faqs:null;
   var chapters=Array.isArray(ebook.chapters)?ebook.chapters:[];
-
-  var cuts=[];
-  cuts.push({
-    label:'1. 히어로 배너',
-    role:['이 상세페이지의 맨 위에 들어가는 대표 이미지입니다. 이 책의 핵심 후킹'+(s.hook?'("'+s.hook+'")':'')+'을 시각적으로 표현해 스크롤을 멈추게 만드는 강렬한 첫인상을 만들어주세요.']
-  });
-  cuts.push({
-    label:'2. 문제 공감',
-    role:(pains?['독자가 지금 겪고 있는 아래 문제 상황을 공감가게 표현해주세요.'].concat(pains.map(function(p){return '- '+p;})):['이 책의 독자가 지금 겪고 있을 법한 문제 상황을 공감가게 표현해주세요.'])
-  });
-  cuts.push({
-    label:'3. 문제 심화',
-    role:['위 문제를 그대로 방치하면 벌어지는 상황을 표현해, 지금 해결해야 한다는 위기감을 전달해주세요.']
-  });
-  cuts.push({
-    label:'4. 해결책 소개',
-    role:[s.solution?('이 책이 제시하는 아래 해결 구조를 상징하는 이미지를 만들어주세요.\n- '+s.solution):'이 책이 문제를 해결해주는 열쇠라는 느낌을 상징적으로 표현해주세요.']
-  });
-  cuts.push({
-    label:'5. 핵심 혜택 하이라이트',
-    role:(benefits?['이 책으로 얻는 아래 핵심 혜택을 시각적으로 표현해주세요.'].concat(benefits.map(function(b){return '- '+b;})):['이 책을 읽고 나서 얻게 되는 긍정적인 변화를 시각적으로 표현해주세요.'])
-  });
-  cuts.push({
-    label:'6. 목차·구성 미리보기',
-    role:(chapters.length?['이 책의 실제 목차를 참고해, 체계적으로 구성된 커리큘럼이라는 느낌을 주는 레이아웃형 이미지를 만들어주세요(실제 챕터 제목 텍스트를 렌더링하지 말고, 단계/구성이 있다는 느낌만 시각적으로 표현).','- 총 '+chapters.length+'개 챕터로 구성되어 있습니다.']:['이 책이 체계적인 단계로 구성되어 있다는 느낌을 주는 레이아웃형 이미지를 만들어주세요.'])
-  });
-  cuts.push({
-    label:'7. Before / After',
-    role:(hasBeforeAfter?['아래 읽기 전/읽은 후 변화를 좌우 또는 위아래 대비 구도로 표현해주세요.'].concat(s.before.map(function(b,i){return '- 전: '+b+(s.after[i]?' → 후: '+s.after[i]:'');})):['이 책을 적용하기 전과 후의 긍정적인 변화를 좌우 또는 위아래 대비 구도로 표현해주세요.'])
-  });
-  cuts.push({
-    label:'8. FAQ',
-    role:(faqs?['자주 묻는 질문 섹션에 어울리는, 물음표나 대화 아이콘 등을 활용한 배경 이미지를 만들어주세요. 참고할 질문 예시:'].concat(faqs.slice(0,3).map(function(f){return '- '+f.q;})):['자주 묻는 질문 섹션에 어울리는, 물음표나 대화 아이콘 등을 활용한 배경 이미지를 만들어주세요.'])
-  });
-  cuts.push({
-    label:'9. 마지막 CTA',
-    role:['상세페이지 맨 아래, 지금 바로 구매하도록 유도하는 마무리 배너 이미지를 만들어주세요. 신뢰감 있고 깔끔한 마무리 톤으로 만들어주세요.']
-  });
-
-  return cuts.map(function(cut){
-    var lines=[];
-    lines.push('아래 전자책의 온라인 판매 상세페이지에 들어갈 이미지를 만들어주세요. 이 이미지는 상세페이지를 구성하는 9장 중 "'+cut.label+'" 섹션입니다.');
+  var lines=[];
+  lines.push('아래 전자책의 온라인 판매 상세페이지(랜딩페이지)에 쓸 이미지 9장을 만들어주세요. 이 프롬프트는 실제로 이미지를 생성할 수 있는 대화형 AI 도구(예: ChatGPT 이미지 생성, Gemini 등)에 붙여넣어 사용합니다 — 이미지 설명 텍스트가 아니라 진짜 이미지 파일이 결과물이어야 합니다.');
+  lines.push('');
+  lines.push('[책 정보]');
+  lines.push('- 제목: '+title);
+  if(subtitle)lines.push('- 부제: '+subtitle);
+  if(category)lines.push('- 분야: '+category);
+  var interviewLines=atlasInterviewSummaryLines();
+  if(interviewLines.length){
     lines.push('');
-    lines=lines.concat(bookInfoLines());
-    lines.push('');
-    lines.push('[이 이미지의 역할]');
-    lines=lines.concat(cut.role.map(function(r){return r.indexOf('- ')===0?r:'- '+r;}));
-    lines.push('');
-    lines=lines.concat(sharedStyle);
-    return {label:cut.label, prompt:lines.join('\n')};
-  });
+    lines.push('[타겟 독자·차별점]');
+    interviewLines.forEach(function(l){lines.push('- '+l);});
+  }
+  if(s.hook)lines.push('','[핵심 후킹]','- '+s.hook+(s.subhook?' / '+s.subhook:''));
+  if(Array.isArray(s.pains)&&s.pains.length){lines.push('','[독자가 겪는 문제]');s.pains.forEach(function(p){lines.push('- '+p);});}
+  if(s.solution)lines.push('','[이 책이 제공하는 해결 구조]','- '+s.solution);
+  if(Array.isArray(s.benefits)&&s.benefits.length){lines.push('','[이 책으로 얻는 혜택]');s.benefits.forEach(function(b){lines.push('- '+b);});}
+  if(Array.isArray(s.before)&&s.before.length&&Array.isArray(s.after)&&s.after.length){
+    lines.push('','[읽기 전 / 읽은 후]');
+    s.before.forEach(function(b,i){lines.push('- 전: '+b+(s.after[i]?' → 후: '+s.after[i]:''));});
+  }
+  if(Array.isArray(s.faqs)&&s.faqs.length){lines.push('','[예상 질문]');s.faqs.forEach(function(f){lines.push('- Q. '+f.q+' / A. '+f.a);});}
+  if(chapters.length){lines.push('','[목차]');chapters.forEach(function(ch,i){lines.push('- '+(i+1)+'. '+(ch.title||''));});}
+  lines.push('');
+  lines.push('[작업 순서]');
+  lines.push('1단계: 위 정보를 근거로 이 상세페이지의 카피 흐름(헤드라인·후킹 → 문제 공감 → 해결책 제시 → 이 책으로 얻는 혜택 → 목차/구성 미리보기 → 예상 질문 → 마지막 행동 유도)을 속으로 구상하세요. 이 카피 문장 자체는 답변에 글로 적어서 보여주지 마세요 — 오직 아래 이미지를 만들기 위한 내부 참고용입니다.');
+  lines.push('2단계: 그 카피 흐름에 맞춰, 아래 9개 섹션 순서 그대로 이미지를 하나씩 실제로 생성해서 보여주세요(설명이 아니라 진짜 이미지):');
+  lines.push('  1. 히어로 배너 — 헤드라인·후킹을 뒷받침하는 상단 대표 이미지');
+  lines.push('  2. 문제 공감 — 독자가 겪는 문제 상황');
+  lines.push('  3. 문제 심화 — 그 문제를 방치하면 벌어지는 상황(위기감)');
+  lines.push('  4. 해결책 소개 — 이 책이 제시하는 해결 구조를 상징하는 이미지');
+  lines.push('  5. 핵심 혜택 하이라이트 — 이 책으로 얻는 대표 혜택을 시각화');
+  lines.push('  6. 목차·구성 미리보기 — 이 책의 실제 구성/커리큘럼을 정리해서 보여주는 레이아웃형 이미지');
+  lines.push('  7. Before/After — 읽기 전과 읽은 후의 변화 대비(내용이 없으면 "적용 전/적용 후"로 대체)');
+  lines.push('  8. FAQ — 자주 묻는 질문 섹션에 어울리는 배경/아이콘형 이미지');
+  lines.push('  9. 마지막 CTA — 지금 구매를 유도하는 마무리 배너 이미지');
+  lines.push('');
+  lines.push('[이미지 조건]');
+  lines.push('- 각 이미지는 가로 652px 이상 크기로 생성해주세요.');
+  lines.push('- 9장 전체가 같은 색감·톤·아트 스타일로 이어지는 하나의 세트처럼 보이게 통일해주세요.');
+  lines.push('- 사람 얼굴, 실존 인물, 저작권이 있는 캐릭터·로고·브랜드는 넣지 마세요.');
+  lines.push('- 이미지 안에 텍스트(제목·문구)를 렌더링하지 마세요 — 문구는 나중에 별도로 얹는다는 전제로, 여백이 있는 구도로 만들어주세요.');
+  lines.push('- 구체적인 수익·매출 금액, 성장률, 달성 기간을 암시하는 표현은 쓰지 마세요.');
+  lines.push('- "보장", "무조건", "100%", "누구나 성공" 같은 과장 표현은 쓰지 마세요.');
+  lines.push('- 1단계에서 구상한 카피 문장은 절대 텍스트로 출력하지 마세요 — 최종 답변은 이미지 9장만으로 구성해주세요.');
+  return lines.join('\n');
 }
 /* 플랫폼(크몽/탈잉/스마트스토어 등) 업로드용 자료 일체를 만드는 프롬프트.
    ChatGPT·Claude 등 텍스트 AI에 붙여넣으면 상세정보/목차/결제 후 안내
