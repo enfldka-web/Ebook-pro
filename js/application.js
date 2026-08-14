@@ -526,6 +526,7 @@ function switchAuthTab(tab){
   document.getElementById('tab-signup').classList.toggle('active',tab==='signup');
   document.getElementById('form-login').style.display=tab==='login'?'':'none';
   document.getElementById('form-signup').style.display=tab==='signup'?'':'none';
+  if(tab==='signup')atlasResetSignupCodeStep();
 }
 function doLogin(){
   var email=document.getElementById('l-email').value.trim();
@@ -545,24 +546,75 @@ function doLogin(){
     showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
   });
 }
+/* 2026-08-14: 사용자 지시 — 이름/이메일/비밀번호만으로 바로 가입되던 걸
+   이메일 인증번호 확인 단계를 거치도록 바꿨다. atlasSignupCodeSent가 지금
+   1단계(정보 입력 → 인증번호 받기)인지 2단계(코드 입력 → 가입 완료)인지를
+   추적한다 — HTML의 가입 버튼 onclick은 doSignup() 하나만 그대로 두고,
+   이 플래그로 두 단계를 같은 버튼이 순서대로 처리하게 한다. */
+var atlasSignupCodeSent=false;
+function atlasResetSignupCodeStep(){
+  atlasSignupCodeSent=false;
+  var row=document.getElementById('signup-code-row');if(row)row.style.display='none';
+  var codeInput=document.getElementById('s-code');if(codeInput)codeInput.value='';
+  var btn=document.getElementById('signup-submit-btn');if(btn)btn.textContent='인증번호 받기 →';
+  ['s-name','s-email','s-pw'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=false;});
+}
 function doSignup(){
+  if(!atlasSignupCodeSent){atlasSendSignupCode(false);return;}
   var name=document.getElementById('s-name').value.trim();
   var email=document.getElementById('s-email').value.trim();
   var pw=document.getElementById('s-pw').value;
+  var code=document.getElementById('s-code').value.trim();
   var err=document.getElementById('signup-err');
-  if(!name||!email||!pw){showErr(err,'모든 항목을 입력해주세요.');return;}
-  if(pw.length<8){showErr(err,'비밀번호는 8자 이상이어야 합니다.');return;}
+  if(!code){showErr(err,'이메일로 받은 인증번호를 입력해주세요.');return;}
   err.style.display='none';
-  atlasAuthFetch('/api/auth/signup',{method:'POST',body:JSON.stringify({name:name,email:email,password:pw})}).then(function(result){
+  atlasAuthFetch('/api/auth/signup',{method:'POST',body:JSON.stringify({name:name,email:email,password:pw,code:code})}).then(function(result){
     if(!result.ok||!result.body||!result.body.token){
       showErr(err,(result.body&&result.body.error&&result.body.error.message)||'회원가입에 실패했습니다.');
       return;
     }
+    atlasResetSignupCodeStep();
     setCurrentUser(result.body.token,result.body.user);
     showPage('app','dashboard');
     showToast('success','가입 완료! 첫 전자책을 만들어보세요.');
   }).catch(function(){
     showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+  });
+}
+/* isResend: "재전송" 버튼에서 호출될 때 true — 이미 1단계를 통과했으므로
+   이름/비밀번호를 다시 검사하지 않고 이메일로 코드만 다시 요청한다. */
+function atlasSendSignupCode(isResend){
+  var name=document.getElementById('s-name').value.trim();
+  var email=document.getElementById('s-email').value.trim();
+  var pw=document.getElementById('s-pw').value;
+  var err=document.getElementById('signup-err');
+  if(!isResend){
+    if(!name||!email||!pw){showErr(err,'모든 항목을 입력해주세요.');return;}
+    if(pw.length<8){showErr(err,'비밀번호는 8자 이상이어야 합니다.');return;}
+  }
+  err.style.display='none';
+  var mainBtn=document.getElementById('signup-submit-btn');
+  var resendBtn=document.getElementById('signup-resend-btn');
+  var busyBtn=isResend?resendBtn:mainBtn;
+  var oldText=busyBtn?busyBtn.textContent:'';
+  if(busyBtn){busyBtn.disabled=true;busyBtn.textContent='전송 중...';}
+  atlasAuthFetch('/api/auth/send-verification',{method:'POST',body:JSON.stringify({email:email})}).then(function(result){
+    if(!result.ok||!result.body||!result.body.ok){
+      showErr(err,(result.body&&result.body.error&&result.body.error.message)||'인증번호 발송에 실패했습니다.');
+      if(busyBtn){busyBtn.disabled=false;busyBtn.textContent=oldText;}
+      return;
+    }
+    atlasSignupCodeSent=true;
+    ['s-name','s-email','s-pw'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=true;});
+    var row=document.getElementById('signup-code-row');if(row)row.style.display='';
+    var emailLabel=document.getElementById('signup-code-email');if(emailLabel)emailLabel.textContent=email;
+    if(mainBtn){mainBtn.disabled=false;mainBtn.textContent='가입하기 →';}
+    if(resendBtn){resendBtn.disabled=true;resendBtn.textContent='재전송';setTimeout(function(){resendBtn.disabled=false;},60000);}
+    showToast('success',isResend?'인증번호를 다시 보냈습니다.':'인증번호를 보냈습니다. 이메일을 확인해주세요.');
+    var codeInput=document.getElementById('s-code');if(codeInput)codeInput.focus();
+  }).catch(function(){
+    showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    if(busyBtn){busyBtn.disabled=false;busyBtn.textContent=oldText;}
   });
 }
 function doLogout(){clearCurrentUser();APP.ebook=null;APP.selFile=null;showPage('landing');showToast('success','로그아웃되었습니다.');}

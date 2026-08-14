@@ -50,8 +50,10 @@ var fs = require('fs');
 
 var anthropicProvider = require('./providers/anthropic-text-provider.js');
 var tossProvider = require('./providers/toss-payments-provider.js');
+var resendProvider = require('./providers/resend-email-provider.js');
 var bcrypt = require('bcryptjs');
 var jwt = require('jsonwebtoken');
+var crypto = require('crypto');
 var dbModule = require('./db.js');
 
 var BCRYPT_ROUNDS = 10;
@@ -329,30 +331,95 @@ function createApp(opts){
     }
   });
 
+  /* 2026-08-14: 사용자 지시 — 회원가입이 이름/이메일/비밀번호만으로 너무
+     간단하게 뚫려서, 실제로 그 이메일을 소유한 사람인지 6자리 인증번호로
+     확인하는 단계를 추가한다. email_verifications 테이블에 이메일당 코드
+     하나만 유지한다(재요청 시 UPSERT로 덮어씀) — 아직 계정이 생기기 전
+     단계라 users와 독립적이다. 코드는 해시하지 않고 평문 저장하는데,
+     bcrypt 해시 비용을 들일 만큼 가치 있는 비밀이 아니기 때문이다(6자리
+     숫자, 10분 만료, 시도 5회 제한, 60초 재전송 제한으로 이미 충분히
+     보호됨 — 실제 공격 표면은 "이메일 발신 자체를 흉내낼 수 있는가"이지
+     "저장된 코드를 훔쳐볼 수 있는가"가 아니다). */
+  var VERIFICATION_CODE_TTL_MS = 10*60*1000;
+  var VERIFICATION_RESEND_COOLDOWN_MS = 60*1000;
+  var VERIFICATION_MAX_ATTEMPTS = 5;
+  function emailConfigured(){ return !!(db && resendProvider.isConfigured(env)); }
+  app.post('/api/auth/send-verification', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'회원가입 기능이 아직 설정되지 않았습니다(DATABASE_URL/JWT_SECRET 필요).', code:'not_configured' } });
+    if(!emailConfigured()) return res.status(503).json({ error: { message:'이메일 인증 기능이 아직 설정되지 않았습니다(RESEND_API_KEY 필요).', code:'not_configured' } });
+    var body = req.body || {};
+    var email = String(body.email || '').trim().toLowerCase();
+    if(!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: { message:'올바른 이메일 주소를 입력해주세요.', code:'invalid_request' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message: 'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('SELECT id FROM users WHERE email=$1', [email]);
+    }).then(function(existing){
+      if(existing.rows.length) return Promise.reject({ httpStatus: 409, message:'이미 사용 중인 이메일입니다.', code:'email_taken' });
+      return db.query('SELECT last_sent_at FROM email_verifications WHERE email=$1', [email]);
+    }).then(function(prev){
+      var prevRow = prev.rows[0];
+      if(prevRow && (Date.now() - new Date(prevRow.last_sent_at).getTime()) < VERIFICATION_RESEND_COOLDOWN_MS){
+        return Promise.reject({ httpStatus: 429, message:'인증번호를 너무 자주 요청했습니다. 잠시 후 다시 시도해주세요.', code:'rate_limited' });
+      }
+      var code = String(crypto.randomInt(100000, 1000000));
+      var expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
+      return db.query(
+        'INSERT INTO email_verifications (email, code, attempts, expires_at, last_sent_at) VALUES ($1,$2,0,$3,now()) ' +
+        'ON CONFLICT (email) DO UPDATE SET code=$2, attempts=0, expires_at=$3, last_sent_at=now()',
+        [email, code, expiresAt]
+      ).then(function(){
+        return resendProvider.sendVerificationEmail({ env: env, fetchImpl: fetchImpl, to: email, code: code });
+      }).then(function(sendResult){
+        if(!sendResult.ok){
+          safeLog('send-verification-email-failed', { status: sendResult.status, body: sendResult.data });
+          return Promise.reject({ httpStatus: 502, message:'인증번호 이메일 발송에 실패했습니다.', code:'email_send_failed' });
+        }
+        res.json({ ok:true });
+      });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('send-verification-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'인증번호 발송 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+
   /* ── 실제 회원가입/로그인 — 2026-08-13: 기존 로그인은 브라우저
      localStorage에만 저장되는 가짜 계정(비밀번호도 btoa일 뿐 해시가 아님)
      이었고, 세션이 없으면 무조건 pro 유저로 자동 로그인시켜 로그인 화면
      자체를 우회했다. 이제 진짜 서버 검증 + bcrypt 해시 + Postgres 영구
-     저장으로 바뀐다. */
+     저장으로 바뀐다. 2026-08-14: 이메일 인증번호(code) 확인 단계 추가. */
   app.post('/api/auth/signup', function(req, res){
     if(!authConfigured()) return res.status(503).json({ error: { message:'회원가입 기능이 아직 설정되지 않았습니다(DATABASE_URL/JWT_SECRET 필요).', code:'not_configured' } });
     var body = req.body || {};
     var name = String(body.name || '').trim();
     var email = String(body.email || '').trim().toLowerCase();
     var password = String(body.password || '');
-    if(!name || !email || !password) return res.status(400).json({ error: { message:'이름, 이메일, 비밀번호를 모두 입력해주세요.', code:'invalid_request' } });
+    var code = String(body.code || '').trim();
+    if(!name || !email || !password || !code) return res.status(400).json({ error: { message:'이름, 이메일, 비밀번호, 인증번호를 모두 입력해주세요.', code:'invalid_request' } });
     if(password.length < 8) return res.status(400).json({ error: { message:'비밀번호는 8자 이상이어야 합니다.', code:'weak_password' } });
     dbReady.then(function(){
       if(!db) throw { httpStatus: 503, message: 'DB 연결에 실패했습니다.', code:'db_unavailable' };
       return db.query('SELECT id FROM users WHERE email=$1', [email]);
     }).then(function(existing){
       if(existing.rows.length) return Promise.reject({ httpStatus: 409, message:'이미 사용 중인 이메일입니다.', code:'email_taken' });
+      return db.query('SELECT code, attempts, expires_at FROM email_verifications WHERE email=$1', [email]);
+    }).then(function(vr){
+      var vrow = vr.rows[0];
+      if(!vrow) return Promise.reject({ httpStatus: 400, message:'먼저 이메일로 인증번호를 받아주세요.', code:'verification_not_requested' });
+      if(new Date(vrow.expires_at).getTime() < Date.now()) return Promise.reject({ httpStatus: 400, message:'인증번호가 만료되었습니다. 다시 요청해주세요.', code:'verification_expired' });
+      if(vrow.attempts >= VERIFICATION_MAX_ATTEMPTS) return Promise.reject({ httpStatus: 400, message:'인증 시도 횟수를 초과했습니다. 인증번호를 다시 요청해주세요.', code:'verification_too_many_attempts' });
+      if(vrow.code !== code){
+        return db.query('UPDATE email_verifications SET attempts=attempts+1 WHERE email=$1', [email]).then(function(){
+          return Promise.reject({ httpStatus: 400, message:'인증번호가 올바르지 않습니다.', code:'verification_mismatch' });
+        });
+      }
       return bcrypt.hash(password, BCRYPT_ROUNDS);
     }).then(function(hash){
       return db.query('INSERT INTO users (email, password_hash, name) VALUES ($1,$2,$3) RETURNING *', [email, hash, name]);
     }).then(function(ur){
       var userRow = ur.rows[0];
       return db.query('INSERT INTO subscriptions (user_id, status) VALUES ($1,$2) RETURNING *', [userRow.id, 'inactive']).then(function(sr){
+        db.query('DELETE FROM email_verifications WHERE email=$1', [email]).catch(function(){});
         var token = issueToken(userRow.id);
         safeLog('auth-signup-success', { userId: userRow.id });
         res.json({ token: token, user: userPublicShape(userRow, sr.rows[0]) });
