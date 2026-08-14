@@ -99,7 +99,14 @@ function copyPrompt(id,btn){
   }).catch(function(){showToast('error','복사 실패');});
 }
 
-function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+/* 2026-08-14: 실제 재현된 버그 — 챕터 본문(renderTextBlocks)은 "**bold**"
+   마크다운을 걸러내지만, 표 셀/프레임워크/타임라인/체크리스트/실행박스/
+   경고박스/챕터 제목처럼 x()로 바로 렌더링되는 짧은 필드들은 이 필터를
+   거치지 않아 AI가 가끔 남기는 "**"가 화면에 그대로 노출됐다. 이 앱 안에서
+   x()는 오직 AI 생성 텍스트/사용자 입력 echo용이고 "**"가 의도된 문자로
+   쓰일 일이 없으므로, escape 직전에 여기서 한 번에 제거하면 모든 호출부를
+   개별 수정하지 않고도 근본 지점 하나에서 해결된다. */
+function x(s){return String(s||'').replace(/\*\*/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 /* 2026-08-12: 사용자 요청 — AI가 만든 제목에 대시("링크는 있는데 구매가
    없다 - 전환 공백의 정체" 같은 형태)가 있으면 대시 앞/뒤를 두 줄(대제목/
