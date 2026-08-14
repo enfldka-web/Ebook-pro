@@ -528,6 +528,14 @@ textarea{resize:vertical}
 .auth-err{background:var(--a2-danger-soft);border:1px solid rgba(216,69,89,.25);border-radius:9px;padding:10px 14px;font-size:12px;color:var(--a2-danger);display:none}
 .auth-back{display:block;text-align:center;font-size:12px;color:var(--a2-text-faint);margin-top:22px}
 .auth-back a{color:var(--a2-accent)}
+/* 2026-08-14: 이용약관/개인정보처리방침/환불정책 문서(#pg-legal) 타이포그래피.
+   body{background:var(--bg);color:var(--text)}가 이미 어두운 배경+밝은
+   텍스트를 기본으로 깔아주므로(랜딩/로그인 화면과 같은 톤), 여기서는 제목
+   위계와 문단 여백만 추가한다. */
+.legal-doc h1{font-size:26px;font-weight:900;margin-bottom:24px;letter-spacing:-.4px}
+.legal-doc h2{font-size:15px;font-weight:800;margin:28px 0 8px;color:var(--p2)}
+.legal-doc p{font-size:13px;line-height:1.85;color:var(--text2);margin-bottom:4px}
+.legal-doc table{margin:12px 0}
 .plan-chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .plan-chip{padding:6px 14px;border-radius:100px;font-size:11px;font-weight:700;border:1.5px solid transparent;transition:all .2s}
 .plan-chip.free{background:var(--glass);color:var(--text2);border-color:var(--border)}.plan-chip.free.sel{border-color:var(--text2);color:var(--text)}

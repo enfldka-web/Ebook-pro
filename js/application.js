@@ -204,6 +204,18 @@ function atlasAuthFetch(path,opts){
 }
 function setCurrentUser(token,user){atlasSetAuthToken(token);APP.user=user;}
 function clearCurrentUser(){atlasSetAuthToken(null);APP.user=null;}
+/* 2026-08-14: 이용약관/개인정보처리방침 링크를 회원가입 폼에서 새 탭으로
+   열 때 쓰는 진입점(?legal=terms 등, index.html). 같은 탭에서 이동하면
+   입력 중이던 이름/이메일/비밀번호가 다 날아가므로 새 탭으로 열게
+   했는데(target="_blank"), 이 브라우저에 이미 로그인 토큰이 있으면(같은
+   origin이라 localStorage를 공유) 아래 자동 로그인 리스너가 그 새 탭까지
+   대시보드로 튕겨버려 법률 문서를 볼 수가 없다 — atlasLegalPageRequested로
+   그 경우에만 자동 이동을 건너뛴다. */
+var atlasLegalPageRequested=false;
+(function(){
+  var legalParam=new URLSearchParams(window.location.search).get('legal');
+  if(legalParam){ atlasLegalPageRequested=true; showPage('legal',legalParam); }
+})();
 /* 토큰이 남아있는 재방문자를 위한 자동 로그인 — 예전의 "세션 없으면 무조건
    pro로 자동 로그인"과 달리, 이건 항상 서버에 실제 토큰을 검증받은 뒤에만
    로그인 상태로 전환한다(가짜 세션을 절대 만들어내지 않는다). 토큰이
@@ -214,7 +226,7 @@ window.addEventListener('load',function(){
   atlasAuthFetch('/api/auth/me').then(function(result){
     if(!result.ok||!result.body||!result.body.user){atlasSetAuthToken(null);return;}
     APP.user=result.body.user;
-    showPage('app','dashboard');
+    if(!atlasLegalPageRequested)showPage('app','dashboard');
   }).catch(function(){/* 서버 연결 실패 — landing에 그대로 남는다 */});
 });
 /* 브라우저는 Anthropic API Key를 절대 들고 있지 않는다 — 모든 호출은
@@ -500,6 +512,7 @@ function showPage(pg,sub){
     if(sub==='signup')switchAuthTab('signup');
     else switchAuthTab('login');
   }
+  if(pg==='legal')switchLegalTab(sub||'terms');
   if(pg==='app'){
     if(!checkAccessPeriod())return;
     initApp();
@@ -568,6 +581,16 @@ function switchAuthTab(tab){
   document.getElementById('form-signup').style.display=tab==='signup'?'':'none';
   if(tab==='signup')atlasResetSignupCodeStep();
 }
+/* 2026-08-14: 이용약관/개인정보처리방침/환불정책 탭 전환. switchAuthTab()과
+   같은 패턴 — 세 문서 모두 이미 DOM에 렌더링되어 있고(index.html #pg-legal),
+   여기서는 표시/숨김과 탭 active 상태만 전환한다. */
+function switchLegalTab(tab){
+  ['terms','privacy','refund'].forEach(function(t){
+    var doc=document.getElementById('legal-doc-'+t);if(doc)doc.style.display=(t===tab)?'':'none';
+    var tabBtn=document.getElementById('legal-tab-'+t);if(tabBtn)tabBtn.classList.toggle('active',t===tab);
+  });
+  window.scrollTo(0,0);
+}
 function doLogin(){
   var email=document.getElementById('l-email').value.trim();
   var pw=document.getElementById('l-pw').value;
@@ -598,6 +621,7 @@ function atlasResetSignupCodeStep(){
   var codeInput=document.getElementById('s-code');if(codeInput)codeInput.value='';
   var btn=document.getElementById('signup-submit-btn');if(btn)btn.textContent='인증번호 받기 →';
   ['s-name','s-email','s-pw'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=false;});
+  var agree=document.getElementById('s-agree');if(agree)agree.checked=false;
 }
 function doSignup(){
   if(!atlasSignupCodeSent){atlasSendSignupCode(false);return;}
@@ -631,6 +655,8 @@ function atlasSendSignupCode(isResend){
   if(!isResend){
     if(!name||!email||!pw){showErr(err,'모든 항목을 입력해주세요.');return;}
     if(pw.length<8){showErr(err,'비밀번호는 8자 이상이어야 합니다.');return;}
+    var agree=document.getElementById('s-agree');
+    if(agree&&!agree.checked){showErr(err,'이용약관 및 개인정보처리방침에 동의해주세요.');return;}
   }
   err.style.display='none';
   var mainBtn=document.getElementById('signup-submit-btn');

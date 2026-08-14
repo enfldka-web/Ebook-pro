@@ -69,6 +69,7 @@
         <button class="al-btn al-btn-secondary" onclick="showPage('auth','signup')"><strong>처음이신가요?</strong><small>계정을 만들고 시작하기</small></button>
       </div>
       <div class="al-secure">🔒 구독자 전용 서비스 · 무단 사용 및 외부 공유 금지</div>
+      <div style="margin-top:10px;font-size:11px;color:#475569"><a href="?legal=terms" target="_blank" style="color:inherit;text-decoration:underline">이용약관</a> · <a href="?legal=privacy" target="_blank" style="color:inherit;text-decoration:underline">개인정보처리방침</a> · <a href="?legal=refund" target="_blank" style="color:inherit;text-decoration:underline">환불정책</a></div>
       <div class="al-version">ATLAS AI EBOOK STUDIO · FINAL</div>
     </div>
   </div>
@@ -115,10 +116,181 @@
           <div class="a2-hint" id="signup-code-hint" style="margin-top:4px"><span id="signup-code-email"></span>로 인증번호를 보냈습니다.</div>
         </div>
         <div style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:12px 16px;font-size:13px;color:#a78bfa;display:flex;align-items:center;gap:8px">👑 모든 프로젝트 프리미엄 품질 자동 적용</div>
+        <!-- 2026-08-14: 사용자 지시로 이용약관/개인정보처리방침 문서를 새로
+             작성하면서, 가입 시 동의를 명시적으로 받는 절차도 함께 추가한다
+             (개인정보 수집 전 동의는 개인정보보호법상 원칙이기도 하다).
+             링크는 ?legal=... 쿼리스트링으로 새 탭에서 연다 — 같은 탭에서
+             이동하면 지금까지 입력한 이름/이메일/비밀번호가 다 날아가므로
+             (실제 문제였을 만한 지점), 새 탭으로 열어 입력 중이던 폼은
+             그대로 보존한다. doSignup()/atlasSendSignupCode()가 이 체크박스
+             를 확인한다(js/application.js). -->
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="s-agree" style="margin-top:2px"/>
+          <span><a href="?legal=terms" target="_blank" style="color:var(--p2)">이용약관</a> 및 <a href="?legal=privacy" target="_blank" style="color:var(--p2)">개인정보처리방침</a>에 동의합니다 (필수)</span>
+        </label>
         <button class="btn-auth" id="signup-submit-btn" onclick="doSignup()">인증번호 받기 →</button>
       </div>
     </div>
     <a class="auth-back" href="#" onclick="showPage('auth','login');return false;">← 로그인으로</a>
+  </div>
+</div>
+
+<!-- 2026-08-14: 사용자 지시로 이용약관·개인정보처리방침·환불정책 초안을
+     작성해 실제로 볼 수 있는 페이지로 추가한다. 아직 사업자등록 전이라
+     사업자명/대표자/주소 등은 [사업자등록 후 기재]로 남겨둔다 — 실제 값을
+     지어내지 않는다(Never Guess 원칙). 법률 최종 검토 전까지는 초안임을
+     각 문서 상단에 명시한다. 로그인 여부와 무관하게 언제든 볼 수 있어야
+     하므로(전자상거래법상 상시 게시 의무) #pg-app과 분리된 독립 page로 둔다.
+     switchLegalTab()/showPage('legal',sub)가 tab을 전환한다(js/application.js). -->
+<div id="pg-legal" class="page">
+  <div style="max-width:760px;margin:0 auto;padding:40px 20px 100px">
+    <a href="#" onclick="showPage('landing');return false;" style="display:inline-block;margin-bottom:24px;color:var(--text2);font-size:13px;text-decoration:none">← 처음으로</a>
+    <div class="auth-tabs" style="max-width:420px;margin-bottom:28px">
+      <button class="auth-tab active" id="legal-tab-terms" onclick="switchLegalTab('terms')">이용약관</button>
+      <button class="auth-tab" id="legal-tab-privacy" onclick="switchLegalTab('privacy')">개인정보처리방침</button>
+      <button class="auth-tab" id="legal-tab-refund" onclick="switchLegalTab('refund')">환불정책</button>
+    </div>
+    <div style="background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.3);border-radius:10px;padding:14px 16px;font-size:12px;color:#e8b84b;margin-bottom:28px;line-height:1.7">⚠️ 이 문서들은 서비스 초기 운영을 위한 초안입니다. 사업자등록 및 통신판매업 신고 완료 후, 변호사 등 전문가의 법률 검토를 거쳐 보완될 예정입니다.</div>
+
+    <div id="legal-doc-terms" class="legal-doc">
+      <h1>이용약관</h1>
+      <h2>제1조 (목적)</h2>
+      <p>이 약관은 [사업자등록 후 기재](이하 "회사")가 제공하는 Atlas AI eBook Studio 서비스(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리, 의무 및 책임사항, 기타 필요한 사항을 규정함을 목적으로 합니다.</p>
+      <h2>제2조 (정의)</h2>
+      <p>1. "서비스"란 회사가 제공하는 AI 기반 전자책 기획·생성 및 판매 준비 자료(썸네일·상세페이지·업로드 자료) 프롬프트 제공 등 일체의 서비스를 의미합니다.<br>
+      2. "이용자"란 이 약관에 따라 서비스를 이용하는 회원을 말합니다.<br>
+      3. "회원"이란 서비스에 개인정보를 제공하여 회원가입을 한 자로서, 서비스를 계속적으로 이용할 수 있는 자를 말합니다.<br>
+      4. "무료체험"이란 회원가입 후 결제 없이 전자책 생성 기능을 1회 이용할 수 있는 것을 말합니다.<br>
+      5. "구독"이란 회원이 매월 정해진 금액을 결제하여 서비스를 계속 이용하는 유료 이용계약을 말합니다.</p>
+      <h2>제3조 (약관의 효력 및 변경)</h2>
+      <p>1. 이 약관은 서비스 화면에 게시하거나 기타의 방법으로 회원에게 공지함으로써 효력이 발생합니다.<br>
+      2. 회사는 관련 법령을 위배하지 않는 범위에서 이 약관을 변경할 수 있으며, 변경된 약관은 적용일자 7일 전(회원에게 불리한 변경의 경우 30일 전)부터 서비스 내 공지사항을 통해 공지합니다.<br>
+      3. 회원이 변경된 약관에 동의하지 않는 경우 회원은 이용계약을 해지(회원 탈퇴)할 수 있습니다.</p>
+      <h2>제4조 (서비스의 제공 및 변경)</h2>
+      <p>1. 회사는 다음과 같은 서비스를 제공합니다.<br>
+      &nbsp;&nbsp;가. AI 기반 전자책 자동 생성<br>
+      &nbsp;&nbsp;나. 제목·목차·챕터 등 콘텐츠 기획 지원<br>
+      &nbsp;&nbsp;다. 썸네일·상세페이지 이미지 생성용 프롬프트 제공<br>
+      &nbsp;&nbsp;라. 플랫폼 업로드용 판매 자료 프롬프트 제공<br>
+      &nbsp;&nbsp;마. 완성된 전자책의 PDF·워드 파일 다운로드<br>
+      2. 회사는 서비스의 내용, 운영상·기술상 필요에 따라 제공하는 서비스의 전부 또는 일부를 변경할 수 있으며, 이 경우 변경 사유와 내용을 사전에 공지합니다.<br>
+      3. 서비스는 원칙적으로 연중무휴 24시간 제공됩니다. 다만 시스템 점검 등 회사가 필요하다고 판단하는 경우 서비스 제공을 일시 중단할 수 있습니다.</p>
+      <h2>제5조 (서비스 이용계약의 성립)</h2>
+      <p>이용계약은 이용자가 이 약관 및 개인정보처리방침에 동의한 후 회원가입(이메일 인증 포함)을 신청하고, 회사가 이를 승낙함으로써 성립합니다.</p>
+      <h2>제6조 (회원가입)</h2>
+      <p>1. 이용자는 회사가 정한 가입 양식에 따라 이름, 이메일, 비밀번호를 입력하고 이메일 인증을 완료하여 회원가입을 신청합니다.<br>
+      2. 회사는 다음 각 호에 해당하는 신청에 대하여는 승낙하지 않거나 사후에 이용계약을 해지할 수 있습니다.<br>
+      &nbsp;&nbsp;가. 타인의 정보를 도용한 경우<br>
+      &nbsp;&nbsp;나. 허위 정보를 기재한 경우<br>
+      &nbsp;&nbsp;다. 이미 가입된 이메일로 재가입을 시도하는 경우</p>
+      <h2>제7조 (회원 탈퇴 및 자격 상실)</h2>
+      <p>1. 회원은 언제든지 회사에 탈퇴를 요청할 수 있으며, 회사는 관련 법령이 정하는 바에 따라 이를 지체 없이 처리합니다.<br>
+      2. 회원이 구독 중인 경우, 탈퇴 전 제10조에 따른 구독 해지 절차를 함께 진행합니다.</p>
+      <h2>제8조 (무료체험 및 유료 구독)</h2>
+      <p>1. 신규 회원은 계정당 1회에 한하여 전자책 생성 기능을 무료로 체험할 수 있습니다.<br>
+      2. 무료체험을 모두 사용한 회원이 서비스를 계속 이용하려면 월 정기구독을 신청해야 합니다.<br>
+      3. 구독 요금은 서비스 내 안내된 금액(현재 월 29,000원)으로 하며, 요금이 변경되는 경우 사전에 공지합니다.<br>
+      4. 본인 소유의 AI API 키를 등록하여 이용하는 경우 무료체험 제한이 적용되지 않으며, 이때 발생하는 AI 이용 비용은 회원이 해당 AI 제공업체에 직접 부담합니다.</p>
+      <h2>제9조 (결제 및 자동갱신)</h2>
+      <p>1. 구독 결제는 회원이 등록한 카드 정보를 기반으로 토스페이먼츠를 통해 매월 자동으로 청구됩니다.<br>
+      2. 최초 결제일을 기준으로 매월 동일한 날짜에 자동 갱신되며, 회원이 해지하지 않는 한 계속 청구됩니다.<br>
+      3. 결제에 실패하는 경우 구독 상태가 "결제 실패"로 표시되며, 회원은 결제 수단을 갱신하여 다시 구독할 수 있습니다.</p>
+      <h2>제10조 (구독의 해지)</h2>
+      <p>1. 회원은 서비스 내 설정 화면에서 언제든지 구독을 해지할 수 있습니다.<br>
+      2. 해지를 신청하더라도 이미 결제된 이용 기간 동안은 서비스를 계속 이용할 수 있으며, 다음 결제일부터 요금이 청구되지 않습니다.<br>
+      3. 회원은 해지 신청 후 다음 결제일 이전까지 언제든지 해지를 철회할 수 있습니다.</p>
+      <h2>제11조 (환불)</h2>
+      <p>환불에 관한 사항은 별도로 게시하는 "환불정책"에 따릅니다.</p>
+      <h2>제12조 (콘텐츠의 저작권 및 이용자의 책임)</h2>
+      <p>1. 서비스를 통해 생성된 전자책, 이미지 프롬프트, 판매 자료 등 결과물의 저작권은 이를 생성한 회원에게 귀속됩니다.<br>
+      2. 회원은 자신이 업로드한 자료(PLR 문서 등)에 대해 적법한 이용 권한을 보유하고 있음을 보장해야 하며, 이와 관련하여 발생하는 저작권 분쟁의 책임은 회원에게 있습니다.<br>
+      3. AI가 생성한 콘텐츠는 완전성·정확성이 보장되지 않으므로, 회원은 실제 판매·배포 전 내용을 직접 검토할 책임이 있습니다.</p>
+      <h2>제13조 (서비스 이용 제한)</h2>
+      <p>회사는 회원이 다음 각 호에 해당하는 행위를 하는 경우 사전 통지 없이 서비스 이용을 제한하거나 이용계약을 해지할 수 있습니다.<br>
+      1. 타인의 계정을 무단으로 사용하는 행위<br>
+      2. 서비스를 이용하여 법령 또는 공서양속에 반하는 콘텐츠를 생성·배포하는 행위<br>
+      3. 서비스의 정상적인 운영을 방해하는 행위</p>
+      <h2>제14조 (면책조항)</h2>
+      <p>1. 회사는 천재지변, AI 제공업체(Anthropic 등)의 서비스 장애 등 회사의 귀책사유 없이 서비스를 제공할 수 없는 경우 책임을 지지 않습니다.<br>
+      2. 회사는 AI가 생성한 콘텐츠의 정확성, 완전성, 특정 목적 적합성을 보장하지 않으며, 이를 이용하여 발생한 손해에 대해 책임을 지지 않습니다.<br>
+      3. 회사는 회원이 서비스를 이용하여 얻고자 한 판매 수익 등 기대 이익에 대해 책임을 지지 않습니다.</p>
+      <h2>제15조 (분쟁해결)</h2>
+      <p>이 약관과 관련하여 회사와 이용자 간에 분쟁이 발생한 경우, 양 당사자는 이를 원만히 해결하기 위해 노력하며, 해결되지 않을 경우 관할 법원은 민사소송법에 따른 법원으로 합니다.</p>
+      <h2>부칙</h2>
+      <p>이 약관은 [시행일: 사업자등록 후 기재]부터 시행됩니다.</p>
+    </div>
+
+    <div id="legal-doc-privacy" class="legal-doc" style="display:none">
+      <h1>개인정보처리방침</h1>
+      <p>Atlas AI eBook Studio(이하 "회사")는 이용자의 개인정보를 중요시하며, 「개인정보 보호법」 등 관련 법령을 준수하고 있습니다. 회사는 이 개인정보처리방침을 통하여 이용자가 제공하는 개인정보가 어떠한 용도와 방식으로 이용되고 있으며, 개인정보 보호를 위해 어떠한 조치가 취해지고 있는지 알려드립니다.</p>
+      <h2>1. 수집하는 개인정보 항목 및 수집방법</h2>
+      <p><b>가. 수집 항목</b><br>
+      · 회원가입 시: 이름, 이메일 주소, 비밀번호(암호화 저장)<br>
+      · 구독 결제 시: 결제 처리를 위해 토스페이먼츠에 위탁되는 카드 관련 정보(회사는 카드번호 원본을 직접 저장하지 않습니다)<br>
+      · 서비스 이용 과정에서: 업로드한 자료(문서·URL·주제 등 전자책 생성에 사용하는 입력값), 생성된 전자책 콘텐츠<br>
+      · 자동 수집 항목: 접속 로그, 서비스 이용 기록<br>
+      <b>나. 수집 방법</b>: 회원가입 및 서비스 이용 과정에서 이용자가 직접 입력</p>
+      <h2>2. 개인정보의 수집 및 이용목적</h2>
+      <p>· 회원 식별 및 가입 의사 확인, 이메일 인증<br>
+      · 서비스(전자책 생성 등) 제공 및 계약 이행<br>
+      · 무료체험 1회 제한 관리를 위한 이용 이력 확인<br>
+      · 정기구독 결제 처리 및 결제 내역 관리<br>
+      · 고객 문의 응대</p>
+      <h2>3. 개인정보의 보유 및 이용기간</h2>
+      <p>회원 탈퇴 시까지 보유하며, 탈퇴 즉시 파기합니다. 다만 다음의 경우 관계 법령에 따라 명시된 기간 동안 보관합니다.<br>
+      · 계약 또는 청약철회 등에 관한 기록: 5년(전자상거래 등에서의 소비자보호에 관한 법률)<br>
+      · 대금결제 및 재화 등의 공급에 관한 기록: 5년(전자상거래 등에서의 소비자보호에 관한 법률)<br>
+      · 소비자의 불만 또는 분쟁처리에 관한 기록: 3년(전자상거래 등에서의 소비자보호에 관한 법률)</p>
+      <h2>4. 개인정보의 파기절차 및 방법</h2>
+      <p>보유기간이 경과하거나 처리목적이 달성된 개인정보는 지체 없이 파기합니다. 전자적 파일 형태로 저장된 개인정보는 복구할 수 없는 기술적 방법을 사용하여 삭제합니다.</p>
+      <h2>5. 개인정보의 제3자 제공</h2>
+      <p>회사는 이용자의 개인정보를 원칙적으로 외부에 제공하지 않습니다. 다만 아래 6항과 같이 서비스 제공에 필수적인 처리위탁을 진행합니다(제3자 제공이 아닌 처리위탁입니다).</p>
+      <h2>6. 개인정보처리 위탁</h2>
+      <p>회사는 원활한 서비스 제공을 위하여 아래와 같이 개인정보 처리업무를 위탁하고 있습니다.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin:12px 0">
+        <thead><tr style="background:var(--a2-bg,#f7f7f9)"><th style="text-align:left;padding:8px;border:1px solid var(--border,#333)">수탁업체</th><th style="text-align:left;padding:8px;border:1px solid var(--border,#333)">위탁업무 내용</th><th style="text-align:left;padding:8px;border:1px solid var(--border,#333)">위탁 정보</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:8px;border:1px solid var(--border,#333)">토스페이먼츠(주)</td><td style="padding:8px;border:1px solid var(--border,#333)">결제 처리 및 정기결제 관리</td><td style="padding:8px;border:1px solid var(--border,#333)">결제에 필요한 정보(카드 정보 등)</td></tr>
+          <tr><td style="padding:8px;border:1px solid var(--border,#333)">Resend</td><td style="padding:8px;border:1px solid var(--border,#333)">회원가입 인증 이메일 발송</td><td style="padding:8px;border:1px solid var(--border,#333)">이메일 주소</td></tr>
+          <tr><td style="padding:8px;border:1px solid var(--border,#333)">Anthropic, PBC</td><td style="padding:8px;border:1px solid var(--border,#333)">전자책 콘텐츠 AI 생성 처리</td><td style="padding:8px;border:1px solid var(--border,#333)">이용자가 입력·업로드한 자료</td></tr>
+          <tr><td style="padding:8px;border:1px solid var(--border,#333)">Render Services, Inc.</td><td style="padding:8px;border:1px solid var(--border,#333)">서버 및 데이터베이스 호스팅(인프라)</td><td style="padding:8px;border:1px solid var(--border,#333)">위 전체 개인정보(저장 목적)</td></tr>
+        </tbody>
+      </table>
+      <p>회사는 위탁계약 체결 시 개인정보 보호법 제26조에 따라 위탁업무 수행목적 외 개인정보 처리금지, 기술적·관리적 보호조치 등을 계약서 등에 명시하고 있습니다.</p>
+      <h2>7. 이용자의 권리와 그 행사방법</h2>
+      <p>이용자는 언제든지 등록되어 있는 자신의 개인정보를 조회·수정할 수 있으며, 회원 탈퇴를 통해 개인정보의 삭제를 요청할 수 있습니다. 개인정보 관련 문의는 아래 개인정보 보호책임자에게 이메일로 연락 주시기 바랍니다.</p>
+      <h2>8. 개인정보의 안전성 확보조치</h2>
+      <p>회사는 비밀번호를 암호화(해시)하여 저장하며, 권한이 없는 경로로는 개인정보에 접근할 수 없도록 접근 통제를 시행합니다. 서비스 서버와 이용자 브라우저 간 통신은 HTTPS(암호화 통신)로 이루어집니다.</p>
+      <h2>9. 개인정보 보호책임자</h2>
+      <p>성명: [사업자등록 후 기재]<br>이메일: enfldka@gmail.com<br>개인정보와 관련한 문의사항은 위 이메일로 연락 주시면 신속히 답변드리겠습니다.</p>
+      <h2>10. 고지의 의무</h2>
+      <p>이 개인정보처리방침은 법령·정책 또는 서비스의 변경에 따라 내용이 추가·삭제·수정될 수 있으며, 변경 시 시행일자 최소 7일 전부터 서비스 내 공지사항을 통해 고지합니다.</p>
+      <p><b>시행일: [사업자등록 후 기재]</b></p>
+    </div>
+
+    <div id="legal-doc-refund" class="legal-doc" style="display:none">
+      <h1>환불정책</h1>
+      <p>Atlas AI eBook Studio는 「전자상거래 등에서의 소비자보호에 관한 법률」에 따라 아래와 같이 환불정책을 운영합니다.</p>
+      <h2>1. 무료체험</h2>
+      <p>무료체험은 결제 없이 제공되는 서비스로 환불 대상이 아닙니다.</p>
+      <h2>2. 정기구독 취소(다음 결제 중단)</h2>
+      <p>· 회원은 서비스 내 설정 화면에서 언제든지 구독을 취소할 수 있습니다.<br>
+      · 구독을 취소해도 이미 결제한 이용 기간(다음 결제 예정일 전까지)은 계속 이용할 수 있으며, 그 이후부터 요금이 청구되지 않습니다.<br>
+      · 이미 결제된 이용 기간에 대한 일할 환불은 제공되지 않습니다(이미 서비스 이용이 개시되었기 때문입니다).</p>
+      <h2>3. 결제 후 환불</h2>
+      <p><b>가. 결제 직후, 서비스를 전혀 이용하지 않은 경우</b><br>
+      결제일로부터 7일 이내에 환불을 요청하시면 서비스 이용(전자책 생성 등) 여부를 확인한 후, 이용 이력이 없는 경우 전액 환불해 드립니다.<br><br>
+      <b>나. 서비스를 이미 이용한 경우(전자책을 1권이라도 생성한 경우)</b><br>
+      디지털 콘텐츠 제공이 개시된 것으로 보아, 「전자상거래법」 제17조 제2항에 따라 청약철회가 제한될 수 있습니다. 다만 서비스 결함, 회사의 귀책사유로 정상적으로 이용하지 못한 경우에는 내용을 확인하여 환불해 드립니다.<br><br>
+      <b>다. 중복 결제, 결제 오류</b><br>
+      시스템 오류로 인한 중복 결제 또는 청구 오류가 확인되는 경우, 확인 즉시 전액 환불해 드립니다.</p>
+      <h2>4. 환불 신청 방법</h2>
+      <p>환불을 원하시는 경우 <b>enfldka@gmail.com</b>으로 결제 이메일, 결제일, 환불 사유를 기재하여 문의해 주시기 바랍니다. 접수 후 영업일 기준 3일 이내에 처리 결과를 안내해 드립니다.</p>
+      <h2>5. 환불 처리</h2>
+      <p>환불은 결제하신 수단(카드)으로 이루어지며, 카드사 정책에 따라 실제 환불 완료까지 3~5영업일이 소요될 수 있습니다.</p>
+      <p><b>시행일: [사업자등록 후 기재]</b></p>
+      <p style="margin-top:24px;font-size:12px;color:var(--text3)">※ 본 환불정책은 서비스 초기 운영을 위한 기준이며, 사업자등록 및 통신판매업 신고 완료 후 관련 법률 검토를 거쳐 보완될 예정입니다.</p>
+    </div>
   </div>
 </div>
 
