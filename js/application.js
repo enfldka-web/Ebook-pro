@@ -7,15 +7,21 @@ var APP={user:null,ebook:null,editMode:false,selFile:null,selPlan:'free',urlCont
 // ATLAS v0.7 SMART PREMIUM ENGINE
 // ════════════════════════════════════════
 /* 2026-08-10: 사용자 지시로 썸네일/상세페이지/리스팅 자료 단계를 전면
-   삭제하고 전자책 생성 전용 3단계(업로드→제목→전자책)로 축소했다.
-   ATLAS_STAGE_ORDER가 사용자가 보는 3단계와 정확히 같은 이름/순서를 쓰고,
-   atlasSetWorkspaceStage() 하나가 배너와 3단계 배지를 함께 갱신한다(별도
-   atlasSetSimpleStep 숫자 호출 불필요 — 아래 참고). */
-var ATLAS_STAGE_ORDER=['upload','title','ebook'];
+   삭제하고 전자책 생성 전용 3단계(업로드→제목→전자책)로 축소했었다.
+   2026-08-14: 사용자 지시로 STEP 1~3 뒤에 썸네일/상세페이지 프롬프트/
+   업로드 자료 3단계를 다시 추가해 6단계로 확장한다 — 다만 이 3단계는
+   cv-prompt-state 한 화면에 세 프롬프트 박스로 함께 표시되므로(입력을
+   기다리는 별도 화면이 아니라 전자책 완성 후 열람하는 참고 화면), 진행률은
+   전자책 완성(ebook) 이후 셋 다 100%로 두고 atlasGoToPromptStudio()에서
+   마지막 단계(listing)를 활성 단계로 표시한다. */
+var ATLAS_STAGE_ORDER=['upload','title','ebook','thumbnail','sales','listing'];
 var ATLAS_STAGE_INFO={
  upload:{pct:15,label:'1단계 · 자료 업로드',badge:'자료 준비',coach:'파일, 주제 또는 URL 중 편한 방식을 선택하세요. 입력한 내용은 브라우저에 임시 저장됩니다.'},
- title:{pct:45,label:'2단계 · 제목 생성',badge:'제목 선택',coach:'제목 후보를 검토하고 하나를 선택한 뒤 잠그면 전자책 생성이 바로 시작됩니다.'},
- ebook:{pct:100,label:'3단계 · 전자책 생성',badge:'전자책 생성',coach:'전자책이 완성되면 제목을 다시 확인하거나 필요한 부분만 다시 만들 수 있습니다.'}
+ title:{pct:30,label:'2단계 · 제목 생성',badge:'제목 선택',coach:'제목 후보를 검토하고 하나를 선택한 뒤 잠그면 전자책 생성이 바로 시작됩니다.'},
+ ebook:{pct:50,label:'3단계 · 전자책 생성',badge:'전자책 생성',coach:'전자책이 완성되면 제목을 다시 확인하거나 필요한 부분만 다시 만들 수 있습니다.'},
+ thumbnail:{pct:70,label:'4단계 · 썸네일 프롬프트',badge:'썸네일 프롬프트',coach:'전자책 완성 화면에서 "AI 프롬프트 받기"를 누르면 썸네일 프롬프트를 확인할 수 있습니다.'},
+ sales:{pct:85,label:'5단계 · 상세페이지 프롬프트',badge:'상세페이지 프롬프트',coach:'같은 화면에서 상세페이지(랜딩페이지) 카피 프롬프트도 함께 확인할 수 있습니다.'},
+ listing:{pct:100,label:'6단계 · 업로드 자료',badge:'업로드 자료',coach:'플랫폼 업로드용 상세정보·목차·FAQ·키워드까지 한 번에 만드는 프롬프트입니다.'}
 };
 function atlasProjectStorageKey(){return 'atlas_project_draft_v07';}
 /* V3 Phase 2 Round 24: 실제 재현된 버그 — 전자책을 하나도 시작하지 않고 화면만
@@ -1867,11 +1873,12 @@ function atlasDownloadEbookPdf(){
    AI를 이용해서 만드는 게 낫다"는 판단. 그 자리를 대신하는 것은 AI 호출이
    전혀 없는 순수 클라이언트 문자열 조합 기능이다: 지금 완성된 전자책의
    실제 제목/카테고리/판매 카피(APP.ebook.sales)를 재료로 삼아 (1) 표지
-   이미지용 프롬프트, (2) 상세페이지 카피용 프롬프트를 즉시 만들어 보여주고,
-   사용자가 원하는 AI 도구(미드저니/ChatGPT 이미지/Claude 등)에 직접
-   붙여넣어 쓰게 한다. 두 프롬프트 모두 "지어내지 않는다" 원칙을 지킨다 —
-   sales 필드가 비어 있으면 그 섹션을 프롬프트에서 통째로 생략하지, 없는
-   내용을 채워 넣지 않는다. */
+   이미지용 프롬프트, (2) 상세페이지 카피용 프롬프트, (3) 플랫폼 업로드
+   자료(상세정보/목차/결제 후 안내/키워드/FAQ/요약) 프롬프트를 즉시 만들어
+   보여주고, 사용자가 원하는 AI 도구(미드저니/ChatGPT 이미지/Claude 등)에
+   직접 붙여넣어 쓰게 한다. 세 프롬프트 모두 "지어내지 않는다" 원칙을
+   지킨다 — sales/chapters 필드가 비어 있으면 그 섹션을 프롬프트에서
+   통째로 생략하지, 없는 내용을 채워 넣지 않는다. */
 function atlasGoToPromptStudio(){
   if(!APP.ebook){showToast('error','전자책을 먼저 생성해주세요.');return;}
   var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='none';
@@ -1880,11 +1887,15 @@ function atlasGoToPromptStudio(){
   if(thumbEl)thumbEl.textContent=atlasBuildThumbnailPrompt(APP.ebook);
   var salesEl=document.getElementById('prompt-cv-sales-prompt');
   if(salesEl)salesEl.textContent=atlasBuildSalesPagePrompt(APP.ebook);
+  var listingEl=document.getElementById('prompt-cv-listing-prompt');
+  if(listingEl)listingEl.textContent=atlasBuildListingMaterialsPrompt(APP.ebook);
+  atlasSetWorkspaceStage('listing',{noSave:true});
   window.scrollTo(0,0);
 }
 function atlasBackToEbookResultFromPrompts(){
   var ps=document.getElementById('cv-prompt-state');if(ps)ps.style.display='none';
   var rs=document.getElementById('cv-result-state');if(rs)rs.style.display='';
+  atlasSetWorkspaceStage('ebook',{noSave:true});
   window.scrollTo(0,0);
 }
 /* 표지/썸네일 이미지 생성 프롬프트. 실제 책 제목·부제·카테고리만 재료로
@@ -1916,7 +1927,7 @@ function atlasBuildThumbnailPrompt(ebook){
   lines.push('- 한글 텍스트 렌더링이 정확하지 않다면 제목 텍스트는 빼고, 대신 상단 또는 중앙에 텍스트를 나중에 얹을 수 있는 여백 공간을 의도적으로 남겨주세요.');
   lines.push('');
   lines.push('[규격]');
-  lines.push('- 세로형 표지 비율(예: 2:3) 또는 정사각형(1:1) 중 판매 채널에 맞는 비율로 만들어주세요. 스마트스토어/크몽 등은 정사각형 썸네일을 많이 씁니다.');
+  lines.push('- 이미지 크기는 가로 652px × 세로 488px로 만들어주세요(가로형, 약 4:3 비율). 이 크기·비율을 벗어나지 않게 구도를 잡아주세요.');
   return lines.join('\n');
 }
 /* 상세페이지(랜딩페이지) 판매 카피 생성 프롬프트. AI 전자책 생성 시 이미
@@ -1962,6 +1973,58 @@ function atlasBuildSalesPagePrompt(ebook){
   lines.push('- "보장", "무조건", "100%", "누구나 성공", "자동수익" 같은 과장 표현은 쓰지 마세요.');
   lines.push('- 실제 구매자 후기(testimonials)는 하나도 없습니다 — 후기를 지어내지 말고, 후기가 필요한 자리는 "(실제 구매 후기가 쌓이면 이 자리에 추가하세요)"로 비워두세요.');
   lines.push('- 마크다운 섹션 제목으로 구분해서, 바로 복사해 상세페이지에 쓸 수 있는 형태로 출력해주세요.');
+  return lines.join('\n');
+}
+/* 플랫폼(크몽/탈잉/스마트스토어 등) 업로드용 자료 일체를 만드는 프롬프트.
+   ChatGPT·Claude 등 텍스트 AI에 붙여넣으면 상세정보/목차/결제 후 안내
+   메시지/검색 키워드/FAQ/한줄 요약까지 한 번에 받을 수 있다. 목차는 실제
+   챕터 제목을 그대로 재료로 넘겨서(지어내지 않는다 원칙) AI가 이 책의
+   진짜 목차를 그대로 정리하게 하고, sales.faqs가 있으면 참고 재료로
+   같이 넘긴다(없으면 새로 만들라고 안내). */
+function atlasBuildListingMaterialsPrompt(ebook){
+  var s=ebook.sales||{};
+  var title=ebook.title||'';
+  var subtitle=ebook.subtitle||'';
+  var category=ebook.category||'';
+  var chapters=Array.isArray(ebook.chapters)?ebook.chapters:[];
+  var lines=[];
+  lines.push('아래 전자책을 크몽·탈잉·스마트스토어 등 온라인 판매 플랫폼에 업로드할 때 쓸 자료 일체를 작성해주세요.');
+  lines.push('');
+  lines.push('[책 정보]');
+  lines.push('- 제목: '+title);
+  if(subtitle)lines.push('- 부제: '+subtitle);
+  if(category)lines.push('- 분야: '+category);
+  lines.push('- 실제 목차(참고용, 아래 [항목 4]에서 이 순서 그대로 정리):');
+  chapters.forEach(function(ch,i){lines.push('  '+(i+1)+'. '+(ch.title||''));});
+  if(s.hook)lines.push('- 핵심 후킹: '+s.hook+(s.subhook?' / '+s.subhook:''));
+  if(Array.isArray(s.benefits)&&s.benefits.length){lines.push('- 이 책으로 얻는 혜택:');s.benefits.forEach(function(b){lines.push('  · '+b);});}
+  if(Array.isArray(s.faqs)&&s.faqs.length){lines.push('- 참고할 기존 FAQ(있으면 활용, 부족하면 새로 추가):');s.faqs.forEach(function(f){lines.push('  · Q. '+f.q+' / A. '+f.a);});}
+  lines.push('');
+  lines.push('[아래 6가지 항목을 각 항목 제목을 붙여서 순서대로 작성해주세요]');
+  lines.push('');
+  lines.push('1. 상세정보');
+  lines.push('- 이 전자책의 내용·특징·장점을 자세히 소개하는 상세 설명입니다. 분량은 20,000자 내외로 작성해주세요.');
+  lines.push('- 무엇을 다루는 책인지, 어떤 독자에게 필요한지, 이 책만의 차별점, 실제로 얻을 수 있는 결과를 구체적으로 풀어주세요.');
+  lines.push('');
+  lines.push('2. 전자책 목차');
+  lines.push('- 위에 적힌 실제 목차를 그대로, 읽기 좋게 번호 매겨 정리해주세요(순서·챕터명을 임의로 바꾸지 마세요).');
+  lines.push('');
+  lines.push('3. 결제 후 안내 메시지');
+  lines.push('- 구매(결제) 직후 구매자에게 보여줄 안내 문구입니다. 파일을 어떻게 받는지, 문의는 어디로 하면 되는지 등을 친절하고 신뢰감 있게 안내해주세요.');
+  lines.push('');
+  lines.push('4. 검색 키워드 5가지');
+  lines.push('- 이 책을 검색으로 찾을 만한 사람들이 실제로 입력할 법한 키워드 5개를 나열해주세요.');
+  lines.push('');
+  lines.push('5. 자주 묻는 질문 Q&A 5가지');
+  lines.push('- 구매를 망설이는 사람이 실제로 궁금해할 질문과 답변 5쌍을 작성해주세요.');
+  lines.push('');
+  lines.push('6. 서비스 요약 설명');
+  lines.push('- 이 책을 3줄로 요약해주세요. 1줄당 50자 내외로, 짧고 임팩트 있게 작성해주세요.');
+  lines.push('');
+  lines.push('[작성 지침]');
+  lines.push('- 구체적인 수익·매출 금액, 성장률, 달성 기간을 언급하지 마세요.');
+  lines.push('- "보장", "무조건", "100%", "누구나 성공" 같은 과장 표현은 쓰지 마세요.');
+  lines.push('- 실제 구매자 후기는 지어내지 마세요.');
   return lines.join('\n');
 }
 /* APP.interviewAnswers는 세션 중(전자책을 막 만든 직후)에만 채워져 있고
