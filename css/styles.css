@@ -592,6 +592,7 @@ textarea{resize:vertical}
 .plan-free{background:var(--a2-surface-hover);color:var(--a2-text-muted)}
 .plan-starter{background:var(--a2-accent-soft);color:var(--a2-accent)}
 .plan-pro{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(236,72,153,.14));color:#8b3fa8}
+.plan-admin{background:linear-gradient(135deg,rgba(232,184,75,.22),rgba(232,184,75,.12));color:#946b0a}
 
 /* MAIN CONTENT */
 .main-content{margin-left:var(--sidebar);display:block;min-height:100vh;background:var(--bg);overflow-x:hidden;box-sizing:border-box}
