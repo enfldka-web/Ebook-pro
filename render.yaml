@@ -14,9 +14,13 @@
 # RESEND_API_KEY — 회원가입 이메일 인증번호 발송(Resend, resend.com)에
 # 쓰인다. 값이 없으면 인증번호 발송 라우트가 503으로 "설정 안 됨"을
 # 알린다(다른 필수 키들과 같은 원칙).
+# 2026-08-17: DB를 free → Basic-256mb 유료 플랜으로 업그레이드했다. Render의
+# 무료 PostgreSQL은 생성 후 30일이 지나면 자동 삭제되어(가입 계정/구독
+# 상태가 전부 유실됨) 실제 결제 사용자가 생기기 시작한 시점에는 무료 플랜을
+# 유지할 수 없다 — 대시보드에서 업그레이드한 실제 플랜명을 그대로 반영한다.
 databases:
   - name: atlas-db
-    plan: free
+    plan: basic-256mb
     databaseName: atlas
     user: atlas
 
