@@ -8,6 +8,20 @@
   --green:#22c98a;--red:#f05070;--blue:#38b0ff;
   --grad:linear-gradient(135deg,#6366f1 0%,#a78bfa 100%);
   --grad-g:linear-gradient(135deg,#e8b84b,#f5d68a);
+  /* 2026-08-18: 랜딩·로그인 화면을 Premium Brand Pack(Black/Charcoal/Gold/
+     Ivory)과 통일하기 위해 추가한 토큰. 기존 --bg/--gold/--grad-g는 그대로
+     재사용하고, 이 스펙의 네 번째 색인 Ivory와 헤딩/본문 폰트 패밀리만 새로
+     추가한다(design.md Theme Rules — Premium: Heading=Noto Serif KR, Body=
+     Pretendard, 이미 index.html에 두 폰트 모두 로딩되어 있음). 랜딩/로그인
+     범위 밖(대시보드·설정 등)이 쓰는 --a2-* 토큰 값은 건드리지 않는다. */
+  --ivory:#f2ead9;--ivory2:#f8f3e8;
+  /* 밝은(아이보리/화이트) 서페이스 위에 텍스트로 쓰는 골드 — 기본 --gold(#e8b84b)는
+     밝은 배경에서 명도 대비가 부족해 잘 안 보인다. 로그인 카드처럼 밝은 카드
+     위의 강조 텍스트/포커스 링에는 이 어두운 변형을 쓴다(어두운 배경 위에서는
+     계속 기존 --gold/--grad-g를 그대로 쓴다). */
+  --gold-deep:#96690c;
+  --font-heading:'Noto Serif KR',serif;
+  --font-body:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;
   --grad-card:linear-gradient(160deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.01) 100%);
   --card:rgba(255,255,255,.06);
   --card-border:rgba(255,255,255,.1);
@@ -481,32 +495,39 @@ textarea{resize:vertical}
    Redesign v2, --a2-* 라이트 SaaS 테마)과 통일했다. 이 화면만 옛 다크
    테마(--bg/--text/--grad 등, 랜딩 페이지 전용 토큰)에 남아 있어서 앱에
    들어온 뒤 보는 화면들과 톤이 어긋나 보였던 것 — 실제 원인이었다. */
+/* 2026-08-18: 로그인/회원가입 화면을 랜딩과 같은 Premium 톤으로 통일한다.
+   과거 세션에서 이 화면을 다크 → 라이트(--a2-*)로 명시 전환한 결정(가독성)은
+   그대로 지킨다 — .auth-box(입력 폼 카드)는 계속 밝은 서페이스를 유지하되
+   순백 대신 아이보리로, 배경/포인트 컬러만 차콜+골드로 바꾼다. --a2-* 전역
+   토큰 값 자체는 바꾸지 않고(대시보드/설정 등 다른 화면이 참조) 이 선택자
+   안에서만 지역적으로 골드/차콜 값을 직접 대입한다. 밝은 카드 위 텍스트/
+   포커스링은 --gold(밝은 배경에서 대비 부족)가 아니라 --gold-deep을 쓴다. */
 #pg-auth{
   min-height:100vh;align-items:center;justify-content:center;
-  background:var(--a2-bg);padding:24px;
+  background:var(--bg2);padding:24px;font-family:var(--font-body);
   position:relative;overflow:hidden;
 }
 #pg-auth::before{
   content:'';position:absolute;
   width:800px;height:800px;border-radius:50%;
-  background:radial-gradient(circle,var(--a2-accent-soft),transparent 70%);
+  background:radial-gradient(circle,rgba(232,184,75,.14),transparent 70%);
   top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;
 }
 .auth-box{
-  background:var(--a2-surface);
+  background:var(--ivory2);
   border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);
   padding:52px 48px;width:100%;max-width:440px;
   position:relative;z-index:1;
   box-shadow:var(--a2-shadow-lg);
 }
 .auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:40px;justify-content:center}
-.auth-logo-icon{width:40px;height:40px;background:var(--a2-accent);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 16px var(--a2-accent-soft)}
-.auth-logo-text{font-size:14px;font-weight:800;color:var(--a2-text);letter-spacing:-.2px;line-height:1.3}
-.auth-logo-text em{font-style:normal;color:var(--a2-accent)}
+.auth-logo-icon{width:40px;height:40px;background:var(--grad-g);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 16px rgba(232,184,75,.25)}
+.auth-logo-text{font-family:var(--font-heading);font-size:14px;font-weight:800;color:var(--a2-text);letter-spacing:-.2px;line-height:1.3}
+.auth-logo-text em{font-style:normal;color:var(--gold-deep)}
 .auth-tabs{display:flex;gap:0;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:12px;padding:4px;margin-bottom:32px}
 .auth-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--a2-text-muted);border-radius:9px;border:none;background:transparent;transition:all .25s;letter-spacing:-.1px}
-.auth-tab.active{background:var(--a2-accent);color:#fff;box-shadow:0 4px 14px var(--a2-accent-soft)}
-.auth-title{font-size:22px;font-weight:900;margin-bottom:8px;letter-spacing:-.4px;color:var(--a2-text)}
+.auth-tab.active{background:var(--grad-g);color:var(--bg);box-shadow:0 4px 14px rgba(232,184,75,.3)}
+.auth-title{font-family:var(--font-heading);font-size:22px;font-weight:800;margin-bottom:8px;letter-spacing:-.2px;color:var(--a2-text)}
 .auth-sub{font-size:13px;color:var(--a2-text-muted);margin-bottom:28px;line-height:1.7}
 .auth-form{display:flex;flex-direction:column;gap:14px}
 .form-group{display:flex;flex-direction:column;gap:7px}
@@ -516,15 +537,15 @@ textarea{resize:vertical}
   border:1px solid var(--a2-border);border-radius:11px;
   font-size:14px;color:var(--a2-text);outline:none;transition:all .2s;
 }
-.form-input:focus{border-color:var(--a2-accent);background:var(--a2-surface);box-shadow:0 0 0 3px var(--a2-accent-soft)}
+.form-input:focus{border-color:var(--gold-deep);background:var(--a2-surface);box-shadow:0 0 0 3px rgba(150,105,12,.14)}
 .form-input::placeholder{color:var(--a2-text-faint)}
 .btn-auth{
-  padding:14px;background:var(--a2-accent);border:none;border-radius:12px;
-  font-size:15px;font-weight:800;color:#fff;
-  box-shadow:0 6px 22px var(--a2-accent-soft);
+  padding:14px;background:var(--grad-g);border:none;border-radius:12px;
+  font-size:15px;font-weight:800;color:var(--bg);
+  box-shadow:0 6px 22px rgba(232,184,75,.3);
   transition:all .25s;margin-top:4px;letter-spacing:-.2px;
 }
-.btn-auth:hover{background:var(--a2-accent-hover);transform:translateY(-1px);box-shadow:0 10px 30px var(--a2-accent-soft)}
+.btn-auth:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(232,184,75,.4)}
 .auth-err{background:var(--a2-danger-soft);border:1px solid rgba(216,69,89,.25);border-radius:9px;padding:10px 14px;font-size:12px;color:var(--a2-danger);display:none}
 .auth-back{display:block;text-align:center;font-size:12px;color:var(--a2-text-faint);margin-top:22px}
 .auth-back a{color:var(--a2-accent)}
@@ -1486,25 +1507,35 @@ textarea{resize:vertical}
 
 
 /* ── Atlas v0.8 Premium Brand & Landing UI ── */
-.atlas-landing{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#050711;position:relative;overflow:hidden;padding:42px 22px;box-sizing:border-box}
-.atlas-landing:before{content:"";position:absolute;inset:-20%;background:radial-gradient(circle at 50% 28%,rgba(99,102,241,.20),transparent 27%),radial-gradient(circle at 78% 42%,rgba(168,85,247,.12),transparent 24%),radial-gradient(circle at 20% 72%,rgba(59,130,246,.09),transparent 22%);pointer-events:none}
+/* 2026-08-18: 랜딩 화면을 Premium Brand Pack(Black/Charcoal/Gold/Ivory)으로
+   리디자인 — 기존 인디고/보라/청록 그라디언트를 걷어내고 --bg/--gold/
+   --grad-g/--ivory 토큰으로 통일한다. 이 블록은 다른 화면과 공유되지 않는
+   랜딩 전용 클래스라 여기서만 리터럴 색을 바꿔도 다른 화면에 영향이 없다
+   (design.md Theme Rules — Premium). "임팩트가 약하다"는 피드백에 대응해
+   헤딩에 --font-heading(Noto Serif KR)을 명시 적용한다. */
+.atlas-landing{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden;padding:42px 22px;box-sizing:border-box;font-family:var(--font-body)}
+.atlas-landing:before{content:"";position:absolute;inset:-20%;background:radial-gradient(circle at 50% 28%,rgba(232,184,75,.16),transparent 27%),radial-gradient(circle at 78% 42%,rgba(232,184,75,.08),transparent 24%),radial-gradient(circle at 20% 72%,rgba(232,184,75,.06),transparent 22%);pointer-events:none}
 .atlas-landing:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 86%);pointer-events:none}
 .al-shell{width:min(1060px,100%);position:relative;z-index:2;text-align:center}
 .al-brand{display:inline-flex;align-items:center;gap:15px;margin-bottom:34px;text-align:left}
-.al-logo{width:64px;height:64px;border-radius:19px;background:linear-gradient(145deg,#4f46e5,#8b5cf6 58%,#c084fc);display:flex;align-items:center;justify-content:center;font-size:29px;box-shadow:0 14px 45px rgba(99,102,241,.4),inset 0 1px 0 rgba(255,255,255,.3)}
-.al-name{font-size:30px;font-weight:950;color:#fff;letter-spacing:-1.1px;line-height:1.05}.al-name b{background:linear-gradient(90deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.al-subbrand{font-size:14px;color:#94a3b8;margin-top:7px;font-weight:650;letter-spacing:.15px}
-.al-badge{display:inline-flex;align-items:center;gap:9px;padding:10px 20px;border-radius:999px;border:1px solid rgba(168,85,247,.34);background:linear-gradient(135deg,rgba(79,70,229,.13),rgba(168,85,247,.11));color:#d8b4fe;font-size:13px;font-weight:850;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);margin-bottom:28px}
-.al-title{font-size:clamp(38px,6.3vw,72px);font-weight:950;line-height:1.09;color:#f8fafc;letter-spacing:-3.2px;margin:0;word-break:keep-all}.al-title .grad{display:block;margin-top:8px;background:linear-gradient(90deg,#60a5fa 0%,#8b5cf6 35%,#d946ef 66%,#fbbf24 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.al-desc{font-size:clamp(15px,2vw,19px);line-height:1.75;color:#94a3b8;margin:27px auto 31px;max-width:760px;word-break:keep-all}
+.al-logo{width:64px;height:64px;border-radius:19px;background:var(--grad-g);display:flex;align-items:center;justify-content:center;font-size:29px;box-shadow:0 14px 45px rgba(232,184,75,.35),inset 0 1px 0 rgba(255,255,255,.3)}
+.al-name{font-family:var(--font-heading);font-size:30px;font-weight:800;color:var(--ivory2);letter-spacing:-.6px;line-height:1.05}.al-name b{background:var(--grad-g);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.al-subbrand{font-family:var(--font-body);font-size:14px;color:rgba(242,234,217,.5);margin-top:7px;font-weight:650;letter-spacing:.15px}
+.al-badge{display:inline-flex;align-items:center;gap:9px;padding:10px 20px;border-radius:999px;border:1px solid rgba(232,184,75,.34);background:linear-gradient(135deg,rgba(232,184,75,.14),rgba(232,184,75,.06));color:var(--gold);font-size:13px;font-weight:850;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);margin-bottom:28px}
+.al-title{font-family:var(--font-heading);font-size:clamp(38px,6.3vw,72px);font-weight:800;line-height:1.09;color:var(--ivory2);letter-spacing:-1.6px;margin:0;word-break:keep-all}.al-title .grad{display:block;margin-top:8px;background:linear-gradient(90deg,var(--gold) 0%,#f5d68a 50%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.al-desc{font-size:clamp(15px,2vw,19px);line-height:1.75;color:rgba(242,234,217,.55);margin:27px auto 31px;max-width:760px;word-break:keep-all}
 /* 2026-08-14: 실제 항목이 3개였을 때 5칸 grid라 여백이 남던 버그를 먼저
    고쳤다가, 이후 사용자 지시로 항목을 실제 기능 5개(전자책 생성/AI 제목
    추천/PDF·워드 저장/썸네일·상세페이지 프롬프트 제공/업로드 자료 생성)로
    늘려 다시 5칸으로 되돌렸다 — 이번엔 항목 수와 실제로 일치한다. */
-.al-featurebar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));max-width:1080px;margin:0 auto 30px;padding:14px 10px;border-radius:20px;border:1px solid rgba(148,163,184,.17);background:linear-gradient(180deg,rgba(15,23,42,.78),rgba(7,11,24,.84));box-shadow:0 18px 60px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.035)}
-.al-feature{padding:11px 6px;border-right:1px solid rgba(148,163,184,.13);font-size:11.5px;font-weight:760;color:#dbeafe;display:flex;align-items:center;justify-content:center;text-align:center;gap:7px;line-height:1.35}.al-feature:last-child{border-right:0}.al-feature i{font-style:normal;font-size:18px;flex-shrink:0}
-.al-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}.al-btn{min-width:260px;border-radius:18px;padding:17px 25px;cursor:pointer;font-family:inherit;transition:.22s;text-align:center}.al-btn:hover{transform:translateY(-2px)}.al-btn-primary{border:0;color:#fff;background:linear-gradient(135deg,#4f46e5,#8b5cf6 58%,#d946ef);box-shadow:0 16px 38px rgba(99,102,241,.36)}.al-btn-secondary{color:#f8fafc;background:rgba(8,12,27,.72);border:1px solid rgba(148,163,184,.27)}.al-btn strong{display:block;font-size:16px;font-weight:900}.al-btn small{display:block;font-size:12px;margin-top:5px;color:rgba(255,255,255,.65);font-weight:560}.al-btn-secondary small{color:#94a3b8}
-.al-secure{margin-top:22px;color:#475569;font-size:11px;font-weight:650}.al-version{position:absolute;right:0;bottom:-28px;font-size:10px;color:#334155;letter-spacing:1px}
-.atlas-auth-brand{display:flex;align-items:center;gap:11px;justify-content:center;margin-bottom:22px}.atlas-auth-brand .icon{width:45px;height:45px;border-radius:14px;background:linear-gradient(145deg,#4f46e5,#8b5cf6,#c084fc);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 8px 25px rgba(99,102,241,.35)}.atlas-auth-brand .txt{text-align:left;color:var(--a2-text);font-size:17px;font-weight:900;line-height:1.05}.atlas-auth-brand .txt em{font-style:normal;color:var(--a2-accent);font-size:11px;display:block;margin-top:5px;letter-spacing:.3px}
+.al-featurebar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));max-width:1080px;margin:0 auto 30px;padding:14px 10px;border-radius:20px;border:1px solid rgba(232,184,75,.16);background:linear-gradient(180deg,var(--bg2),var(--bg3));box-shadow:0 18px 60px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.035)}
+.al-feature{padding:11px 6px;border-right:1px solid rgba(232,184,75,.13);font-size:11.5px;font-weight:760;color:var(--ivory);display:flex;align-items:center;justify-content:center;text-align:center;gap:7px;line-height:1.35}.al-feature:last-child{border-right:0}.al-feature i{font-style:normal;font-size:18px;flex-shrink:0}
+.al-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}.al-btn{min-width:260px;border-radius:18px;padding:17px 25px;cursor:pointer;font-family:var(--font-body);transition:.22s;text-align:center}.al-btn:hover{transform:translateY(-2px)}.al-btn-primary{border:0;color:var(--bg);background:var(--grad-g);box-shadow:0 16px 38px rgba(232,184,75,.32)}.al-btn-secondary{color:var(--ivory2);background:var(--bg2);border:1px solid rgba(232,184,75,.22)}.al-btn strong{display:block;font-size:16px;font-weight:900}.al-btn small{display:block;font-size:12px;margin-top:5px;color:rgba(6,6,9,.65);font-weight:560}.al-btn-secondary small{color:rgba(242,234,217,.5)}
+.al-secure{margin-top:22px;color:rgba(242,234,217,.35);font-size:11px;font-weight:650}.al-version{position:absolute;right:0;bottom:-28px;font-size:10px;color:rgba(242,234,217,.25);letter-spacing:1px}
+/* 2026-08-18: 이 블록이 실제로 index.html의 로그인 로고(.atlas-auth-brand)에
+   쓰이는 규칙이다(.auth-logo-icon/.auth-logo-text는 index.html 어디에서도
+   쓰이지 않는 죽은 CSS였다 — Playwright로 실제 렌더링 색을 스크린샷 확인하는
+   과정에서 발견). Premium 톤(골드)으로 교체한다. */
+.atlas-auth-brand{display:flex;align-items:center;gap:11px;justify-content:center;margin-bottom:22px}.atlas-auth-brand .icon{width:45px;height:45px;border-radius:14px;background:var(--grad-g);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 8px 25px rgba(232,184,75,.3)}.atlas-auth-brand .txt{font-family:var(--font-heading);text-align:left;color:var(--a2-text);font-size:17px;font-weight:800;line-height:1.05}.atlas-auth-brand .txt em{font-style:normal;color:var(--gold-deep);font-size:11px;display:block;margin-top:5px;letter-spacing:.3px}
 @media(max-width:760px){.atlas-landing{padding:30px 16px}.al-brand{margin-bottom:27px}.al-logo{width:53px;height:53px;border-radius:16px}.al-name{font-size:25px}.al-title{letter-spacing:-2px}.al-featurebar{grid-template-columns:repeat(2,1fr);padding:10px}.al-feature{border-right:0;border-bottom:1px solid rgba(148,163,184,.1);justify-content:flex-start;padding:12px}.al-feature:last-child{grid-column:1/-1;border-bottom:0;justify-content:center}.al-btn{width:100%;min-width:0}.al-actions{gap:10px}.al-version{display:none}}
 
 
