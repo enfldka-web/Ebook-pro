@@ -57,40 +57,47 @@
      Atlas Visual Redesign v2 — Phase R0: Design System Foundation.
      Namespaced "--a2-*" so it coexists with every existing --bg/--text/etc.
      token above without touching any screen that hasn't been re-skinned
-     yet (Phases R1-R8 migrate one screen at a time). Light-mode-first, per
-     the reference image — a deliberate reversal of the earlier dark-mode
-     concept artifact, since the reference is unambiguously light. Neutrals
-     carry a faint cool-slate bias toward the accent rather than pure grey;
-     accent is a calm indigo-violet, same family as the existing --p but
-     independently chosen, not inherited from it. Semantic color (success/
-     warning/danger) is kept separate from the accent, per house convention.
+     yet (Phases R1-R8 migrate one screen at a time).
+
+     2026-08-18 — Premium 앱 셸 리디자인(Phase A): 랜딩·로그인에 이어 사용자
+     지시로 사이드바/탑바/대시보드/전자책 생성/히스토리/설정까지 Premium
+     (블랙·차콜·골드·아이보리) 톤으로 확장한다. 이 토큰이 코드베이스 전체에서
+     336회 참조되고(`grep -c` 실측) `.sidebar`/`.topbar`/`.a2-*` UI Kit 전체가
+     이 값만 쓰므로, 변수 이름은 그대로 두고 값만 라이트→다크로 재정의하는
+     쪽이 개별 규칙을 하나하나 오버라이드하는 것보다 훨씬 안전하다(빠짐없이
+     전체 반영, 랜딩/로그인 때 이미 있는 --bg/--gold/--ivory 계열 재사용).
+     사용자의 실제 생성물(전자책 Preview) 색은 무관하다 — Brand Theme별
+     독립 클래스·리터럴 색으로 렌더링되며(js/renderers.js), 이 토큰을 쓰는
+     .ebook-preview-wrap은 책을 감싸는 "액자" 배경일 뿐 책 내용이 아니다.
      ══════════════════════════════════════════════════════════════════════ */
-  --a2-bg:#f7f7f9;
-  --a2-surface:#ffffff;
-  --a2-surface-hover:#f2f2f6;
-  --a2-border:rgba(20,22,30,.07);
-  --a2-shadow-sm:0 1px 2px rgba(20,22,30,.04),0 1px 3px rgba(20,22,30,.05);
-  --a2-shadow-md:0 6px 20px rgba(20,22,30,.07),0 2px 6px rgba(20,22,30,.04);
-  --a2-shadow-lg:0 16px 40px rgba(20,22,30,.11);
-  --a2-text:#16171c;
-  --a2-text-muted:#6b6d78;
-  --a2-text-faint:#9a9ca6;
-  --a2-accent:#5b56e8;
-  --a2-accent-hover:#4d47dd;
-  --a2-accent-soft:rgba(91,86,232,.09);
-  --a2-accent-contrast:#ffffff;
-  --a2-success:#1a9d6c;--a2-success-soft:rgba(26,157,108,.1);
-  --a2-warning:#b8790a;--a2-warning-soft:rgba(184,121,10,.1);
-  --a2-danger:#d84559;--a2-danger-soft:rgba(216,69,89,.1);
+  --a2-bg:#0c0c14;
+  --a2-surface:#15151f;
+  --a2-surface-hover:#1c1c29;
+  --a2-border:rgba(242,234,217,.1);
+  --a2-shadow-sm:0 1px 2px rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.35);
+  --a2-shadow-md:0 6px 20px rgba(0,0,0,.35),0 2px 6px rgba(0,0,0,.3);
+  --a2-shadow-lg:0 16px 40px rgba(0,0,0,.45);
+  --a2-text:#f8f3e8;
+  --a2-text-muted:rgba(242,234,217,.62);
+  --a2-text-faint:rgba(242,234,217,.4);
+  --a2-accent:#e8b84b;
+  --a2-accent-hover:#d1a23a;
+  --a2-accent-soft:rgba(232,184,75,.14);
+  --a2-accent-contrast:var(--bg);
+  --a2-success:#2fbf88;--a2-success-soft:rgba(47,191,136,.14);
+  --a2-warning:#e0a83f;--a2-warning-soft:rgba(224,168,63,.14);
+  --a2-danger:#e8566f;--a2-danger-soft:rgba(232,86,111,.14);
   --a2-r-sm:10px;--a2-r:14px;--a2-r-lg:20px;
   --a2-fs-display:28px;
   /* Quick-action icon-chip palette — wayfinding color, distinct from the
      accent so the accent stays reserved for the single primary action per
-     screen (Design Bible accent-scarcity; UI Intelligence §2). */
-  --a2-chip-violet-bg:#efeafd;--a2-chip-violet-fg:#7c5cf0;
-  --a2-chip-blue-bg:#e8f1fd;--a2-chip-blue-fg:#2f78bd;
-  --a2-chip-green-bg:#e6f7ef;--a2-chip-green-fg:#1f9d6c;
-  --a2-chip-amber-bg:#fdf3e2;--a2-chip-amber-fg:#b8790a;
+     screen (Design Bible accent-scarcity; UI Intelligence §2). 라이트용
+     "옅은 배경+진한 텍스트" 조합은 다크 배경에서 안 통해 "저투명도 색 배경+
+     밝은 텍스트"로 반전했다(의미/구분 목적은 동일하게 유지). */
+  --a2-chip-violet-bg:rgba(124,92,240,.16);--a2-chip-violet-fg:#a78bfa;
+  --a2-chip-blue-bg:rgba(47,120,189,.18);--a2-chip-blue-fg:#5eb3f5;
+  --a2-chip-green-bg:rgba(31,157,108,.18);--a2-chip-green-fg:#3ecf8e;
+  --a2-chip-amber-bg:rgba(232,184,75,.16);--a2-chip-amber-fg:var(--gold);
 }
 
 /* Atlas Visual Redesign v2 — component primitives (additive, unused by any
@@ -595,7 +602,7 @@ textarea{resize:vertical}
 }
 .sb-logo-icon{
   width:32px;height:32px;background:var(--a2-accent);border-radius:9px;
-  display:flex;align-items:center;justify-content:center;color:#fff;
+  display:flex;align-items:center;justify-content:center;color:var(--a2-accent-contrast);
   flex-shrink:0;
 }
 .sb-logo-text{font-size:var(--fs-caption);font-weight:800;color:var(--a2-text);line-height:1.4;letter-spacing:-.1px}
@@ -620,15 +627,15 @@ textarea{resize:vertical}
 .plan-badge{display:inline-block;font-size:9px;font-weight:800;padding:2px 8px;border-radius:100px;letter-spacing:.5px;text-transform:uppercase}
 .plan-free{background:var(--a2-surface-hover);color:var(--a2-text-muted)}
 .plan-starter{background:var(--a2-accent-soft);color:var(--a2-accent)}
-.plan-pro{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(236,72,153,.14));color:#8b3fa8}
-.plan-admin{background:linear-gradient(135deg,rgba(232,184,75,.22),rgba(232,184,75,.12));color:#946b0a}
+.plan-pro{background:linear-gradient(135deg,rgba(167,139,250,.22),rgba(236,72,153,.18));color:#d9a8f0}
+.plan-admin{background:linear-gradient(135deg,rgba(232,184,75,.24),rgba(232,184,75,.14));color:var(--gold)}
 
 /* MAIN CONTENT */
 .main-content{margin-left:var(--sidebar);display:block;min-height:100vh;background:var(--bg);overflow-x:hidden;box-sizing:border-box}
 
 /* TOPBAR */
 .topbar{
-  height:60px;background:rgba(255,255,255,.85);
+  height:60px;background:rgba(12,12,20,.82);
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-bottom:1px solid var(--a2-border);
   display:flex;align-items:center;justify-content:space-between;
@@ -811,7 +818,7 @@ textarea{resize:vertical}
 .input-tabs{display:flex;gap:0;background:var(--a2-bg);border:1px solid var(--a2-border);border-radius:12px;padding:4px;margin-bottom:22px}
 .input-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--a2-text-muted);border-radius:9px;border:none;background:transparent;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.1px;font-family:inherit}
 .input-tab svg{width:14px;height:14px}
-.input-tab.active{background:var(--a2-accent);color:#fff;box-shadow:var(--a2-shadow-sm)}
+.input-tab.active{background:var(--a2-accent);color:var(--a2-accent-contrast);box-shadow:var(--a2-shadow-sm)}
 .input-panel{display:none}.input-panel.active{display:block}
 .cv-upload-area{
   border:2px dashed var(--a2-border);border-radius:var(--a2-r);
@@ -835,7 +842,7 @@ textarea{resize:vertical}
 .topic-ex:hover{background:var(--a2-surface-hover)}
 .cv-gen-btn{
   width:auto;max-width:400px;padding:17px 48px;background:var(--a2-accent);border:none;border-radius:100px;
-  font-size:16px;font-weight:700;color:#fff;letter-spacing:-.2px;
+  font-size:16px;font-weight:700;color:var(--a2-accent-contrast);letter-spacing:-.2px;
   box-shadow:var(--a2-shadow-md);
   transition:all .3s;display:block;margin:0 auto;font-family:inherit;
 }
@@ -1451,7 +1458,7 @@ textarea{resize:vertical}
 .ipe-theme-readout-oneliner{font-size:12px;color:var(--a2-text-muted);margin-top:2px}
 @media(max-width:520px){.ipe-theme-readout{flex-direction:column;align-items:flex-start}.ipe-theme-readout-img{width:100%}}
 .smart-interview{background:var(--a2-surface);border:1px solid var(--a2-border);border-radius:var(--a2-r-lg);box-shadow:var(--a2-shadow-sm);padding:24px;max-width:900px;margin:0 auto}
-.si-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.si-kicker{font-size:11px;font-weight:700;color:var(--a2-accent);letter-spacing:1.2px;text-transform:uppercase}.si-title{font-size:22px;font-weight:800;color:var(--a2-text);margin-top:6px}.si-desc{font-size:12px;color:var(--a2-text-muted);line-height:1.7;margin-top:6px}.si-reason{padding:12px 14px;border-radius:var(--a2-r-sm);background:var(--a2-accent-soft);border:1px solid var(--a2-border);color:var(--a2-text-muted);font-size:13px;line-height:1.65;margin-bottom:16px}.si-list{display:grid;gap:12px}.si-card{padding:16px;border-radius:var(--a2-r);background:var(--a2-bg);border:1px solid var(--a2-border)}.si-q{font-size:14px;font-weight:700;color:var(--a2-text);margin-bottom:10px;line-height:1.5}.si-options{display:flex;gap:8px;flex-wrap:wrap}.si-opt{border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text-muted);padding:8px 12px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;transition:background var(--motion-fast),color var(--motion-fast)}.si-opt:hover{background:var(--a2-surface-hover)}.si-opt.selected{background:var(--a2-accent);border-color:var(--a2-accent);color:#fff}.si-multi-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--a2-accent);background:var(--a2-accent-soft);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:middle}.si-input{width:100%;box-sizing:border-box;border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text);border-radius:var(--a2-r-sm);padding:11px 12px;font-size:13px;outline:none;font-family:inherit}.si-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.smart-progress-note{font-size:12px;color:var(--a2-text-faint);margin-top:8px;line-height:1.6}
+.si-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.si-kicker{font-size:11px;font-weight:700;color:var(--a2-accent);letter-spacing:1.2px;text-transform:uppercase}.si-title{font-size:22px;font-weight:800;color:var(--a2-text);margin-top:6px}.si-desc{font-size:12px;color:var(--a2-text-muted);line-height:1.7;margin-top:6px}.si-reason{padding:12px 14px;border-radius:var(--a2-r-sm);background:var(--a2-accent-soft);border:1px solid var(--a2-border);color:var(--a2-text-muted);font-size:13px;line-height:1.65;margin-bottom:16px}.si-list{display:grid;gap:12px}.si-card{padding:16px;border-radius:var(--a2-r);background:var(--a2-bg);border:1px solid var(--a2-border)}.si-q{font-size:14px;font-weight:700;color:var(--a2-text);margin-bottom:10px;line-height:1.5}.si-options{display:flex;gap:8px;flex-wrap:wrap}.si-opt{border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text-muted);padding:8px 12px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;transition:background var(--motion-fast),color var(--motion-fast)}.si-opt:hover{background:var(--a2-surface-hover)}.si-opt.selected{background:var(--a2-accent);border-color:var(--a2-accent);color:var(--a2-accent-contrast)}.si-multi-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--a2-accent);background:var(--a2-accent-soft);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:middle}.si-input{width:100%;box-sizing:border-box;border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text);border-radius:var(--a2-r-sm);padding:11px 12px;font-size:13px;outline:none;font-family:inherit}.si-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.smart-progress-note{font-size:12px;color:var(--a2-text-faint);margin-top:8px;line-height:1.6}
 @media(max-width:760px){.si-header{flex-direction:column}.si-actions{flex-direction:column}.si-actions button{width:100%}}
 
 
@@ -1554,7 +1561,7 @@ textarea{resize:vertical}
 .aft-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .aft-btn{border:1px solid var(--a2-border);background:var(--a2-surface);color:var(--a2-text-muted);border-radius:100px;padding:8px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:background var(--motion-fast)}
 .aft-btn:hover{background:var(--a2-surface-hover)}
-.aft-btn.primary{border:0;background:var(--a2-accent);color:#fff}
+.aft-btn.primary{border:0;background:var(--a2-accent);color:var(--a2-accent-contrast)}
 .aft-btn.primary:hover{background:var(--a2-accent-hover)}
 /* Atlas Visual Redesign v2, Phase R4: image-production section (thumbnail/
    sales-page generation, STEP 3~4) wrapped in a light card matching the
