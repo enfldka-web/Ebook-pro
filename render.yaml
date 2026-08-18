@@ -18,6 +18,11 @@
 # 무료 PostgreSQL은 생성 후 30일이 지나면 자동 삭제되어(가입 계정/구독
 # 상태가 전부 유실됨) 실제 결제 사용자가 생기기 시작한 시점에는 무료 플랜을
 # 유지할 수 없다 — 대시보드에서 업그레이드한 실제 플랜명을 그대로 반영한다.
+# 2026-08-18: 프론트엔드에 커스텀 도메인(atlas.jsgyeol.com, GitHub Pages
+# Custom domain으로 연결)을 추가했다 — ATLAS_CORS_ALLOWED_ORIGINS에 새
+# origin을 함께 등록하지 않으면 그 주소로 접속했을 때 로그인/회원가입/전자책
+# 생성이 전부 CORS 오류로 막힌다(과거 실제로 재현된 것과 동일한 종류의 버그).
+# 기존 GitHub Pages 기본 주소도 계속 접속 가능하도록 둘 다 남겨둔다.
 databases:
   - name: atlas-db
     plan: basic-256mb
@@ -39,7 +44,7 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: ATLAS_CORS_ALLOWED_ORIGINS
-        value: https://enfldka-web.github.io
+        value: https://enfldka-web.github.io,https://atlas.jsgyeol.com
       - key: DATABASE_URL
         fromDatabase:
           name: atlas-db
