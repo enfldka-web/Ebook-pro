@@ -44,6 +44,23 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
      방향("과장보다 명확성")만 다뤘다면, 이 규칙은 실제로 반복 관찰되는 구체적인
      패턴(상투어/공허한 도입-결론/수사 의문문 남발)을 짚어 outline·챕터·부록
      생성 전체에 공유한다 — 한 곳에서만 고치면 모든 단계에 반영된다. */
+  /* 2026-08-18: 사용자 지시 — "돈 내고 아깝지 않은" 전자책이 되려면 문체가
+     자연스러운 것과 별개로, 초보자가 실제로 따라 할 수 있는 실행 밀도가
+     있어야 한다. 기존 규칙(FACTUALITY_RULES/WRITING_STYLE_RULES)은 사실성과
+     AI 티 제거는 다루지만, "설명이 충분히 쉬운가"·"행동지침이 실제로 실행
+     가능한가"는 다루지 않았다 — actionItems/actionBox가 "노력하세요" 같은
+     추상적 문구로 채워져도 걸러내는 규칙이 없었다. 이 공유 규칙을 outline·
+     챕터·부록·부분 재생성 모두에 동일하게 적용한다(기존 규칙 블록과 같은
+     패턴 — 문구 내용만 새로 추가, 스키마/함수 시그니처는 변경 없음). */
+  var PRACTICALITY_RULES = `[초보자 실행 가능성 — "따라만 하면 되는" 밀도]
+- 이 책의 독자는 이 주제에 대해 사전 지식이 없을 수 있다고 가정합니다. 전문 용어나 줄임말을 처음 쓸 때는 반드시 한 문장으로 무슨 뜻인지 풀어서 설명한 뒤 사용합니다.
+- "노력하세요", "꾸준히 하세요", "찾아보세요", "적절히 활용하세요" 같은 추상적인 지시로 문단을 끝내지 않습니다 — 무엇을, 어떤 순서로, 어떻게 하는지 구체적인 절차로 풀어씁니다.
+- actionItems, actionBox, 부록 체크리스트는 독자가 책을 덮고 바로 따라 할 수 있을 만큼 구체적이어야 합니다. "적절한 도구를 찾으세요"가 아니라 어떤 종류의 도구를, 어떤 기준으로 고르고, 무엇부터 확인해야 하는지까지 씁니다.
+- 도구·서비스·자료를 언급할 때는 실제로 존재가 확인된 것만 구체적인 이름으로 씁니다. 확신이 없으면 "~계열의 도구", "~유형의 서비스"처럼 카테고리로 안내하고, 없는 서비스명이나 존재를 확인할 수 없는 상품명을 지어내지 않습니다(FACTUALITY_RULES와 동일한 Never-Guess 원칙).
+- 실행 단계를 안내할 때는 "무엇을 하는지"뿐 아니라 "왜 이 순서로 해야 하는지"도 함께 설명합니다 — 방법만 나열하고 이유를 생략하지 않습니다.
+- 같은 개념을 설명 없이 반복해서 언급하지 않습니다. 처음 등장할 때 확실히 설명하고, 이후에는 그 설명을 전제로 자연스럽게 사용합니다.
+- 이 책을 산 사람이 "돈 낸 만큼 실제로 뭔가를 할 수 있게 됐다"고 느낄 수 있는 밀도로 씁니다 — 같은 내용을 다른 표현으로 반복해 분량만 채우지 않습니다. 분량을 채워야 한다면 새로운 각도의 설명·예시·주의사항을 추가하지, 이미 한 말을 되풀이하지 않습니다.`;
+
   var WRITING_STYLE_RULES = `[문체 — AI 생성 티 제거]
 - "단순히", "결국", "중요합니다", "사실", "이제", "바로 지금" 같은 상투적 필러 표현을 남발하지 않습니다.
 - 모든 챕터를 똑같은 도입("~에 대해 알아보겠습니다")이나 결론("~하시기 바랍니다")으로 시작·마무리하지 않습니다. 챕터마다 다른 방식으로 시작하고 끝맺습니다.
@@ -179,6 +196,8 @@ ${SALES_COPY_RULES}
 
 ${WRITING_STYLE_RULES}
 
+${PRACTICALITY_RULES}
+
 ${SOURCE_GROUNDING_RULES}
 
 ${KOREAN_LOCALIZATION_RULES}
@@ -259,6 +278,8 @@ ${FACTUALITY_RULES}
 
 ${WRITING_STYLE_RULES}
 
+${PRACTICALITY_RULES}
+
 ${SOURCE_GROUNDING_RULES}
 
 ${KOREAN_LOCALIZATION_RULES}
@@ -286,6 +307,8 @@ ${E.chapterSchemaString(brief)}`;
 ${FACTUALITY_RULES}
 
 ${WRITING_STYLE_RULES}
+
+${PRACTICALITY_RULES}
 
 ${SOURCE_GROUNDING_RULES}
 
@@ -661,6 +684,7 @@ ${KOREAN_LOCALIZATION_RULES}
   E.FACTUALITY_RULES = FACTUALITY_RULES;
   E.SALES_COPY_RULES = SALES_COPY_RULES;
   E.WRITING_STYLE_RULES = WRITING_STYLE_RULES;
+  E.PRACTICALITY_RULES = PRACTICALITY_RULES;
   E.SOURCE_GROUNDING_RULES = SOURCE_GROUNDING_RULES;
   E.KOREAN_LOCALIZATION_RULES = KOREAN_LOCALIZATION_RULES;
   E.ebookBlueprintGuidelines = ebookBlueprintGuidelines;

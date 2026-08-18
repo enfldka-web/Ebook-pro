@@ -120,7 +120,7 @@ async function runAtlasPartialRegeneration(){
    +'[전자책 정보]\n'+JSON.stringify({title:APP.ebook.title,subtitle:APP.ebook.subtitle,description:APP.ebook.description,targetReader:APP.ebook.targetReader})+'\n\n'
    +'[현재 선택 부분 — 이 내용을 위 수정 방향에 맞게 다시 씁니다]\n'+target
    +otherChaptersBlock+'\n\n'
-   +E.FACTUALITY_RULES+'\n\n'+E.SALES_COPY_RULES+'\n\n'+E.WRITING_STYLE_RULES+'\n\n'+E.SOURCE_GROUNDING_RULES+'\n\n'+E.KOREAN_LOCALIZATION_RULES+'\n\n'
+   +E.FACTUALITY_RULES+'\n\n'+E.SALES_COPY_RULES+'\n\n'+E.WRITING_STYLE_RULES+'\n\n'+E.PRACTICALITY_RULES+'\n\n'+E.SOURCE_GROUNDING_RULES+'\n\n'+E.KOREAN_LOCALIZATION_RULES+'\n\n'
    +'아래 스키마를 정확히 따르세요.\n'+schema+'\n유효한 JSON만 반환하세요.';
  try{
    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:isChapter?9000:(isAppendices?16000:5000),system:ATLAS_SYSTEM_PROMPT,callType:isChapter?'chapter':(isAppendices?'appendices':'partial'),messages:[{role:'user',content:[{type:'text',text:prompt}]}]});
