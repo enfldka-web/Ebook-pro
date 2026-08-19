@@ -2504,18 +2504,74 @@ function downloadDocx(e){
     // 동일한 방식으로 계산할 수 있도록 하기 위함(문자열이 아니라 타입 태그로
     // 검사). textToParas()는 이 배열을 이어붙이는 얇은 래퍼로 남아 preface/
     // intro/appendix 등 분할이 필요 없는 기존 호출부는 그대로 동작한다.
+    // 2026-08-19: js/renderers.js atlasIsMdTableRow/atlasIsMdTableSepRow/
+    // atlasSplitMdTableRow와 동일한 이유로 동일한 수정 — 부록/챕터 본문 안에
+    // AI가 마크다운 파이프 표를 섞어 쓰면 "|---|---|" 구분줄이 미리보기뿐
+    // 아니라 DOCX에도 그대로 텍스트로 새어나갔다(Preview==Export, 사용자
+    // 스크린샷으로 확인된 버그).
+    function mdTableRow(line){
+      return line.indexOf('|')!==-1 && line.replace(/\|/g,'').trim().length>0;
+    }
+    function mdTableSepRow(line){
+      var cells=line.split('|').map(function(c){return c.trim();}).filter(function(c){return c.length;});
+      if(!cells.length)return false;
+      return cells.every(function(c){return /^:?-{2,}:?$/.test(c);});
+    }
+    function splitMdTableRow(line){
+      var t=line.trim();
+      if(t.charAt(0)==='|')t=t.slice(1);
+      if(t.charAt(t.length-1)==='|')t=t.slice(0,-1);
+      return t.split('|').map(function(c){return c.trim();});
+    }
+    function mdTableXml(headerCells,rows){
+      var headerXml=headerCells.map(function(hd){
+        return '<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F7F6FE"/></w:tcPr>'
+          +'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="4C1D95"/>'
+          +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+          +'<w:t xml:space="preserve">'+esc(hd)+'</w:t></w:r></w:p></w:tc>';
+      }).join('');
+      var bodyXml=rows.map(function(row){
+        return '<w:tr>'+row.map(function(cell){
+          return '<w:tc><w:tcPr></w:tcPr><w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr>'
+            +'<w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/>'
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
+            +'<w:t xml:space="preserve">'+esc(cell)+'</w:t></w:r></w:p></w:tc>';
+        }).join('')+'</w:tr>';
+      }).join('');
+      var gridCols=new Array(headerCells.length).fill('<w:gridCol/>').join('');
+      return '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>'
+        +'<w:top w:val="single" w:sz="4" w:color="EEF0FB"/><w:left w:val="single" w:sz="4" w:color="EEF0FB"/>'
+        +'<w:bottom w:val="single" w:sz="4" w:color="EEF0FB"/><w:right w:val="single" w:sz="4" w:color="EEF0FB"/>'
+        +'<w:insideH w:val="single" w:sz="4" w:color="F5F5FB"/><w:insideV w:val="single" w:sz="4" w:color="F5F5FB"/>'
+        +'</w:tblBorders></w:tblPr><w:tblGrid>'+gridCols+'</w:tblGrid>'
+        +'<w:tr>'+headerXml+'</w:tr>'+bodyXml+'</w:tbl>'+'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr></w:p>';
+    }
     function textToParaBlocks(s,size,color){
       var pre=String(s||'').replace(/#{1,6}\s/g,'').replace(/\n{3,}/g,'\n\n');
       var lines=pre.split('\n');
       var blocks=[];
-      lines.forEach(function(line){
+      var li=0;
+      while(li<lines.length){
+        var line=lines[li];
         var t=line.trim();
-        if(!t){blocks.push({type:'empty',xml:'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr></w:p>'});return;}
+        if(!t){blocks.push({type:'empty',xml:'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr></w:p>'});li++;continue;}
+        if(mdTableRow(t)&&li+1<lines.length&&mdTableSepRow(lines[li+1].trim())){
+          var headerCells=splitMdTableRow(t);
+          var tblRows=[];
+          var lj=li+2;
+          while(lj<lines.length&&mdTableRow(lines[lj].trim())&&!mdTableSepRow(lines[lj].trim())){
+            tblRows.push(splitMdTableRow(lines[lj].trim()));
+            lj++;
+          }
+          blocks.push({type:'table',xml:mdTableXml(headerCells,tblRows)});
+          li=lj;
+          continue;
+        }
         // 미리보기(js/renderers.js renderTextBlocks())가 이미 걸러내는, LLM이
         // 섹션 구분용으로 남기는 밑줄/대시만 있는 줄("___", "----" 등)을
         // DOCX에서도 동일하게 건너뛴다(Preview==Export, 사용자 리포트: 워드
         // 파일에서 문장 끝마다 "___" 가 그대로 나옴).
-        if(/^[_\-–—]{3,}$/.test(t))return;
+        if(/^[_\-–—]{3,}$/.test(t)){li++;continue;}
         var mBold=t.match(/^\*\*(.+)\*\*$/);
         var mQuote=!mBold&&t.match(/^["“](.+)["”]$/);
         var mNum=!mBold&&!mQuote&&t.match(/^(\d{1,2})[).]\s+(.+)$/);
@@ -2525,7 +2581,7 @@ function downloadDocx(e){
             +'<w:r><w:rPr><w:b/><w:sz w:val="'+((size||24)+4)+'"/><w:szCs w:val="'+((size||24)+4)+'"/><w:color w:val="1a1a2e"/>'
             +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
             +'</w:rPr><w:t xml:space="preserve">'+esc(mBold[1])+'</w:t></w:r></w:p>'});
-          return;
+          li++;continue;
         }
         if(mQuote){
           blocks.push({type:'quote',xml:'<w:p><w:pPr><w:spacing w:before="80" w:after="80"/><w:ind w:left="360"/>'
@@ -2533,7 +2589,7 @@ function downloadDocx(e){
             +'<w:r><w:rPr><w:i/><w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/><w:color w:val="475569"/>'
             +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
             +'</w:rPr><w:t xml:space="preserve">'+esc(mQuote[1])+'</w:t></w:r></w:p>'});
-          return;
+          li++;continue;
         }
         if(mNum||mBul){
           var marker=mNum?mNum[1]+'.':'•';
@@ -2546,7 +2602,7 @@ function downloadDocx(e){
             +(color?'<w:color w:val="'+color+'"/>':'')
             +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
             +'</w:rPr><w:t xml:space="preserve">'+esc(rest)+'</w:t></w:r></w:p>'});
-          return;
+          li++;continue;
         }
         splitLongParagraph(t.replace(/\*\*/g,'')).forEach(function(chunk,ci){
           // 2026-08-13: 사용자 요청 — "원인 1:", "단계 1:" 같은 문단 리드인이
@@ -2575,7 +2631,8 @@ function downloadDocx(e){
               +'</w:rPr><w:t xml:space="preserve">'+esc(chunk)+'</w:t></w:r></w:p>'});
           }
         });
-      });
+        li++;
+      }
       return blocks;
     }
     function textToParas(s,size,color){
