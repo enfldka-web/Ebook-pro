@@ -2575,7 +2575,10 @@ function downloadDocx(e){
         var mBold=t.match(/^\*\*(.+)\*\*$/);
         var mQuote=!mBold&&t.match(/^["“](.+)["”]$/);
         var mNum=!mBold&&!mQuote&&t.match(/^(\d{1,2})[).]\s+(.+)$/);
-        var mBul=!mBold&&!mQuote&&!mNum&&t.match(/^[-•·]\s+(.+)$/);
+        // js/renderers.js mChk와 동일한 이유로 동일한 수정 — "- [ ] 항목" 체크리스트
+        // 문법이 mBul에 걸리면 대괄호가 그대로 텍스트로 남아 워드 파일에도 노출됐다.
+        var mChk=!mBold&&!mQuote&&!mNum&&t.match(/^(?:[-•·]\s*)?\[([ xX])\]\s+(.+)$/);
+        var mBul=!mBold&&!mQuote&&!mNum&&!mChk&&t.match(/^[-•·]\s+(.+)$/);
         if(mBold){
           blocks.push({type:'bold',xml:'<w:p><w:pPr><w:spacing w:before="140" w:after="140"/></w:pPr>'
             +'<w:r><w:rPr><w:b/><w:sz w:val="'+((size||24)+4)+'"/><w:szCs w:val="'+((size||24)+4)+'"/><w:color w:val="1a1a2e"/>'
@@ -2589,6 +2592,18 @@ function downloadDocx(e){
             +'<w:r><w:rPr><w:i/><w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/><w:color w:val="475569"/>'
             +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
             +'</w:rPr><w:t xml:space="preserve">'+esc(mQuote[1])+'</w:t></w:r></w:p>'});
+          li++;continue;
+        }
+        if(mChk){
+          var chkMark=mChk[1].trim()?'☑':'☐';
+          blocks.push({type:'chk',xml:'<w:p><w:pPr><w:spacing w:before="60" w:after="60"/><w:ind w:left="420" w:hanging="420"/></w:pPr>'
+            +'<w:r><w:rPr><w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/><w:color w:val="16A34A"/>'
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+            +'</w:rPr><w:t xml:space="preserve">'+chkMark+'\t</w:t></w:r>'
+            +'<w:r><w:rPr><w:sz w:val="'+(size||24)+'"/><w:szCs w:val="'+(size||24)+'"/>'
+            +(color?'<w:color w:val="'+color+'"/>':'')
+            +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
+            +'</w:rPr><w:t xml:space="preserve">'+esc(mChk[2])+'</w:t></w:r></w:p>'});
           li++;continue;
         }
         if(mNum||mBul){

@@ -99,13 +99,21 @@ function renderTextBlocks(s){
     var mBold=t.match(/^\*\*(.+)\*\*$/);
     var mQuote=!mBold&&t.match(/^["“](.+)["”]$/);
     var mNum=!mBold&&!mQuote&&t.match(/^(\d{1,2})[).]\s+(.+)$/);
-    var mBul=!mBold&&!mQuote&&!mNum&&t.match(/^[-•·]\s+(.+)$/);
+    // 2026-08-19: 실제 재현된 버그 — AI가 "- [ ] 항목" 같은 마크다운 체크리스트
+    // 문법을 쓰면 mBul이 대시만 걷어내고 "[ ]"는 본문 텍스트로 그대로 남겨
+    // 화면에 대괄호가 노출됐다(사용자 스크린샷으로 확인). mBul보다 먼저
+    // 검사해 실제 체크박스(.cklrow/.ckl-check, actionItems 체크리스트와
+    // 동일한 컴포넌트)로 렌더링한다.
+    var mChk=!mBold&&!mQuote&&!mNum&&t.match(/^(?:[-•·]\s*)?\[([ xX])\]\s+(.+)$/);
+    var mBul=!mBold&&!mQuote&&!mNum&&!mChk&&t.match(/^[-•·]\s+(.+)$/);
     if(mBold){
       blocks.push('<div class="thst">'+x(mBold[1])+'</div>');
     }else if(mQuote){
       blocks.push('<div class="qtb">'+x(mQuote[1])+'</div>');
     }else if(mNum){
       blocks.push('<div class="chb-nrow"><span class="chb-nnum">'+x(mNum[1])+'</span><span class="chb-ntext">'+x(mNum[2])+'</span></div>');
+    }else if(mChk){
+      blocks.push('<div class="cklrow"><div class="ckl-check">'+(mChk[1].trim()?ebIcon('checkCircle',11):'')+'</div><span>'+x(mChk[2])+'</span></div>');
     }else if(mBul){
       blocks.push('<div class="chb-brow"><span class="chb-bdot"></span><span class="chb-ntext">'+x(mBul[1])+'</span></div>');
     }else{
