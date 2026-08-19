@@ -14,10 +14,15 @@ function config(env){
   return {
     apiKey: env.ANTHROPIC_API_KEY || '',
     timeoutMs: parseInt(env.ANTHROPIC_TEXT_TIMEOUT_MS, 10) || 120000,
-    /* 챕터(max_tokens=9000)와 목차(max_tokens=16000, 판매 카피까지 포함해 챕터
-       못지않게 큼)는 일반 호출보다 응답 생성이 오래 걸릴 수 있어 더 넉넉한
-       타임아웃을 쓴다 — 지정하지 않으면 180초 기본값을 쓴다. */
-    chapterTimeoutMs: parseInt(env.ANTHROPIC_CHAPTER_TIMEOUT_MS, 10) || 180000
+    /* 챕터(max_tokens=9000)와 목차·부록(max_tokens=16000, 챕터 못지않게 큼)은
+       일반 호출보다 응답 생성이 오래 걸릴 수 있어 더 넉넉한 타임아웃을 쓴다.
+       2026-08-19: 실제 운영에서 부록 생성이 180초 기본값으로 매번(재시도
+       3회까지) 타임아웃되는 것이 재현됐다 — 16000 max_tokens 분량은 응답
+       생성 자체가 180초를 넘기는 경우가 실제로 있다(진짜 timeout이지 일시적
+       네트워크 문제가 아님). 300초로 늘려 한 번의 시도에서 끝날 확률을
+       높인다 — js/anthropic-gateway-client.js의 클라이언트 타임아웃도 이
+       값(및 재시도 3회 총합)을 넉넉히 감쌀 수 있게 함께 늘렸다. */
+    chapterTimeoutMs: parseInt(env.ANTHROPIC_CHAPTER_TIMEOUT_MS, 10) || 300000
   };
 }
 
