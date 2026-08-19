@@ -47,17 +47,55 @@ function atlasSplitLongParagraph(text,maxLen){
   if(cur.trim())chunks.push(cur.trim());
   return chunks.length?chunks:[text];
 }
+/* 2026-08-19: 실제 재현된 버그 — AI가 부록/챕터 본문 같은 자유 텍스트
+   필드 안에 마크다운 파이프 표(| 헤더 | 헤더 |\n|---|---|\n| 값 | 값 |)를
+   섞어 쓰는 경우가 있는데, renderTextBlocks()는 이 문법을 전혀 몰라서
+   "|---|---|" 구분줄이 그대로 글자로 화면에 노출됐다(사용자 스크린샷으로
+   확인). 헤더 줄 바로 다음이 구분줄이면 실제 표로 인식해 파싱한다 —
+   comparisonTable(구조화 필드)과 똑같은 .ctable 마크업으로 렌더링해
+   시각적으로도 일관되게 맞춘다. */
+function atlasIsMdTableRow(line){
+  return line.indexOf('|')!==-1 && line.replace(/\|/g,'').trim().length>0;
+}
+function atlasIsMdTableSepRow(line){
+  var cells=line.split('|').map(function(c){return c.trim();}).filter(function(c){return c.length;});
+  if(!cells.length)return false;
+  return cells.every(function(c){return /^:?-{2,}:?$/.test(c);});
+}
+function atlasSplitMdTableRow(line){
+  var t=line.trim();
+  if(t.charAt(0)==='|')t=t.slice(1);
+  if(t.charAt(t.length-1)==='|')t=t.slice(0,-1);
+  return t.split('|').map(function(c){return c.trim();});
+}
 function renderTextBlocks(s){
   if(!s)return [];
   s=String(s).replace(/#{1,6}\s/g,'').replace(/\n{3,}/g,'\n\n');
   var lines=s.split('\n').filter(function(l){return l.trim();});
   var blocks=[];
-  lines.forEach(function(l){
-    var t=l.trim();
+  var i=0;
+  while(i<lines.length){
+    var t=lines[i].trim();
+    if(atlasIsMdTableRow(t)&&i+1<lines.length&&atlasIsMdTableSepRow(lines[i+1].trim())){
+      var headerCells=atlasSplitMdTableRow(t);
+      var rows=[];
+      var j=i+2;
+      while(j<lines.length&&atlasIsMdTableRow(lines[j].trim())&&!atlasIsMdTableSepRow(lines[j].trim())){
+        rows.push(atlasSplitMdTableRow(lines[j].trim()));
+        j++;
+      }
+      blocks.push('<div class="ctable"><div class="ctable-scroll"><table><thead><tr>'
+        +headerCells.map(function(c){return '<th>'+x(c)+'</th>';}).join('')
+        +'</tr></thead><tbody>'
+        +rows.map(function(row){return '<tr>'+row.map(function(c){return '<td>'+x(c)+'</td>';}).join('')+'</tr>';}).join('')
+        +'</tbody></table></div></div>');
+      i=j;
+      continue;
+    }
     // LLM이 섹션 구분용으로 남기는, 밑줄/대시만 있는 줄("___", "----" 등)은
     // 실제 본문이 아니라 잔재이므로 통째로 건너뛴다(사용자 요청: 문단 끝
     // "___" 기호 제거).
-    if(/^[_\-–—]{3,}$/.test(t))return;
+    if(/^[_\-–—]{3,}$/.test(t)){i++;continue;}
     var mBold=t.match(/^\*\*(.+)\*\*$/);
     var mQuote=!mBold&&t.match(/^["“](.+)["”]$/);
     var mNum=!mBold&&!mQuote&&t.match(/^(\d{1,2})[).]\s+(.+)$/);
@@ -84,7 +122,8 @@ function renderTextBlocks(s){
         }
       });
     }
-  });
+    i++;
+  }
   return blocks;
 }
 function renderText(s){
