@@ -75,13 +75,18 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
   G.isConfigured = function(){ return !!statusCache.configured; };
   G.isReachable = function(){ return !!statusCache.reachable; };
 
-  /* 서버가 재시도(최대 2회)까지 마치는 데 걸릴 수 있는 최악의 시간(챕터/목차
-     타임아웃 180s × 3회 시도 + backoff)보다 넉넉히 큰 값으로 클라이언트 측
-     안전장치를 둔다. 이게 없으면 서버가 응답 없이 멈췄을 때 fetch가 영원히
-     pending 상태로 남아 호출 버튼이 영구적으로 비활성 상태로 고정된다(실제
-     사용자 버그 리포트로 발견됨: "자료 분석 & 제목 후보 만들기"를 눌러도
-     반응이 없음). */
-  var CLIENT_TIMEOUT_MS = 600000;
+  /* 서버가 재시도(최대 2회)까지 마치는 데 걸릴 수 있는 최악의 시간(챕터/목차/
+     부록 타임아웃 300s × 3회 시도 + backoff, server/providers/
+     anthropic-text-provider.js chapterTimeoutMs)보다 넉넉히 큰 값으로
+     클라이언트 측 안전장치를 둔다. 이게 없으면 서버가 응답 없이 멈췄을 때
+     fetch가 영원히 pending 상태로 남아 호출 버튼이 영구적으로 비활성
+     상태로 고정된다(실제 사용자 버그 리포트로 발견됨: "자료 분석 & 제목
+     후보 만들기"를 눌러도 반응이 없음). 2026-08-19: 서버 쪽 타임아웃을
+     180s→300s로 늘리면서 이 값도 함께 늘렸다 — 그대로 뒀으면 서버가
+     아직 재시도 중인데 클라이언트가 먼저 끊어버려 더 헷갈리는 오류
+     메시지("AI 서버 응답이 너무 오래 걸림")로 실제 원인(부록 타임아웃)이
+     가려질 뻔했다. */
+  var CLIENT_TIMEOUT_MS = 960000;
 
   /* 두 경로(사용자 본인 키로 직접 호출 / 로컬 Gateway 경유) 모두 최종적으로
      { ok, status, body } 모양 하나로 맞춘 뒤, 이 함수 하나가 성공/실패 처리를
