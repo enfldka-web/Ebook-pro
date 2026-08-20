@@ -226,28 +226,32 @@ function dismissToast(){
    keeps this safe even if that ever changes. */
 function ebIcon(name,size){return (typeof AtlasIcons!=='undefined'&&AtlasIcons.svg)?AtlasIcons.svg(name,{size:size||14}):'';}
 
-/* Atlas V3 Phase 1B: page-footer running header/number device. Every
-   "reading" page (not the cover/opener/dark art pages, which carry their own
-   closing design — same restraint the reference book itself shows) gets a
-   consistent 3-column footer: book title on the left, a real copyright line
-   in the center, a sequential page indicator on the right — matching the
-   reference's own 3-column footer (re-studied across the full 45 pages, not
-   the 2-column version an earlier pass assumed). Built entirely from data
-   already known when rendering (title, real copyright year/author, loop
-   position, total footer-bearing page count) — nothing invented. */
-function pgFooter(bookTitle,copyrightLine,idx,total){
-  return '<div class="pgft"><span class="pgft-l">'+x(bookTitle)+'</span><span class="pgft-c">'+x(copyrightLine)+'</span><span class="pgft-r">'+idx+' / '+total+'</span></div>';
+/* Atlas V3 Phase 1B: page-footer running header device. Every "reading"
+   page (not the cover/opener/dark art pages, which carry their own closing
+   design — same restraint the reference book itself shows) gets a
+   consistent footer: book title on the left, a real copyright line on the
+   right — matching the reference's own running footer.
+   2026-08-20: 사용자가 재현한 버그 — 예전엔 여기에 "N / 전체" 페이지
+   번호도 함께 표시했다. 그 "전체"는 목차/서문/서론/챕터/결론/부록처럼
+   화면에 보이는 "구조적 섹션" 개수였는데(PR #61의 A4 슬라이싱 이전
+   설계), PDF로 저장할 때는 긴 챕터 하나가 실제로는 물리적으로 여러
+   장으로 나뉘므로(atlasComputeSafePageBreaks) 실제 PDF 파일의 진짜
+   페이지 수와 이 "전체" 숫자가 서로 달랐다(예: 화면엔 "1/15"인데 실제
+   저장된 PDF는 24페이지). 실제 최종 페이지 수는 html2canvas로 캡처하는
+   시점에야 정해지는 값이라 화면 렌더링 시점(이 함수)에서는 애초에 알 수
+   없다 — Preview와 Export가 항상 같은 내용을 보여줘야 한다는 원칙상
+   Export에서만 다른(진짜) 숫자를 새로 그려 넣는 것도 답이 아니므로,
+   틀릴 수밖에 없는 숫자를 아예 표시하지 않는다. */
+function pgFooter(bookTitle,copyrightLine){
+  return '<div class="pgft"><span class="pgft-l">'+x(bookTitle)+'</span><span class="pgft-c">'+x(copyrightLine)+'</span></div>';
 }
 
 function renderCvEbook(e){
   var c=e.copyright||{};
   var chs=e.chapters||[];
   var apps=e.appendices||[];
-  // 이 책에서 러닝 푸터(페이지 번호)가 붙는 "읽기" 페이지 총 개수를 먼저 계산
-  var footerTotal=1/*저작권*/+(e.preface?1:0)+1/*목차*/+(e.intro?1:0)+chs.length/*챕터 본문*/+1/*결론*/+apps.length;
-  var footerIdx=0;
   var footerCopyright='ⓒ '+(c.year||'2025')+' '+e.author;
-  function nextFooter(){footerIdx++;return pgFooter(e.title,footerCopyright,footerIdx,footerTotal);}
+  function nextFooter(){return pgFooter(e.title,footerCopyright);}
 
   /* 2026-08-10: 목차에 실제 페이지 번호를 넣기 위한 사전 계산. .pg 하나 =
      인쇄/PDF 시 정확히 한 페이지라는 규칙(css/styles.css @media print)을
