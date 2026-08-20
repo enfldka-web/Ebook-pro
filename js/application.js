@@ -2067,12 +2067,33 @@ function atlasDownloadEbookPdf(){
     for(var k=0;k<kids.length;k++){ if(!ATLAS_PDF_INLINE_TAGS[kids[k].tagName]) return false; }
     return true;
   }
+  /* 2026-08-20: 사용자가 다시 재현한 버그 — 위 leaf 블록을 통째로 하나의
+     rect(el.getBoundingClientRect())로만 다뤘더니, 줄바꿈되어 여러 줄로
+     보이는 긴 문단/체크리스트 항목 하나가 페이지 한 장보다 더 큰 경우
+     "쪼갤 수 없는 하나의 덩어리"로 취급되어 버렸다 — 그러면
+     atlasComputeSafePageBreaks의 예외 폴백(안전한 경계가 전혀 없을 때만
+     쓰는 목표 지점 강제 컷)이 그 덩어리 한가운데, 즉 줄 중간을 그대로
+     지나가 버렸다(실제로 재현됨). 고친 점: leaf 블록의 겉 테두리 하나가
+     아니라, Range.getClientRects()로 실제 렌더링된 "줄 하나하나"의 사각형을
+     구해 그 줄 사이의 틈만 안전한 컷 후보로 쓴다 — 같은 문단이라도 페이지
+     경계에서는 줄과 줄 사이에서만 넘어가고, 글자 한 줄 중간을 자르는 일은
+     이제 없다(워드/실제 인쇄물이 문단을 여러 페이지에 걸쳐 자연스럽게
+     흘리는 것과 동일한 방식). */
+  function atlasGetLineRects(el){
+    try{
+      var range=document.createRange();
+      range.selectNodeContents(el);
+      var rects=Array.prototype.filter.call(range.getClientRects(),function(r){return r.height>0.5&&r.width>0.5;});
+      if(rects.length)return rects;
+    }catch(e){}
+    var r=el.getBoundingClientRect();
+    return r.height>0.5?[r]:[];
+  }
   function atlasCollectAtomicRects(root){
     var out=[];
     (function walk(el){
       if(atlasIsLeafBlock(el)){
-        var r=el.getBoundingClientRect();
-        if(r.height>0.5)out.push(r);
+        atlasGetLineRects(el).forEach(function(r){out.push(r);});
         return;
       }
       Array.prototype.forEach.call(el.children,walk);
