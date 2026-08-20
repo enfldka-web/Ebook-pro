@@ -2174,13 +2174,42 @@ function atlasDownloadEbookPdf(){
          페이지마다 실제 가로/세로 비율에 맞는 orientation을 명시적으로
          넘겨 두 문제를 모두 없앤다. */
       if(!isFlowPage){
-        var orient=w>=h?'l':'p';
+        /* 2026-08-20: 사용자 지시 — 표지/챕터 구분면/뒤표지/저작권 페이지가
+           자기 원본("포스터") 비율 그대로 저장되어 실제 A4와 다른 크기로
+           나온다는 지적. 이 페이지들은 원래 폭 대비 높이가 A4보다 짧은
+           가로형 포스터 디자인이라(예: 표지 640px 높이 vs 같은 폭의 A4
+           높이는 그보다 훨씬 큼), 그대로도 이미 A4 폭 안에 들어가는
+           크기다 — 억지로 확대/축소하지 않고 같은 폭에서 A4 높이만큼의
+           캔버스를 만들어 그 안에 세로 중앙 정렬로 배치한다(위아래 여백만
+           생김, 좌우 잘림·확대로 인한 화질 저하 없음). 여백 색은 페이지마다
+           배경이 다르므로(표지/챕터 구분면은 다크 네이비, 저작권 페이지는
+           밝은 색) 캡처된 이미지의 실제 모서리 픽셀 색을 그대로 읽어와
+           채운다 — 색을 하나 정해서 하드코딩하면 나중에 배경 디자인이
+           바뀔 때마다 여기도 같이 고쳐야 하는 drift가 생긴다. */
+        var pageHeightPx=Math.round(w*A4_RATIO);
+        var fitScale=Math.min(1,pageHeightPx/h);
+        var drawW=Math.round(w*fitScale),drawH=Math.round(h*fitScale);
+        var offsetX=Math.round((w-drawW)/2);
+        var offsetY=Math.round((pageHeightPx-drawH)/2);
+        var edgeColor='#ffffff';
+        try{
+          var edge=canvas.getContext('2d').getImageData(0,0,1,1).data;
+          edgeColor='rgba('+edge[0]+','+edge[1]+','+edge[2]+','+(edge[3]/255)+')';
+        }catch(edgeErr){/* 캔버스가 오염(tainted)돼 getImageData가 막힌 드문 경우 —
+          흰색으로 안전하게 폴백한다(크래시보다 낫다). */}
+        var posterCanvas=document.createElement('canvas');
+        posterCanvas.width=w;
+        posterCanvas.height=pageHeightPx;
+        var pctx=posterCanvas.getContext('2d');
+        pctx.fillStyle=edgeColor;
+        pctx.fillRect(0,0,w,pageHeightPx);
+        pctx.drawImage(canvas,0,0,w,h,offsetX,offsetY,drawW,drawH);
         if(!doc){
-          doc=new window.jspdf.jsPDF({unit:'px',format:[w,h],compress:true,orientation:orient,hotfixes:['px_scaling']});
+          doc=new window.jspdf.jsPDF({unit:'px',format:[w,pageHeightPx],compress:true,orientation:'p',hotfixes:['px_scaling']});
         }else{
-          doc.addPage([w,h],orient);
+          doc.addPage([w,pageHeightPx],'p');
         }
-        doc.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,h);
+        doc.addImage(posterCanvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,pageHeightPx);
         return;
       }
       // 본문 페이지: 캡처된 폭을 A4 가로폭으로 보고, 실제 A4 비율로 세로
