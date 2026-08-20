@@ -994,8 +994,16 @@ textarea{resize:vertical}
    부터: 두 방향으로 교차하는 대각선 헤어라인(마름모 격자 텍스처) → 흩뿌린
    금색 점 7개(별자리 느낌) → 와인/보라 보조 글로우 → 우상단 메인 골드 글로우
    → 좌하단 보조 글로우 → 상단 비네트 → 와인 톤이 섞인 다색 베이스
-   그라디언트. */
-.cvr{min-height:640px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;background:repeating-linear-gradient(135deg,rgba(232,184,75,.035) 0px,rgba(232,184,75,.035) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(45deg,rgba(232,184,75,.025) 0px,rgba(232,184,75,.025) 1px,transparent 1px,transparent 28px),radial-gradient(circle 3px at 18% 18%,rgba(232,184,75,.55),transparent 100%),radial-gradient(circle 2px at 76% 68%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2.5px at 42% 82%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.8px at 60% 30%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2px at 30% 55%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 2px at 90% 40%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.6px at 55% 65%,rgba(232,184,75,.3),transparent 100%),radial-gradient(ellipse 420px 340px at 20% 90%,rgba(139,92,246,.12),transparent 65%),radial-gradient(ellipse 380px 320px at 60% 96%,rgba(157,42,90,.13),transparent 62%),radial-gradient(ellipse 620px 460px at 88% 12%,rgba(232,184,75,.19),transparent 62%),radial-gradient(ellipse 500px 420px at 6% 92%,rgba(232,184,75,.08),transparent 60%),linear-gradient(to bottom,rgba(0,0,0,.14),transparent 30%),linear-gradient(165deg,#1c1732 0%,#2a1c3a 55%,#241d40 100%);padding:64px 52px;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+   그라디언트.
+   2026-08-20: 사용자 지시 — 표지/챕터 구분면/뒤표지/저작권 페이지를
+   PDF에서 A4 크기로 맞춘 뒤(js/application.js atlasDownloadEbookPdf),
+   디자인 자체는 여전히 가로형 "포스터" 비율(예: 이 페이지는 원래
+   min-height만 640px)이라 A4 프레임 안에 위아래 여백만 생기고
+   통일감이 없다는 지적. min-height는 그대로 최소 높이 안전장치로
+   남겨두고 aspect-ratio:210/297(A4 비율)을 추가해 디자인 자체가 항상
+   A4 비율로 렌더링되게 한다 — Preview 화면과 PDF가 그대로 일치한다
+   (같은 화면을 그대로 캡처하므로 별도 대응 불필요). */
+.cvr{min-height:640px;aspect-ratio:210/297;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;background:repeating-linear-gradient(135deg,rgba(232,184,75,.035) 0px,rgba(232,184,75,.035) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(45deg,rgba(232,184,75,.025) 0px,rgba(232,184,75,.025) 1px,transparent 1px,transparent 28px),radial-gradient(circle 3px at 18% 18%,rgba(232,184,75,.55),transparent 100%),radial-gradient(circle 2px at 76% 68%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2.5px at 42% 82%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.8px at 60% 30%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2px at 30% 55%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 2px at 90% 40%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.6px at 55% 65%,rgba(232,184,75,.3),transparent 100%),radial-gradient(ellipse 420px 340px at 20% 90%,rgba(139,92,246,.12),transparent 65%),radial-gradient(ellipse 380px 320px at 60% 96%,rgba(157,42,90,.13),transparent 62%),radial-gradient(ellipse 620px 460px at 88% 12%,rgba(232,184,75,.19),transparent 62%),radial-gradient(ellipse 500px 420px at 6% 92%,rgba(232,184,75,.08),transparent 60%),linear-gradient(to bottom,rgba(0,0,0,.14),transparent 30%),linear-gradient(165deg,#1c1732 0%,#2a1c3a 55%,#241d40 100%);padding:64px 52px;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* 2026-08-12: 표지/챕터 오프너를 좀 더 고급스럽게 — 얇은 골드 코너 프레임.
    2026-08-12 추가 수정: 사용자 요청으로 모서리 기역자(ㄱ) 프레임 굵기를
    1px→3px로 더 굵게. */
@@ -1016,7 +1024,7 @@ textarea{resize:vertical}
 .csub{font-size:18px;color:rgba(255,255,255,.6);line-height:1.7;max-width:480px;margin-bottom:44px}
 .cvr-foot{display:flex;flex-direction:column;gap:4px}
 .cyr{font-size:11px;color:rgba(255,255,255,.32)}
-.cpg{background:#fafaf9;padding:40px;display:flex;flex-direction:column;justify-content:flex-end;min-height:240px}
+.cpg{background:#fafaf9;padding:40px;display:flex;flex-direction:column;justify-content:flex-end;min-height:240px;aspect-ratio:210/297}
 .cinn{border-top:1px solid #e2e8f0;padding-top:16px}
 .clbl{font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
 .ctxt{font-size:11px;color:#94a3b8;line-height:1.9}.ctxt p{margin-bottom:6px}.ctxt strong{color:#64748b}
@@ -1065,7 +1073,7 @@ textarea{resize:vertical}
    start resets reading pace. 2026-08-10: 사용자가 첨부한 참고 전자책 스타일을
    모방하도록 다크 네이비 + 골드 뱃지(.chop-badge)로 다시 그렸다(표지 .cvr과
    같은 그라디언트 값을 공유 — 책 전체가 하나의 일관된 아이덴티티). */
-.chop{min-height:520px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;background:repeating-linear-gradient(135deg,rgba(232,184,75,.03) 0px,rgba(232,184,75,.03) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(45deg,rgba(232,184,75,.02) 0px,rgba(232,184,75,.02) 1px,transparent 1px,transparent 28px),radial-gradient(circle 2.5px at 22% 76%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2px at 80% 24%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.8px at 65% 78%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 2px at 30% 20%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 2px at 88% 55%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 1.6px at 12% 48%,rgba(232,184,75,.28),transparent 100%),radial-gradient(ellipse 420px 340px at 85% 85%,rgba(139,92,246,.1),transparent 65%),radial-gradient(ellipse 380px 320px at 15% 15%,rgba(157,42,90,.11),transparent 62%),radial-gradient(ellipse 560px 420px at 50% 30%,rgba(232,184,75,.16),transparent 65%),linear-gradient(165deg,#1c1732 0%,#2a1c3a 55%,#241d40 100%);-webkit-print-color-adjust:exact;print-color-adjust:exact;position:relative}
+.chop{min-height:520px;aspect-ratio:210/297;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;background:repeating-linear-gradient(135deg,rgba(232,184,75,.03) 0px,rgba(232,184,75,.03) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(45deg,rgba(232,184,75,.02) 0px,rgba(232,184,75,.02) 1px,transparent 1px,transparent 28px),radial-gradient(circle 2.5px at 22% 76%,rgba(232,184,75,.4),transparent 100%),radial-gradient(circle 2px at 80% 24%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 1.8px at 65% 78%,rgba(232,184,75,.35),transparent 100%),radial-gradient(circle 2px at 30% 20%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 2px at 88% 55%,rgba(232,184,75,.3),transparent 100%),radial-gradient(circle 1.6px at 12% 48%,rgba(232,184,75,.28),transparent 100%),radial-gradient(ellipse 420px 340px at 85% 85%,rgba(139,92,246,.1),transparent 65%),radial-gradient(ellipse 380px 320px at 15% 15%,rgba(157,42,90,.11),transparent 62%),radial-gradient(ellipse 560px 420px at 50% 30%,rgba(232,184,75,.16),transparent 65%),linear-gradient(165deg,#1c1732 0%,#2a1c3a 55%,#241d40 100%);-webkit-print-color-adjust:exact;print-color-adjust:exact;position:relative}
 /* 2026-08-12: 순서는 원래대로("CHAPTER 0N" 라벨 → 큰 제목, 사용자 정정).
    max-width:560px 제한은 없앤 상태 그대로 유지(좁은 폭 때문에 들어갈 수
    있는 제목까지 여러 줄로 꺾이던 문제 해결). 2026-08-12 추가 수정: 사용자
@@ -1211,7 +1219,7 @@ textarea{resize:vertical}
    삭제했다(js/renderers.js renderCvEbook, js/incremental-ebook-engine.js
    authorBio 스키마 모두 제거) — 그 페이지 전용이던 .apg/.ah/.ac/.aa/.an/.ar/.ab
    규칙도 더 이상 쓰이지 않아 함께 삭제한다. */
-.bkpg{padding:40px;text-align:center;background:linear-gradient(165deg,#1c1732 0%,#241d40 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bkpg{padding:40px;text-align:center;background:linear-gradient(165deg,#1c1732 0%,#241d40 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;aspect-ratio:210/297;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .bkpg-ic{color:var(--gold)}
 .bkpg h3{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.2px}.bkpg p{font-size:12px;color:rgba(255,255,255,.38);line-height:1.7;max-width:360px}
 .bkc{font-size:10px;color:rgba(255,255,255,.16);letter-spacing:1.3px;border-top:1px solid rgba(255,255,255,.07);padding-top:14px;width:100%;text-align:center}
