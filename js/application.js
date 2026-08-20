@@ -2032,25 +2032,100 @@ function atlasDownloadEbookPdf(){
      대상 요소의 실제 렌더 크기(getBoundingClientRect)를 html2canvas의
      width/height로 명시적으로 못박아, 뷰포트 폭이 얼마든 캔버스가 항상
      "지금 화면에 보이는 그 크기"를 그대로 담게 한다. */
-  /* 2026-08-14~2026-08-20: 긴 챕터를 A4 여러 장으로 "안전하게" 나누려고
-     세 차례에 걸쳐 컷 지점 계산 로직을 점점 정교하게 고쳤지만(구조적 섹션
-     경계 → leaf 블록 경계 → 줄 단위 경계), 사용자가 매번 다시 스크린샷으로
-     끊긴 지점을 재현했다 — 페이지를 "나누는" 방식 자체를 쓰는 한, 어떤
-     경계 기준을 쓰든 결국 콘텐츠 중간 어딘가를 지나가게 될 위험이 남는다.
-     2026-08-20: 사용자 지시로 방향을 바꿨다 — "각 챕터 이미지는 A4 한 장에
-     나오게" 해달라는 요청대로, 본문 페이지(.pg.inn — 서문/목차/서론/각
-     챕터/결론/부록)를 여러 장으로 나누는 대신 항상 정확히 1장에만 담는다.
-     내용이 A4 한 장보다 길면 페이지를 추가하는 대신 전체를 비율 그대로
-     축소해서 한 장 안에 다 들어가게 한다(파워포인트를 PDF로 내보낼 때
-     "한 페이지에 맞추기"와 같은 방식) — 페이지 경계 자체가 없어지므로
-     문단/줄이 중간에 잘리는 문제가 구조적으로 사라진다. 대신 아주 긴
-     챕터는 글자가 작게 보일 수 있다(PDF 리더에서 확대해서 보면 된다) —
-     "절대 잘리지 않는 것"을 "언제나 실제 크기로 보이는 것"보다 우선한
-     명시적인 선택이다. 표지/챕터 구분면/뒤표지/저작권 페이지(.cvr/.chop/
-     .bkpg/.cpg)는 원래부터 "포스터 한 장" 디자인이라 그대로 자기 비율
-     1장을 유지한다(아래 !isFlowPage 분기, 변경 없음). */
+  /* 2026-08-14: 사용자 지시 — "PDF 페이지 수가 워드 페이지 수와 같아야 한다".
+     예전 방식은 .pg(전자책 섹션 하나) 하나를 통째로 스크린샷 찍어 그대로
+     PDF 한 장에 욱여넣었다 — 그래서 챕터 하나가 아무리 길어도(실제로는
+     워드에서 4~6페이지가 되는 분량) PDF에서는 항상 1장이었다(진짜 원인).
+     표지/챕터 구분면/뒤표지/저작권 페이지(.cvr/.chop/.bkpg/.cpg)는 원래도
+     "포스터 한 장" 디자인이라 지금 방식(자기 원본 비율 그대로 1장)을 그대로
+     유지한다 — 억지로 A4 비율에 끼워 맞추면 오히려 여백만 이상하게 남는다.
+     실제 본문이 흐르는 페이지(.pg.inn — 서문/목차/서론/각 챕터/결론/부록)만
+     A4 실제 인쇄 비율(297:210)로 캔버스를 잘라 여러 장으로 나눈다. 짧은
+     내용(목차 등)은 어차피 한 조각 안에 다 들어가므로 자동으로 1장이 되고,
+     긴 챕터만 워드처럼 여러 페이지로 자연스럽게 나뉜다. */
   var A4_RATIO=297/210;
   var CAPTURE_SCALE=1.5;
+  /* 2026-08-20: 사용자가 재현한 버그 — 위 고정 높이(pageHeightPx) 슬라이싱은
+     실제 문단/체크리스트 항목이 어디서 끝나는지 전혀 모른 채 캔버스를 그냥
+     N픽셀 단위로 잘랐다. 그래서 문장이나 체크리스트 항목 한가운데를 페이지
+     경계가 관통하면, 앞부분은 이전 페이지 맨 아래에, 뒷부분은 다음 페이지
+     맨 위에 잘린 채로 찍혔다(스크린샷으로 확인된 "연결부위가 짤림" 버그).
+     원인 자체는 명확했다 — 자를 위치를 실제 콘텐츠 경계와 무관하게 정했기
+     때문. 고쳐야 하는 것: 페이지 경계를 "안전한 지점"(문단/줄/체크리스트
+     항목/표 행처럼 더 이상 쪼갤 수 없는 최소 단위 사이의 틈)으로만 정하게
+     한다. 이 최소 단위를 알아내려고 렌더러가 쓰는 클래스명을 일일이
+     나열하지 않고(그러면 새 블록 타입이 추가될 때마다 여기도 같이 고쳐야
+     하는 drift 위험이 생김), 대신 "자식이 전부 inline 요소뿐인 요소"를
+     재귀적으로 찾아 그 요소의 실제 화면 경계를 안전한 컷 후보로 쓴다 —
+     이 앱의 모든 챕터/부록 콘텐츠는 결국 div/p/table 같은 block 컨테이너
+     안에 텍스트+인라인 요소로 끝나므로, 이 방식이 렌더러가 앞으로 어떤
+     새 블록(표/프레임워크 카드/타임라인/체크리스트 등)을 추가해도 별도
+     수정 없이 항상 "문장/행 중간에서 자르지 않는다"는 원칙을 지킨다. */
+  var ATLAS_PDF_INLINE_TAGS={SPAN:1,STRONG:1,EM:1,B:1,I:1,SVG:1,PATH:1,BR:1,A:1,SMALL:1,U:1};
+  function atlasIsLeafBlock(el){
+    var kids=el.children;
+    for(var k=0;k<kids.length;k++){ if(!ATLAS_PDF_INLINE_TAGS[kids[k].tagName]) return false; }
+    return true;
+  }
+  /* 2026-08-20: 사용자가 다시 재현한 버그 — 위 leaf 블록을 통째로 하나의
+     rect(el.getBoundingClientRect())로만 다뤘더니, 줄바꿈되어 여러 줄로
+     보이는 긴 문단/체크리스트 항목 하나가 페이지 한 장보다 더 큰 경우
+     "쪼갤 수 없는 하나의 덩어리"로 취급되어 버렸다 — 그러면
+     atlasComputeSafePageBreaks의 예외 폴백(안전한 경계가 전혀 없을 때만
+     쓰는 목표 지점 강제 컷)이 그 덩어리 한가운데, 즉 줄 중간을 그대로
+     지나가 버렸다(실제로 재현됨). 고친 점: leaf 블록의 겉 테두리 하나가
+     아니라, Range.getClientRects()로 실제 렌더링된 "줄 하나하나"의 사각형을
+     구해 그 줄 사이의 틈만 안전한 컷 후보로 쓴다 — 같은 문단이라도 페이지
+     경계에서는 줄과 줄 사이에서만 넘어가고, 글자 한 줄 중간을 자르는 일은
+     이제 없다(워드/실제 인쇄물이 문단을 여러 페이지에 걸쳐 자연스럽게
+     흘리는 것과 동일한 방식). */
+  function atlasGetLineRects(el){
+    try{
+      var range=document.createRange();
+      range.selectNodeContents(el);
+      var rects=Array.prototype.filter.call(range.getClientRects(),function(r){return r.height>0.5&&r.width>0.5;});
+      if(rects.length)return rects;
+    }catch(e){}
+    var r=el.getBoundingClientRect();
+    return r.height>0.5?[r]:[];
+  }
+  function atlasCollectAtomicRects(root){
+    var out=[];
+    (function walk(el){
+      if(atlasIsLeafBlock(el)){
+        atlasGetLineRects(el).forEach(function(r){out.push(r);});
+        return;
+      }
+      Array.prototype.forEach.call(el.children,walk);
+    })(root);
+    return out;
+  }
+  /* 각 페이지의 컷 지점을 "목표 높이(pageHeightPx)를 넘지 않는 선에서 가장
+     뒤쪽에 있는 안전한 경계"로 고른다 — 즉 최대한 페이지를 꽉 채우되, 절대
+     콘텐츠 중간을 자르지 않는다. 목표 지점 근처에 안전한 경계가 전혀 없는
+     극단적인 경우(표 하나가 A4 한 장보다 큰 경우 등)에만 이전 방식대로
+     목표 지점에서 그냥 자른다(그 경우에도 이전보다 나빠지지 않을 뿐, 아주
+     드문 예외 상황에 대한 안전장치일 뿐이다). */
+  function atlasComputeSafePageBreaks(pg,totalCanvasHeight,pageHeightPx){
+    var pgTop=pg.getBoundingClientRect().top;
+    var bottoms=atlasCollectAtomicRects(pg).map(function(r){
+      return Math.round((r.bottom-pgTop)*CAPTURE_SCALE);
+    }).filter(function(b){return b>0&&b<totalCanvasHeight;}).sort(function(a,b){return a-b;});
+    var cuts=[0],cursor=0;
+    while(cursor<totalCanvasHeight){
+      var target=cursor+pageHeightPx;
+      if(target>=totalCanvasHeight){cuts.push(totalCanvasHeight);break;}
+      var chosen=null;
+      for(var bi=0;bi<bottoms.length;bi++){
+        if(bottoms[bi]>cursor&&bottoms[bi]<=target)chosen=bottoms[bi];
+        else if(bottoms[bi]>target)break;
+      }
+      if(chosen==null||chosen<=cursor)chosen=target;
+      cuts.push(chosen);
+      cursor=chosen;
+    }
+    return cuts;
+  }
   var waitFonts=(typeof document.fonts!=='undefined'&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
   var chain=waitFonts.then(function(){
     // 폰트가 막 적용된 직후 한 프레임 정도 레이아웃/페인트가 안정될 시간을 준다.
@@ -2092,26 +2167,27 @@ function atlasDownloadEbookPdf(){
         return;
       }
       // 본문 페이지: 캡처된 폭을 A4 가로폭으로 보고, 실제 A4 비율로 세로
-      // 한 장 높이를 정한다. 내용이 이 한 장 높이보다 길면(긴 챕터) 페이지를
-      // 나누지 않고 비율 그대로 축소해 한 장 안에 전부 담는다 — 짧은
-      // 내용(목차 등)은 축소 없이(fitScale=1) 원래 크기 그대로 1장에 담긴다.
+      // 한 장 높이를 정한 뒤, 그 높이를 넘지 않으면서도 문단/행 중간을
+      // 자르지 않는 안전한 경계에서만 나눈다(atlasComputeSafePageBreaks).
       var pageHeightPx=Math.round(w*A4_RATIO);
-      var fitScale=Math.min(1,pageHeightPx/h);
-      var drawW=Math.round(w*fitScale),drawH=Math.round(h*fitScale);
-      var offsetX=Math.round((w-drawW)/2);
-      var pageCanvas=document.createElement('canvas');
-      pageCanvas.width=w;
-      pageCanvas.height=pageHeightPx;
-      var ctx=pageCanvas.getContext('2d');
-      ctx.fillStyle='#ffffff';
-      ctx.fillRect(0,0,w,pageHeightPx);
-      ctx.drawImage(canvas,0,0,w,h,offsetX,0,drawW,drawH);
-      if(!doc){
-        doc=new window.jspdf.jsPDF({unit:'px',format:[w,pageHeightPx],compress:true,orientation:'p',hotfixes:['px_scaling']});
-      }else{
-        doc.addPage([w,pageHeightPx],'p');
+      var cutPoints=atlasComputeSafePageBreaks(pg,h,pageHeightPx);
+      for(var i=0;i<cutPoints.length-1;i++){
+        var sy=cutPoints[i];
+        var sh=cutPoints[i+1]-sy;
+        var sliceCanvas=document.createElement('canvas');
+        sliceCanvas.width=w;
+        sliceCanvas.height=pageHeightPx;
+        var ctx=sliceCanvas.getContext('2d');
+        ctx.fillStyle='#ffffff';
+        ctx.fillRect(0,0,w,pageHeightPx);
+        ctx.drawImage(canvas,0,sy,w,sh,0,0,w,sh);
+        if(!doc){
+          doc=new window.jspdf.jsPDF({unit:'px',format:[w,pageHeightPx],compress:true,orientation:'p',hotfixes:['px_scaling']});
+        }else{
+          doc.addPage([w,pageHeightPx],'p');
+        }
+        doc.addImage(sliceCanvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,pageHeightPx);
       }
-      doc.addImage(pageCanvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,pageHeightPx);
     });
   });
   chain.then(function(){
