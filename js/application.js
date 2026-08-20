@@ -2017,6 +2017,17 @@ function atlasDownloadEbookPdf(){
      뺀다 — 실제 최종 페이지 수는 처리가 끝난 뒤 성공 토스트
      (doc.internal.getNumberOfPages(), 실제 값)에서만 보여준다. */
   showToast('info','PDF 생성 중입니다... 잠시만 기다려주세요');
+  /* 2026-08-20: 사용자 리포트 — "PDF로 저장" 버튼을 누르면 3초짜리 안내
+     토스트만 뜨고 사라진 뒤, 실제 처리(html2canvas 캡처가 페이지 수만큼
+     이어짐)는 몇 초~몇십 초 더 걸릴 수 있는데 그동안 화면에 아무 표시가
+     없어 멈춘 것처럼 보였다. 버튼 자체를 로딩 상태(스피너+비활성화)로
+     바꿔 처리가 끝날 때까지(성공/실패 모두) 계속 보이는 표시를 준다 —
+     js/application.js의 기존 로딩 버튼 관례(AtlasStateSystem.loadingInline)
+     를 그대로 재사용. */
+  var pdfBtn=document.getElementById('cv-pdfbtn');
+  var pdfBtnOldHtml=pdfBtn?pdfBtn.innerHTML:'';
+  if(pdfBtn){pdfBtn.disabled=true;pdfBtn.innerHTML=(window.AtlasStateSystem?AtlasStateSystem.loadingInline('PDF 생성 중...'):'PDF 생성 중...');}
+  function restorePdfBtn(){ if(pdfBtn){pdfBtn.disabled=false;pdfBtn.innerHTML=pdfBtnOldHtml;} }
   var doc=null;
   /* 2026-08-13: 사용자가 재현한 PDF에서 표지뿐 아니라 서문/목차/서론 같은
      일반 본문 페이지까지 전부 오른쪽이 잘려 나왔다 — 큰 제목 글씨만의
@@ -2201,7 +2212,7 @@ function atlasDownloadEbookPdf(){
     showToast('success','PDF가 저장되었습니다! (총 '+doc.internal.getNumberOfPages()+'페이지)');
   }).catch(function(err){
     showToast('error','PDF 생성 실패: '+((err&&err.message)||'알 수 없는 오류'));
-  });
+  }).finally(restorePdfBtn);
 }
 
 /* 2026-08-13: 사용자 지시로 썸네일 AI 이미지 생성 기능(구 Thumbnail Studio,
@@ -2608,6 +2619,14 @@ function showErrorPopup(msg){
 function downloadDocx(e){
   if(!e){showToast('error','전자책을 먼저 생성해주세요.');return;}
   if(typeof JSZip==='undefined'){showToast('error','JSZip을 불러오는 중입니다. 잠시 후 다시 시도해주세요.');return;}
+  /* 2026-08-20: PDF 저장과 동일한 사용자 리포트 — 버튼을 누른 뒤 XML 조립
+     +JSZip 압축이 끝날 때까지 화면에 아무 표시가 없어 멈춘 것처럼 보였다.
+     버튼을 로딩 상태(스피너+비활성화)로 바꿔 처리가 끝날 때까지 계속
+     보이는 표시를 준다. */
+  var docxBtn=document.getElementById('cv-docxbtn');
+  var docxBtnOldHtml=docxBtn?docxBtn.innerHTML:'';
+  if(docxBtn){docxBtn.disabled=true;docxBtn.innerHTML=(window.AtlasStateSystem?AtlasStateSystem.loadingInline('Word 생성 중...'):'Word 생성 중...');}
+  function restoreDocxBtn(){ if(docxBtn){docxBtn.disabled=false;docxBtn.innerHTML=docxBtnOldHtml;} }
   try{
     var zip=new JSZip();
     var title=e.title||'전자책';
@@ -3182,8 +3201,8 @@ function downloadDocx(e){
         document.body.appendChild(a);a.click();
         setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},2000);
         showToast('success','Word 파일이 저장되었습니다!');
-      }).catch(function(err){showToast('error','저장 실패: '+err.message);});
-  }catch(err){showToast('error','오류: '+err.message);}
+      }).catch(function(err){showToast('error','저장 실패: '+err.message);}).finally(restoreDocxBtn);
+  }catch(err){showToast('error','오류: '+err.message);restoreDocxBtn();}
 }
 
 // ── 리치 에디터 ──
