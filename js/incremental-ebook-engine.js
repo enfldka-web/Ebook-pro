@@ -168,8 +168,12 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
 
   /* ── 1) 목차/개요(Outline) ── 챕터 "본문"은 만들지 않고, 책 전체 뼈대(제목 주변
      필드/서문/서론/결론/판매카피/7개 챕터 브리핑)만 만든다. */
-  E.buildOutlinePrompt = function(modeWrapperPrefix){
-    return ebookBlueprintGuidelines()+(modeWrapperPrefix||'')+`위 입력을 바탕으로 한국어 전자책의 전체 개요와 크몽 판매용 카피 데이터를 작성하세요.
+  E.buildOutlinePrompt = function(modeWrapperPrefix, market){
+    market = market||'kr';
+    var introLine = market==='global'
+      ? '위 입력을 바탕으로 영어 전자책의 전체 개요와 해외 마켓(Gumroad·Etsy·Payhip 등) 판매용 카피 데이터를 작성하세요.'
+      : '위 입력을 바탕으로 한국어 전자책의 전체 개요와 크몽 판매용 카피 데이터를 작성하세요.';
+    return ebookBlueprintGuidelines()+(modeWrapperPrefix||'')+introLine+`
 아직 각 챕터의 본문 전체를 쓰지 않습니다 — 챕터는 "브리핑"만 작성합니다(본문은 다음 단계에서 챕터별로 따로 작성됩니다).
 
 [잠긴 제목 — 변경 금지]
@@ -200,7 +204,7 @@ ${PRACTICALITY_RULES}
 
 ${SOURCE_GROUNDING_RULES}
 
-${KOREAN_LOCALIZATION_RULES}
+${market==='global'?'':KOREAN_LOCALIZATION_RULES}
 
 아래 스키마를 정확히 따르세요.
 {
@@ -241,7 +245,8 @@ ${KOREAN_LOCALIZATION_RULES}
   /* ── 2) 챕터별 생성(7회 반복) ── 이미 완성된 outline의 해당 chapterBrief만 그
      챕터의 집필 지침으로 쓰고, 나머지 챕터와 내용이 겹치지 않도록 전체 개요도
      참고 정보로 함께 전달한다. */
-  E.buildChapterPrompt = function(outline, brief){
+  E.buildChapterPrompt = function(outline, brief, market){
+    market = market||'kr';
     var otherBriefs = outline.chapterBriefs.filter(function(b){return b.number!==brief.number;})
       .map(function(b){return b.number+'장 ('+b.type+'): '+b.title+' — '+b.summary;}).join('\n');
     return ebookBlueprintGuidelines()+`아래는 이미 확정된 전자책의 개요입니다. 이 중 ${brief.number}번째 챕터(${brief.type}) 하나만 본문으로 완성하세요.
@@ -282,14 +287,15 @@ ${PRACTICALITY_RULES}
 
 ${SOURCE_GROUNDING_RULES}
 
-${KOREAN_LOCALIZATION_RULES}
+${market==='global'?'':KOREAN_LOCALIZATION_RULES}
 
 아래 스키마를 정확히 따르세요(이 챕터 하나만). framework/timeline/comparisonTable은 해당 없으면 키 자체를 생략하세요(빈 값으로 채우지 마세요).
 ${E.chapterSchemaString(brief)}`;
   };
 
   /* ── 3) 부록 생성 ── outline이 이미 정해둔 3개 제목 그대로 본문만 채운다. */
-  E.buildAppendicesPrompt = function(outline){
+  E.buildAppendicesPrompt = function(outline, market){
+    market = market||'kr';
     var titles = outline.appendixTitles||['핵심 실천 체크리스트','추천 도구와 참고 자료','실전 실행 플랜'];
     return ebookBlueprintGuidelines()+`아래는 이미 확정된 전자책의 개요입니다. 부록 3개의 본문을 작성하세요(제목은 이미 정해져 있으니 그대로 사용).
 반드시 JSON 배열 하나만 반환하고 배열 밖의 텍스트는 작성하지 마세요.
@@ -312,7 +318,7 @@ ${PRACTICALITY_RULES}
 
 ${SOURCE_GROUNDING_RULES}
 
-${KOREAN_LOCALIZATION_RULES}
+${market==='global'?'':KOREAN_LOCALIZATION_RULES}
 
 아래 스키마를 정확히 따르세요.
 [
@@ -618,11 +624,11 @@ ${KOREAN_LOCALIZATION_RULES}
      Anthropic에 보내는 값이 아니라, 서버가 유닛 종류별로(챕터는 더 짧게) 타임아웃을
      고르는 데만 쓰는 라우팅 힌트다. 실제 호출 전 max_tokens만 콘솔에 남기고
      Prompt 전문/API Key는 절대 출력하지 않는다. */
-  function callGateway(promptText, maxTokens, callType){
+  function callGateway(promptText, maxTokens, callType, market){
     return buildApiContent(promptText).then(function(content){
       console.log('[incremental-ebook] calling Anthropic gateway — callType='+callType+', max_tokens='+maxTokens+', promptVersion='+E.PROMPT_VERSION);
       return window.AtlasAnthropicGateway.generate({
-        model:'claude-sonnet-4-6', max_tokens:maxTokens, system:ATLAS_SYSTEM_PROMPT,
+        model:'claude-sonnet-4-6', max_tokens:maxTokens, system:atlasSystemPromptFor(market||'kr'),
         callType: callType,
         messages:[{role:'user', content: content}]
       });
@@ -634,15 +640,15 @@ ${KOREAN_LOCALIZATION_RULES}
      담아야 해서 6000 max_tokens로는 부족했다 — 실제 Windows에서 응답이 배열
      중간에서 잘려 "Expected ',' or '}'" 파싱 오류로 재현된 원인. 16000으로
      늘려 잘리지 않게 한다(claude-sonnet-4-6 최대 출력 128K 대비 충분히 여유). */
-  E.generateOutline = function(modeWrapperPrefix){
-    return callGateway(E.buildOutlinePrompt(modeWrapperPrefix), 16000, 'outline').then(function(data){
+  E.generateOutline = function(modeWrapperPrefix, market){
+    return callGateway(E.buildOutlinePrompt(modeWrapperPrefix, market), 16000, 'outline', market).then(function(data){
       var text = extractResponseText(data);
       return robustJsonParse(text, '{', '}', 'outline');
     });
   };
 
-  E.generateChapter = function(outline, brief){
-    return callGateway(E.buildChapterPrompt(outline, brief), 9000, 'chapter').then(function(data){
+  E.generateChapter = function(outline, brief, market){
+    return callGateway(E.buildChapterPrompt(outline, brief, market), 9000, 'chapter', market).then(function(data){
       var text = extractResponseText(data);
       return robustJsonParse(text, '{', '}', 'chapter'+brief.number);
     });
@@ -653,8 +659,8 @@ ${KOREAN_LOCALIZATION_RULES}
      3개를 다 담기 전에 응답이 중간(두 번째 부록 도중)에서 잘렸다 — "Unterminated
      string"은 그 어떤 후처리 보정으로도 고칠 수 없는 진짜 truncation 신호다.
      목차와 동일하게 16000으로 늘려 잘리지 않게 한다. */
-  E.generateAppendices = function(outline){
-    return callGateway(E.buildAppendicesPrompt(outline), 16000, 'appendices').then(function(data){
+  E.generateAppendices = function(outline, market){
+    return callGateway(E.buildAppendicesPrompt(outline, market), 16000, 'appendices', market).then(function(data){
       var text = extractResponseText(data);
       return robustJsonParse(text, '[', ']', 'appendices');
     });
