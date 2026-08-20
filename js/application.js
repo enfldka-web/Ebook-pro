@@ -2007,7 +2007,16 @@ function atlasDownloadEbookPdf(){
   var pageEls=Array.prototype.slice.call(edoc.querySelectorAll('.pg'));
   if(!pageEls.length){showToast('error','전자책을 먼저 생성해주세요.');return;}
   var title=(APP.ebook.title||'전자책').replace(/[\/\\:*?"<>|]/g,'_');
-  showToast('info','PDF 생성 중입니다... (전체 '+pageEls.length+'페이지, 잠시만 기다려주세요)');
+  /* 2026-08-20: 사용자 리포트 — 이 안내 토스트가 항상 "전체 24페이지"처럼
+     같은 숫자를 보여준다는 지적. 원인: pageEls.length는 표지/목차/챕터
+     구분면/부록 같은 "구조적 섹션" 개수일 뿐이라 챕터 본문이 길든 짧든
+     거의 항상 비슷하다 — 실제 PDF 페이지 수는 본문 페이지를 안전한
+     경계에서 여러 장으로 나누는 처리(atlasComputeSafePageBreaks)가 끝나야만
+     정해지므로, 이 시점(처리 시작 직전)에는 애초에 알 수 없는 값이었다.
+     알 수 없는 숫자를 보여주는 대신 안내 문구에서 페이지 수 언급 자체를
+     뺀다 — 실제 최종 페이지 수는 처리가 끝난 뒤 성공 토스트
+     (doc.internal.getNumberOfPages(), 실제 값)에서만 보여준다. */
+  showToast('info','PDF 생성 중입니다... 잠시만 기다려주세요');
   var doc=null;
   /* 2026-08-13: 사용자가 재현한 PDF에서 표지뿐 아니라 서문/목차/서론 같은
      일반 본문 페이지까지 전부 오른쪽이 잘려 나왔다 — 큰 제목 글씨만의
