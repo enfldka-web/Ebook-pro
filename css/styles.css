@@ -1101,8 +1101,7 @@ textarea{resize:vertical}
    pages, which carry their own closing design. */
 .pgft{margin-top:30px;padding-top:14px;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:10px}
 .pgft-l{flex:1;font-size:10.5px;color:#94a3b8;font-weight:600;letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
-.pgft-c{flex:1;font-size:10.5px;color:#c2c6d6;font-weight:500;letter-spacing:.2px;text-align:center;white-space:nowrap}
-.pgft-r{flex:1;font-size:10.5px;color:#94a3b8;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.pgft-c{flex:1;font-size:10.5px;color:#c2c6d6;font-weight:500;letter-spacing:.2px;text-align:right;white-space:nowrap}
 
 /* Target-reader callout — deliberately distinct from the Tip/Framework
    block below (outlined, quiet) since its role is "is this for you", not
