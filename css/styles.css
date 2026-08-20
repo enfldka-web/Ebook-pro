@@ -974,6 +974,12 @@ textarea{resize:vertical}
    Word (.docx) export is a wholly separate OOXML builder (application.js)
    and is not affected by this CSS — only the HTML preview (#cv-edoc). */
 .pg{background:#fff;color:#1a1a2e;border-radius:12px;overflow:hidden;box-shadow:0 10px 34px rgba(15,15,35,.10);position:relative;margin-bottom:28px}
+/* 2026-08-20: 사용자 요청 — 표지/챕터구분/부록표지/저작권 페이지는 배경이
+   모서리까지 꽉 차야 하는데, 위 .pg의 border-radius:12px+overflow:hidden이
+   배경을 둥글게 잘라내 네 모서리에 흰 여백(뒤에 있는 페이지 배경색)이 살짝
+   보이는 문제가 있었다. 골드 코너 브라켓 장식(.cvr::before 등)도 애초에
+   각진 모서리를 기준으로 배치돼 있어 각진 모서리가 원래 의도였다. */
+.pg.cvr,.pg.chop,.pg.bkpg,.pg.cpg{border-radius:0}
 /* 2026-08-12: 사용자 요청 — 글씨체를 바꿀 수 있게. 이미 로드된 웹폰트
    중에서 고르며(index.html, 새 폰트 로딩 없음), js/application.js
    atlasSetEbookFont()가 이 커스텀 프로퍼티만 바꾼다 — 전자책 안의 모든
