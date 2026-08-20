@@ -2166,12 +2166,24 @@ function atlasDownloadEbookPdf(){
      (2) 캔버스에서 실제로 비어있는 가로줄, 둘 중 목표 지점에 더 가까운
      쪽을 쓴다. 후보가 전혀 없는 극단적인 경우(빈 줄이 전혀 없을 만큼 꽉 찬
      표 하나가 페이지보다 큰 경우 등)에만 이전 방식대로 목표 지점에서 그냥
-     자른다(아주 드문 예외 상황에 대한 안전장치일 뿐이다). */
-  function atlasComputeSafePageBreaks(pg,canvas,totalCanvasHeight,pageHeightPx){
+     자른다(아주 드문 예외 상황에 대한 안전장치일 뿐이다).
+     2026-08-20: 사용자 리포트 — 문단/박스가 더 이상 안 잘리는 건 맞는데,
+     페이지가 넘어간 직후 다음 박스가 페이지 맨 위에 거의 붙어서 시작돼
+     여백이 없어 보였다. 원인: "최대한 뒤쪽(target에 가까운) 안전한 경계"를
+     고르다 보니, 박스 시작 직전의 좁은 여백 틈에서 그 틈의 맨 끝(박스
+     바로 위)을 컷 지점으로 골라버렸다 — 안 잘리긴 했지만 새 페이지 맨
+     위 여백이 사실상 0이었다. 이어지는 페이지(첫 페이지 제외)는 실제
+     본문 페이지의 자기 여백(.inn padding:44px)만큼 위쪽에 빈 공간을
+     미리 확보해두고, 그만큼을 목표 높이에서 미리 빼서 컷 지점을 계산한다
+     — 그래야 다음 페이지로 넘어간 콘텐츠가 항상 자연스러운 여백을 두고
+     시작한다. */
+  function atlasComputeSafePageBreaks(pg,canvas,totalCanvasHeight,pageHeightPx,continuationTopPad){
+    continuationTopPad=continuationTopPad||0;
     var forbidden=atlasFindComponentBoxRanges(pg,pageHeightPx);
-    var cuts=[0],cursor=0;
+    var cuts=[0],cursor=0,pageIndex=0;
     while(cursor<totalCanvasHeight){
-      var target=cursor+pageHeightPx;
+      var budget=pageIndex===0?pageHeightPx:(pageHeightPx-continuationTopPad);
+      var target=cursor+budget;
       if(target>=totalCanvasHeight){cuts.push(totalCanvasHeight);break;}
       var boxCandidate=null;
       forbidden.forEach(function(r){
@@ -2185,6 +2197,7 @@ function atlasDownloadEbookPdf(){
       if(chosen==null||chosen<=cursor)chosen=target;
       cuts.push(chosen);
       cursor=chosen;
+      pageIndex++;
     }
     return cuts;
   }
@@ -2280,17 +2293,19 @@ function atlasDownloadEbookPdf(){
       // 한 장 높이를 정한 뒤, 그 높이를 넘지 않으면서도 문단/행 중간을
       // 자르지 않는 안전한 경계에서만 나눈다(atlasComputeSafePageBreaks).
       var pageHeightPx=Math.round(w*A4_RATIO);
-      var cutPoints=atlasComputeSafePageBreaks(pg,canvas,h,pageHeightPx);
+      var continuationTopPad=Math.round(44*CAPTURE_SCALE);
+      var cutPoints=atlasComputeSafePageBreaks(pg,canvas,h,pageHeightPx,continuationTopPad);
       for(var i=0;i<cutPoints.length-1;i++){
         var sy=cutPoints[i];
         var sh=cutPoints[i+1]-sy;
+        var topPad=i===0?0:continuationTopPad;
         var sliceCanvas=document.createElement('canvas');
         sliceCanvas.width=w;
         sliceCanvas.height=pageHeightPx;
         var ctx=sliceCanvas.getContext('2d');
         ctx.fillStyle='#ffffff';
         ctx.fillRect(0,0,w,pageHeightPx);
-        ctx.drawImage(canvas,0,sy,w,sh,0,0,w,sh);
+        ctx.drawImage(canvas,0,sy,w,sh,0,topPad,w,sh);
         if(!doc){
           doc=new window.jspdf.jsPDF({unit:'px',format:[w,pageHeightPx],compress:true,orientation:'p',hotfixes:['px_scaling']});
         }else{
