@@ -2106,12 +2106,47 @@ function atlasDownloadEbookPdf(){
     var r=el.getBoundingClientRect();
     return r.height>0.5?[r]:[];
   }
-  function atlasCollectAtomicRects(root){
+  /* 2026-08-20: 사용자가 세 번째로 재현한 버그(스크린샷) — 문장/줄 중간은
+     더 이상 안 잘렸지만, "핵심 포인트"/"즉시 실천 체크리스트" 같은 제목+
+     본문으로 이루어진 카드형 콘텐츠 블록이 제목만 이전 페이지에 남고
+     본문(또는 항목 일부)이 다음 페이지로 넘어가는 식으로 쪼개졌다 — 박스
+     하나가 페이지 경계에 걸리면 통째로 다음 페이지로 넘어가야 하는데,
+     지금까지는 그 안의 문단/체크리스트 항목/표 행 단위로만 안전한 경계를
+     찾다 보니 "박스 제목과 첫 항목 사이"처럼 박스 내부의 경계도 그냥 안전한
+     컷 지점으로 써버렸다. 이런 카드형 블록(핵심 포인트/체크리스트/표/
+     프레임워크/타임라인/실행박스/경고박스/이 장 요약/임팩트 문구/장 완료
+     내비 등)을 클래스명으로 일일이 나열하지 않고, "제목(h4)을 담고 있다"
+     또는 "자기 자신의 배경색·배경이미지·테두리가 있다"는 두 가지 구조적
+     신호로 판별한다 — 이 렌더러가 카드형 컴포넌트를 만들 때 항상 쓰는
+     디자인 패턴이라, 새 카드 컴포넌트가 추가돼도 이 신호 중 하나는
+     자연스럽게 해당된다. 이런 블록이 페이지 한 장 안에 들어갈 만큼 작으면
+     통째로 하나의 안전한 컷 후보로 쓰고(내부를 쪼개지 않음), 페이지 한
+     장보다 큰 예외적인 경우에만 지금까지처럼 내부(문단/줄 단위)까지
+     들어가 안전한 경계를 찾는다. */
+  function atlasIsComponentBox(el){
+    if(el.querySelector&&el.querySelector('h4'))return true;
+    var cs=getComputedStyle(el);
+    if(cs.backgroundImage&&cs.backgroundImage!=='none')return true;
+    var bg=cs.backgroundColor;
+    if(bg&&bg!=='rgba(0, 0, 0, 0)'&&bg!=='transparent')return true;
+    if(parseFloat(cs.borderTopWidth)>0||parseFloat(cs.borderBottomWidth)>0||parseFloat(cs.borderLeftWidth)>0||parseFloat(cs.borderRightWidth)>0)return true;
+    return false;
+  }
+  function atlasCollectAtomicRects(root,pageHeightPx){
     var out=[];
     (function walk(el){
       if(atlasIsLeafBlock(el)){
         atlasGetLineRects(el).forEach(function(r){out.push(r);});
         return;
+      }
+      if(atlasIsComponentBox(el)){
+        var br=el.getBoundingClientRect();
+        if(br.height*CAPTURE_SCALE<=pageHeightPx){
+          if(br.height>0.5)out.push(br);
+          return;
+        }
+        // 박스 자체가 페이지 한 장보다 커서 통째로는 못 담는 예외적인
+        // 경우에만 내부까지 들어가 안전한 경계를 찾는다(아래로 계속 진행).
       }
       Array.prototype.forEach.call(el.children,walk);
     })(root);
@@ -2125,7 +2160,7 @@ function atlasDownloadEbookPdf(){
      드문 예외 상황에 대한 안전장치일 뿐이다). */
   function atlasComputeSafePageBreaks(pg,totalCanvasHeight,pageHeightPx){
     var pgTop=pg.getBoundingClientRect().top;
-    var bottoms=atlasCollectAtomicRects(pg).map(function(r){
+    var bottoms=atlasCollectAtomicRects(pg,pageHeightPx).map(function(r){
       return Math.round((r.bottom-pgTop)*CAPTURE_SCALE);
     }).filter(function(b){return b>0&&b<totalCanvasHeight;}).sort(function(a,b){return a-b;});
     var cuts=[0],cursor=0;
