@@ -253,26 +253,6 @@ function renderCvEbook(e){
   var footerCopyright='ⓒ '+(c.year||'2025')+' '+e.author;
   function nextFooter(){return pgFooter(e.title,footerCopyright);}
 
-  /* 2026-08-10: 목차에 실제 페이지 번호를 넣기 위한 사전 계산. .pg 하나 =
-     인쇄/PDF 시 정확히 한 페이지라는 규칙(css/styles.css @media print)을
-     그대로 이용해, 아래 pages.push() 호출 순서와 정확히 같은 순서로 절대
-     페이지 번호를 미리 센다(지어내지 않고 실제로 쌓일 순서를 그대로 계산 —
-     Never-Guess). 2026-08-12: 저작권 페이지를 맨 뒤로 옮기면서(사용자 요청)
-     더 이상 2번째 페이지를 차지하지 않는다 — 표지=1, 서문(있으면)=+1,
-     목차=그 다음 페이지, 서론(있으면)=+1, 이후 각 챕터는 오프너+본문
-     2페이지씩. 목차에는 저작권 페이지 번호를 표시하지 않으므로 그 번호는
-     따로 계산할 필요가 없다. */
-  var absPage=1; // 1=표지
-  if(e.preface)absPage++;
-  var tocPageNum=absPage+1;
-  absPage=tocPageNum;
-  if(e.intro)absPage++;
-  var chapterPageNums=[];
-  for(var pi=0;pi<chs.length;pi++){ absPage++; chapterPageNums.push(absPage); absPage++; }
-  absPage++;
-  var conclusionPageNum=absPage;
-  var appendixPageNum=apps.length?absPage+1:null;
-
   var pages=[];
   // 표지 — 참고 전자책 스타일(다크 네이비 + 골드)을 모방한 고정 아이덴티티,
   // 러닝 푸터 없음(원문 참고서도 표지엔 페이지 번호가 없다)
@@ -304,18 +284,24 @@ function renderCvEbook(e){
     pages.push('<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' PREFACE</div><div class="sh">저자 서문</div>'
       +'<div class="chb" contenteditable="false" data-atlas-field="preface">'+renderText(e.preface)+'</div>'+nextFooter()+'</div>');
   }
-  // 목차 — 참고 스타일처럼 점선 리더 + 실제 페이지 번호(위에서 미리 계산한 값)
+  /* 2026-08-20: 사용자 리포트 — 목차 옆 "P.5" 같은 페이지 번호가 실제 PDF
+     쪽수와 안 맞았다. 원인: 이 번호는 "챕터 하나 = 오프너+본문 2페이지"
+     라는 옛 규칙으로 미리 계산한 값인데(A4 여러 장으로 나누는 기능 이전
+     설계), 긴 챕터 본문은 이제 실제로는 여러 물리적 PDF 페이지가 될 수
+     있어 더 이상 맞지 않는다. 실제 최종 쪽수는 PDF로 저장하는 시점(캡처가
+     끝나야)에야 정해지는 값이라 목차를 그리는 이 시점에는 애초에 알 수
+     없다 — 페이지 하단 러닝 푸터에서 똑같은 이유로 "N / 전체" 표시를 뺀
+     것과 동일한 원칙으로, 틀릴 수밖에 없는 번호를 아예 표시하지 않는다. */
   var toc='<div class="pg inn"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">목차</div>';
   for(var i=0;i<chs.length;i++){
     toc+='<div class="ti">'
       +'<span class="tn">CHAPTER '+pad(chs[i].number)+'</span>'
       +'<span class="tt">'+x(chs[i].title)+'</span>'
       +'<span class="tdots"></span>'
-      +'<span class="tpg">P.'+chapterPageNums[i]+'</span>'
       +'</div>';
   }
-  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span><span class="tdots"></span><span class="tpg">P.'+conclusionPageNum+'</span></div>';
-  if(appendixPageNum)toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span><span class="tdots"></span><span class="tpg">P.'+appendixPageNum+'</span></div>';
+  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span><span class="tdots"></span></div>';
+  if(apps.length)toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span><span class="tdots"></span></div>';
   toc+=nextFooter()+'</div>';
   pages.push(toc);
   // 서론
