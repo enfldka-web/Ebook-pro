@@ -2035,6 +2035,67 @@ function atlasDownloadEbookPdf(){
      내용(목차 등)은 어차피 한 조각 안에 다 들어가므로 자동으로 1장이 되고,
      긴 챕터만 워드처럼 여러 페이지로 자연스럽게 나뉜다. */
   var A4_RATIO=297/210;
+  var CAPTURE_SCALE=1.5;
+  /* 2026-08-20: 사용자가 재현한 버그 — 위 고정 높이(pageHeightPx) 슬라이싱은
+     실제 문단/체크리스트 항목이 어디서 끝나는지 전혀 모른 채 캔버스를 그냥
+     N픽셀 단위로 잘랐다. 그래서 문장이나 체크리스트 항목 한가운데를 페이지
+     경계가 관통하면, 앞부분은 이전 페이지 맨 아래에, 뒷부분은 다음 페이지
+     맨 위에 잘린 채로 찍혔다(스크린샷으로 확인된 "연결부위가 짤림" 버그).
+     원인 자체는 명확했다 — 자를 위치를 실제 콘텐츠 경계와 무관하게 정했기
+     때문. 고쳐야 하는 것: 페이지 경계를 "안전한 지점"(문단/줄/체크리스트
+     항목/표 행처럼 더 이상 쪼갤 수 없는 최소 단위 사이의 틈)으로만 정하게
+     한다. 이 최소 단위를 알아내려고 렌더러가 쓰는 클래스명을 일일이
+     나열하지 않고(그러면 새 블록 타입이 추가될 때마다 여기도 같이 고쳐야
+     하는 drift 위험이 생김), 대신 "자식이 전부 inline 요소뿐인 요소"를
+     재귀적으로 찾아 그 요소의 실제 화면 경계를 안전한 컷 후보로 쓴다 —
+     이 앱의 모든 챕터/부록 콘텐츠는 결국 div/p/table 같은 block 컨테이너
+     안에 텍스트+인라인 요소로 끝나므로, 이 방식이 렌더러가 앞으로 어떤
+     새 블록(표/프레임워크 카드/타임라인/체크리스트 등)을 추가해도 별도
+     수정 없이 항상 "문장/행 중간에서 자르지 않는다"는 원칙을 지킨다. */
+  var ATLAS_PDF_INLINE_TAGS={SPAN:1,STRONG:1,EM:1,B:1,I:1,SVG:1,PATH:1,BR:1,A:1,SMALL:1,U:1};
+  function atlasIsLeafBlock(el){
+    var kids=el.children;
+    for(var k=0;k<kids.length;k++){ if(!ATLAS_PDF_INLINE_TAGS[kids[k].tagName]) return false; }
+    return true;
+  }
+  function atlasCollectAtomicRects(root){
+    var out=[];
+    (function walk(el){
+      if(atlasIsLeafBlock(el)){
+        var r=el.getBoundingClientRect();
+        if(r.height>0.5)out.push(r);
+        return;
+      }
+      Array.prototype.forEach.call(el.children,walk);
+    })(root);
+    return out;
+  }
+  /* 각 페이지의 컷 지점을 "목표 높이(pageHeightPx)를 넘지 않는 선에서 가장
+     뒤쪽에 있는 안전한 경계"로 고른다 — 즉 최대한 페이지를 꽉 채우되, 절대
+     콘텐츠 중간을 자르지 않는다. 목표 지점 근처에 안전한 경계가 전혀 없는
+     극단적인 경우(표 하나가 A4 한 장보다 큰 경우 등)에만 이전 방식대로
+     목표 지점에서 그냥 자른다(그 경우에도 이전보다 나빠지지 않을 뿐, 아주
+     드문 예외 상황에 대한 안전장치일 뿐이다). */
+  function atlasComputeSafePageBreaks(pg,totalCanvasHeight,pageHeightPx){
+    var pgTop=pg.getBoundingClientRect().top;
+    var bottoms=atlasCollectAtomicRects(pg).map(function(r){
+      return Math.round((r.bottom-pgTop)*CAPTURE_SCALE);
+    }).filter(function(b){return b>0&&b<totalCanvasHeight;}).sort(function(a,b){return a-b;});
+    var cuts=[0],cursor=0;
+    while(cursor<totalCanvasHeight){
+      var target=cursor+pageHeightPx;
+      if(target>=totalCanvasHeight){cuts.push(totalCanvasHeight);break;}
+      var chosen=null;
+      for(var bi=0;bi<bottoms.length;bi++){
+        if(bottoms[bi]>cursor&&bottoms[bi]<=target)chosen=bottoms[bi];
+        else if(bottoms[bi]>target)break;
+      }
+      if(chosen==null||chosen<=cursor)chosen=target;
+      cuts.push(chosen);
+      cursor=chosen;
+    }
+    return cuts;
+  }
   var waitFonts=(typeof document.fonts!=='undefined'&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
   var chain=waitFonts.then(function(){
     // 폰트가 막 적용된 직후 한 프레임 정도 레이아웃/페인트가 안정될 시간을 준다.
@@ -2048,7 +2109,7 @@ function atlasDownloadEbookPdf(){
       var rect=pg.getBoundingClientRect();
       var pw=Math.ceil(rect.width),ph=Math.ceil(rect.height);
       var vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
-      return html2canvas(pg,{scale:1.5,useCORS:true,allowTaint:true,windowWidth:vw,windowHeight:vh,width:pw,height:ph});
+      return html2canvas(pg,{scale:CAPTURE_SCALE,useCORS:true,allowTaint:true,windowWidth:vw,windowHeight:vh,width:pw,height:ph});
     }).then(function(canvas){
       var w=canvas.width,h=canvas.height;
       /* 2026-08-13: 실제 html2canvas/jsPDF를 진짜로 돌려서 찾은 진짜 원인 —
@@ -2076,12 +2137,13 @@ function atlasDownloadEbookPdf(){
         return;
       }
       // 본문 페이지: 캡처된 폭을 A4 가로폭으로 보고, 실제 A4 비율로 세로
-      // 한 장 높이를 정한 뒤 그 높이만큼씩 잘라 여러 장으로 나눈다.
+      // 한 장 높이를 정한 뒤, 그 높이를 넘지 않으면서도 문단/행 중간을
+      // 자르지 않는 안전한 경계에서만 나눈다(atlasComputeSafePageBreaks).
       var pageHeightPx=Math.round(w*A4_RATIO);
-      var sliceCount=Math.max(1,Math.ceil(h/pageHeightPx));
-      for(var i=0;i<sliceCount;i++){
-        var sy=i*pageHeightPx;
-        var sh=Math.min(pageHeightPx,h-sy);
+      var cutPoints=atlasComputeSafePageBreaks(pg,h,pageHeightPx);
+      for(var i=0;i<cutPoints.length-1;i++){
+        var sy=cutPoints[i];
+        var sh=cutPoints[i+1]-sy;
         var sliceCanvas=document.createElement('canvas');
         sliceCanvas.width=w;
         sliceCanvas.height=pageHeightPx;
