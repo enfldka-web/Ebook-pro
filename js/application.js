@@ -2078,51 +2078,26 @@ function atlasDownloadEbookPdf(){
      안에 텍스트+인라인 요소로 끝나므로, 이 방식이 렌더러가 앞으로 어떤
      새 블록(표/프레임워크 카드/타임라인/체크리스트 등)을 추가해도 별도
      수정 없이 항상 "문장/행 중간에서 자르지 않는다"는 원칙을 지킨다. */
-  var ATLAS_PDF_INLINE_TAGS={SPAN:1,STRONG:1,EM:1,B:1,I:1,SVG:1,PATH:1,BR:1,A:1,SMALL:1,U:1};
-  function atlasIsLeafBlock(el){
-    var kids=el.children;
-    for(var k=0;k<kids.length;k++){ if(!ATLAS_PDF_INLINE_TAGS[kids[k].tagName]) return false; }
-    return true;
-  }
-  /* 2026-08-20: 사용자가 다시 재현한 버그 — 위 leaf 블록을 통째로 하나의
-     rect(el.getBoundingClientRect())로만 다뤘더니, 줄바꿈되어 여러 줄로
-     보이는 긴 문단/체크리스트 항목 하나가 페이지 한 장보다 더 큰 경우
-     "쪼갤 수 없는 하나의 덩어리"로 취급되어 버렸다 — 그러면
-     atlasComputeSafePageBreaks의 예외 폴백(안전한 경계가 전혀 없을 때만
-     쓰는 목표 지점 강제 컷)이 그 덩어리 한가운데, 즉 줄 중간을 그대로
-     지나가 버렸다(실제로 재현됨). 고친 점: leaf 블록의 겉 테두리 하나가
-     아니라, Range.getClientRects()로 실제 렌더링된 "줄 하나하나"의 사각형을
-     구해 그 줄 사이의 틈만 안전한 컷 후보로 쓴다 — 같은 문단이라도 페이지
-     경계에서는 줄과 줄 사이에서만 넘어가고, 글자 한 줄 중간을 자르는 일은
-     이제 없다(워드/실제 인쇄물이 문단을 여러 페이지에 걸쳐 자연스럽게
-     흘리는 것과 동일한 방식). */
-  function atlasGetLineRects(el){
-    try{
-      var range=document.createRange();
-      range.selectNodeContents(el);
-      var rects=Array.prototype.filter.call(range.getClientRects(),function(r){return r.height>0.5&&r.width>0.5;});
-      if(rects.length)return rects;
-    }catch(e){}
-    var r=el.getBoundingClientRect();
-    return r.height>0.5?[r]:[];
-  }
-  /* 2026-08-20: 사용자가 세 번째로 재현한 버그(스크린샷) — 문장/줄 중간은
-     더 이상 안 잘렸지만, "핵심 포인트"/"즉시 실천 체크리스트" 같은 제목+
-     본문으로 이루어진 카드형 콘텐츠 블록이 제목만 이전 페이지에 남고
-     본문(또는 항목 일부)이 다음 페이지로 넘어가는 식으로 쪼개졌다 — 박스
-     하나가 페이지 경계에 걸리면 통째로 다음 페이지로 넘어가야 하는데,
-     지금까지는 그 안의 문단/체크리스트 항목/표 행 단위로만 안전한 경계를
-     찾다 보니 "박스 제목과 첫 항목 사이"처럼 박스 내부의 경계도 그냥 안전한
-     컷 지점으로 써버렸다. 이런 카드형 블록(핵심 포인트/체크리스트/표/
-     프레임워크/타임라인/실행박스/경고박스/이 장 요약/임팩트 문구/장 완료
-     내비 등)을 클래스명으로 일일이 나열하지 않고, "제목(h4)을 담고 있다"
-     또는 "자기 자신의 배경색·배경이미지·테두리가 있다"는 두 가지 구조적
-     신호로 판별한다 — 이 렌더러가 카드형 컴포넌트를 만들 때 항상 쓰는
-     디자인 패턴이라, 새 카드 컴포넌트가 추가돼도 이 신호 중 하나는
-     자연스럽게 해당된다. 이런 블록이 페이지 한 장 안에 들어갈 만큼 작으면
-     통째로 하나의 안전한 컷 후보로 쓰고(내부를 쪼개지 않음), 페이지 한
-     장보다 큰 예외적인 경우에만 지금까지처럼 내부(문단/줄 단위)까지
-     들어가 안전한 경계를 찾는다. */
+  /* 2026-08-20: 사용자가 실제로 만든 PDF(63페이지)를 직접 열어 재현한 버그 —
+     앞선 두 차례 수정(문단/줄 단위 DOM 경계, 카드형 박스 DOM 경계)이 실제
+     PDF에서는 전혀 안 먹혔다. 원인을 실제 파일로 추적한 결과: 그동안 "안전한
+     컷 지점"을 전부 살아있는 DOM의 getBoundingClientRect()/Range로
+     측정했는데, 그 측정은 브라우저가 실제 화면에 그리는 레이아웃 기준이고,
+     PDF에 들어가는 이미지는 html2canvas가 캔버스에 다시 그린 결과다.
+     html2canvas는 특히 한글처럼 word-break:keep-all이 걸린 텍스트의 줄바꿈
+     위치를 브라우저와 100% 동일하게 재현하지 못할 수 있다 — 그러면 DOM에서
+     "줄 끝"이라고 측정한 픽셀 위치가 실제 캔버스에서는 줄 중간일 수 있다
+     (실제로 이렇게 재현됨). DOM 측정을 신뢰할 수 없다는 뜻이므로, 이제
+     "안전한지"를 캔버스에 실제로 찍힌 픽셀을 직접 읽어서 판단한다 — 문단
+     사이·줄 사이처럼 진짜 빈 공백인 가로줄(모든 픽셀이 거의 같은 색)을
+     찾아 그 지점에서만 자른다. 이 방식은 html2canvas가 실제로 무엇을
+     그렸는지와 항상 100% 일치한다(같은 캔버스를 보고 판단하므로 어긋날
+     수가 없다). 다만 "핵심 포인트"/"즉시 실천 체크리스트" 같은 카드형
+     박스는 내부에 빈 공백 줄이 있어도(제목과 첫 항목 사이 등) 거기서 잘리면
+     안 되므로, 박스의 시작/끝 위치만은 기존처럼 DOM으로 먼저 찾아 "이
+     구간 안에서는 픽셀이 비어있어도 자르면 안 된다"는 금지 구간으로 쓴다
+     — 박스 경계(마진)는 줄바꿈처럼 미세한 텍스트 레이아웃이 아니라 블록
+     레벨 여백이라 html2canvas가 어긋날 위험이 훨씬 적다. */
   function atlasIsComponentBox(el){
     if(el.querySelector&&el.querySelector('h4'))return true;
     var cs=getComputedStyle(el);
@@ -2132,46 +2107,81 @@ function atlasDownloadEbookPdf(){
     if(parseFloat(cs.borderTopWidth)>0||parseFloat(cs.borderBottomWidth)>0||parseFloat(cs.borderLeftWidth)>0||parseFloat(cs.borderRightWidth)>0)return true;
     return false;
   }
-  function atlasCollectAtomicRects(root,pageHeightPx){
-    var out=[];
+  function atlasFindComponentBoxRanges(pg,pageHeightPx){
+    var pgTop=pg.getBoundingClientRect().top;
+    var ranges=[];
     (function walk(el){
-      if(atlasIsLeafBlock(el)){
-        atlasGetLineRects(el).forEach(function(r){out.push(r);});
-        return;
-      }
       if(atlasIsComponentBox(el)){
-        var br=el.getBoundingClientRect();
-        if(br.height*CAPTURE_SCALE<=pageHeightPx){
-          if(br.height>0.5)out.push(br);
-          return;
-        }
+        var r=el.getBoundingClientRect();
+        var top=Math.round((r.top-pgTop)*CAPTURE_SCALE);
+        var bottom=Math.round((r.bottom-pgTop)*CAPTURE_SCALE);
+        if(bottom-top<=pageHeightPx){ranges.push({top:top,bottom:bottom});return;}
         // 박스 자체가 페이지 한 장보다 커서 통째로는 못 담는 예외적인
-        // 경우에만 내부까지 들어가 안전한 경계를 찾는다(아래로 계속 진행).
+        // 경우에만 내부까지 들어가 하위 박스가 있는지 계속 찾는다.
       }
       Array.prototype.forEach.call(el.children,walk);
-    })(root);
-    return out;
+    })(pg);
+    return ranges;
+  }
+  /* searchFromExclusive~searchToInclusive(캔버스 세로 픽셀 범위) 안에서
+     "실제로 빈 가로줄"(가로로 샘플링한 픽셀들의 밝기 차이가 거의 없는 줄 —
+     문단 사이/줄 사이/박스 사이 여백)을 목표 지점에서 가장 가까운 쪽부터
+     찾는다. forbiddenRanges(카드형 박스 구간) 안에 있는 줄은 비어 보여도
+     건너뛴다. */
+  function atlasFindSafeBlankRow(canvas,searchFromExclusive,searchToInclusive,forbiddenRanges){
+    var w=canvas.width;
+    var top=Math.max(0,Math.floor(searchFromExclusive));
+    var bottom=Math.min(canvas.height,Math.ceil(searchToInclusive));
+    if(bottom<=top)return null;
+    var band;
+    try{
+      band=canvas.getContext('2d').getImageData(0,top,w,bottom-top).data;
+    }catch(e){ return null; }
+    var bandH=bottom-top;
+    var sampleStep=Math.max(1,Math.floor(w/120));
+    var THRESH=10;
+    function isForbidden(y){
+      for(var i=0;i<forbiddenRanges.length;i++){
+        if(y>forbiddenRanges[i].top+1&&y<forbiddenRanges[i].bottom-1)return true;
+      }
+      return false;
+    }
+    for(var y=bandH-1;y>=0;y--){
+      var absY=top+y;
+      if(isForbidden(absY))continue;
+      var mn=255,mx=0;
+      for(var x=0;x<w;x+=sampleStep){
+        var idx=(y*w+x)*4;
+        var lum=0.299*band[idx]+0.587*band[idx+1]+0.114*band[idx+2];
+        if(lum<mn)mn=lum;
+        if(lum>mx)mx=lum;
+      }
+      if(mx-mn<=THRESH)return absY;
+    }
+    return null;
   }
   /* 각 페이지의 컷 지점을 "목표 높이(pageHeightPx)를 넘지 않는 선에서 가장
      뒤쪽에 있는 안전한 경계"로 고른다 — 즉 최대한 페이지를 꽉 채우되, 절대
-     콘텐츠 중간을 자르지 않는다. 목표 지점 근처에 안전한 경계가 전혀 없는
-     극단적인 경우(표 하나가 A4 한 장보다 큰 경우 등)에만 이전 방식대로
-     목표 지점에서 그냥 자른다(그 경우에도 이전보다 나빠지지 않을 뿐, 아주
-     드문 예외 상황에 대한 안전장치일 뿐이다). */
-  function atlasComputeSafePageBreaks(pg,totalCanvasHeight,pageHeightPx){
-    var pgTop=pg.getBoundingClientRect().top;
-    var bottoms=atlasCollectAtomicRects(pg,pageHeightPx).map(function(r){
-      return Math.round((r.bottom-pgTop)*CAPTURE_SCALE);
-    }).filter(function(b){return b>0&&b<totalCanvasHeight;}).sort(function(a,b){return a-b;});
+     콘텐츠 중간을 자르지 않는다. 후보는 (1) 카드형 박스의 시작/끝 지점,
+     (2) 캔버스에서 실제로 비어있는 가로줄, 둘 중 목표 지점에 더 가까운
+     쪽을 쓴다. 후보가 전혀 없는 극단적인 경우(빈 줄이 전혀 없을 만큼 꽉 찬
+     표 하나가 페이지보다 큰 경우 등)에만 이전 방식대로 목표 지점에서 그냥
+     자른다(아주 드문 예외 상황에 대한 안전장치일 뿐이다). */
+  function atlasComputeSafePageBreaks(pg,canvas,totalCanvasHeight,pageHeightPx){
+    var forbidden=atlasFindComponentBoxRanges(pg,pageHeightPx);
     var cuts=[0],cursor=0;
     while(cursor<totalCanvasHeight){
       var target=cursor+pageHeightPx;
       if(target>=totalCanvasHeight){cuts.push(totalCanvasHeight);break;}
+      var boxCandidate=null;
+      forbidden.forEach(function(r){
+        if(r.top>cursor&&r.top<=target&&(boxCandidate==null||r.top>boxCandidate))boxCandidate=r.top;
+        if(r.bottom>cursor&&r.bottom<=target&&(boxCandidate==null||r.bottom>boxCandidate))boxCandidate=r.bottom;
+      });
+      var blankRow=atlasFindSafeBlankRow(canvas,cursor+1,target,forbidden);
       var chosen=null;
-      for(var bi=0;bi<bottoms.length;bi++){
-        if(bottoms[bi]>cursor&&bottoms[bi]<=target)chosen=bottoms[bi];
-        else if(bottoms[bi]>target)break;
-      }
+      if(boxCandidate!=null&&blankRow!=null)chosen=Math.max(boxCandidate,blankRow);
+      else chosen=(boxCandidate!=null)?boxCandidate:blankRow;
       if(chosen==null||chosen<=cursor)chosen=target;
       cuts.push(chosen);
       cursor=chosen;
@@ -2222,14 +2232,33 @@ function atlasDownloadEbookPdf(){
            채운다 — 색을 하나 정해서 하드코딩하면 나중에 배경 디자인이
            바뀔 때마다 여기도 같이 고쳐야 하는 drift가 생긴다. */
         var pageHeightPx=Math.round(w*A4_RATIO);
-        var fitScale=Math.min(1,pageHeightPx/h);
+        /* 2026-08-20: css/styles.css에 aspect-ratio:210/297을 추가해 이
+           페이지들의 디자인 자체가 이미 A4 비율이므로, 대부분은 h와
+           pageHeightPx가 반올림 오차 몇 픽셀 수준으로만 다르다. 그 정도
+           차이를 그대로 여백(gap)으로 남기면 배경색이 100% 완벽히
+           일치하지 않는 이상 미세한 이음선이 보인다 — 몇 픽셀 이내
+           오차는 굳이 여백을 두지 않고 그냥 채워서(스트레치) 이음선
+           자체를 없앤다(비율이 이미 거의 같으므로 눈에 띄는 왜곡은 없다).
+           제목이 유난히 길어 min-height가 A4 비율을 넘어서는 등 실제로
+           큰 차이가 나는 예외적인 경우에만 비율을 유지한 채 중앙 정렬
+           여백을 둔다. */
+        var SNAP_PX=4;
+        var fitScale=Math.abs(pageHeightPx-h)<=SNAP_PX?pageHeightPx/h:Math.min(1,pageHeightPx/h);
         var drawW=Math.round(w*fitScale),drawH=Math.round(h*fitScale);
         var offsetX=Math.round((w-drawW)/2);
         var offsetY=Math.round((pageHeightPx-drawH)/2);
+        /* 2026-08-20: 실제 PDF로 재현된 버그 — 여백이 다크 네이비가 아니라
+           흰색으로 나왔다. 원인: .pg는 border-radius:12px가 있어 모서리
+           (0,0) 픽셀은 둥근 테두리 곡선 "바깥"이라 실제로는 투명이다 —
+           투명 픽셀을 읽어 배경색으로 쓰면 JPEG로 저장될 때(알파 채널을
+           지원하지 않음) 브라우저가 그 투명 영역을 흰색으로 밀어넣는다.
+           둥근 모서리 곡선에 걸리지 않을 만큼 안쪽으로 들어간 지점에서
+           색을 읽는다. */
         var edgeColor='#ffffff';
         try{
-          var edge=canvas.getContext('2d').getImageData(0,0,1,1).data;
-          edgeColor='rgba('+edge[0]+','+edge[1]+','+edge[2]+','+(edge[3]/255)+')';
+          var ex=Math.min(20,w-1),ey=Math.min(20,h-1);
+          var edge=canvas.getContext('2d').getImageData(ex,ey,1,1).data;
+          if(edge[3]>0)edgeColor='rgba('+edge[0]+','+edge[1]+','+edge[2]+','+(edge[3]/255)+')';
         }catch(edgeErr){/* 캔버스가 오염(tainted)돼 getImageData가 막힌 드문 경우 —
           흰색으로 안전하게 폴백한다(크래시보다 낫다). */}
         var posterCanvas=document.createElement('canvas');
@@ -2251,7 +2280,7 @@ function atlasDownloadEbookPdf(){
       // 한 장 높이를 정한 뒤, 그 높이를 넘지 않으면서도 문단/행 중간을
       // 자르지 않는 안전한 경계에서만 나눈다(atlasComputeSafePageBreaks).
       var pageHeightPx=Math.round(w*A4_RATIO);
-      var cutPoints=atlasComputeSafePageBreaks(pg,h,pageHeightPx);
+      var cutPoints=atlasComputeSafePageBreaks(pg,canvas,h,pageHeightPx);
       for(var i=0;i<cutPoints.length-1;i++){
         var sy=cutPoints[i];
         var sh=cutPoints[i+1]-sy;
