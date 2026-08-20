@@ -115,15 +115,19 @@ async function runAtlasPartialRegeneration(){
    target=JSON.stringify(APP.ebook[type]||'');
    schema='문자열 값 하나를 {"content":"..."} 형태로 반환';
  }
- var prompt=E.ebookBlueprintGuidelines()+'당신은 한국어 전자책 전문 편집자입니다. 전체 전자책의 제목과 방향은 유지하고 선택한 부분만 고쳐 쓰세요.\n'
+ var market=(APP.ebook&&APP.ebook.market)||'kr';
+ var editorRoleLine=market==='global'
+   ?'You are a professional English-language ebook editor. Keep the overall title and direction of the ebook, and rewrite only the selected part.\n'
+   :'당신은 한국어 전자책 전문 편집자입니다. 전체 전자책의 제목과 방향은 유지하고 선택한 부분만 고쳐 쓰세요.\n';
+ var prompt=E.ebookBlueprintGuidelines()+editorRoleLine
    +'수정 방향: '+(dir||'가독성과 실전성을 높이고 후킹을 강화')+'\n\n'
    +'[전자책 정보]\n'+JSON.stringify({title:APP.ebook.title,subtitle:APP.ebook.subtitle,description:APP.ebook.description,targetReader:APP.ebook.targetReader})+'\n\n'
    +'[현재 선택 부분 — 이 내용을 위 수정 방향에 맞게 다시 씁니다]\n'+target
    +otherChaptersBlock+'\n\n'
-   +E.FACTUALITY_RULES+'\n\n'+E.SALES_COPY_RULES+'\n\n'+E.WRITING_STYLE_RULES+'\n\n'+E.PRACTICALITY_RULES+'\n\n'+E.SOURCE_GROUNDING_RULES+'\n\n'+E.KOREAN_LOCALIZATION_RULES+'\n\n'
+   +E.FACTUALITY_RULES+'\n\n'+E.SALES_COPY_RULES+'\n\n'+E.WRITING_STYLE_RULES+'\n\n'+E.PRACTICALITY_RULES+'\n\n'+E.SOURCE_GROUNDING_RULES+'\n\n'+(market==='global'?'':E.KOREAN_LOCALIZATION_RULES)+'\n\n'
    +'아래 스키마를 정확히 따르세요.\n'+schema+'\n유효한 JSON만 반환하세요.';
  try{
-   var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:isChapter?9000:(isAppendices?16000:5000),system:ATLAS_SYSTEM_PROMPT,callType:isChapter?'chapter':(isAppendices?'appendices':'partial'),messages:[{role:'user',content:[{type:'text',text:prompt}]}]});
+   var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:isChapter?9000:(isAppendices?16000:5000),system:atlasSystemPromptFor(market),callType:isChapter?'chapter':(isAppendices?'appendices':'partial'),messages:[{role:'user',content:[{type:'text',text:prompt}]}]});
    var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');
    var obj=E.robustJsonParse(raw,openChar,closeChar,'partial-'+type);
    if(type==='sales')APP.ebook.sales=obj;

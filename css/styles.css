@@ -836,6 +836,8 @@ textarea{resize:vertical}
 .input-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--a2-text-muted);border-radius:9px;border:none;background:transparent;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.1px;font-family:inherit}
 .input-tab svg{width:14px;height:14px}
 .input-tab.active{background:var(--a2-accent);color:var(--a2-accent-contrast);box-shadow:var(--a2-shadow-sm)}
+.market-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--a2-text-muted);border-radius:9px;border:none;background:transparent;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.1px;font-family:inherit;cursor:pointer}
+.market-tab.active{background:var(--a2-accent);color:var(--a2-accent-contrast);box-shadow:var(--a2-shadow-sm)}
 .input-panel{display:none}.input-panel.active{display:block}
 .cv-upload-area{
   border:2px dashed var(--a2-border);border-radius:var(--a2-r);

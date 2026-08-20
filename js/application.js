@@ -1,7 +1,19 @@
 // ════════════════════════════════════════
 // DATA & STATE
 // ════════════════════════════════════════
-var APP={user:null,ebook:null,editMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'upload',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,ebookProgress:null};
+var APP={user:null,ebook:null,editMode:false,selFile:null,selPlan:'free',urlContent:'',multiFiles:[],multiLinks:[],titleCandidates:[],selectedTitleIndex:-1,lockedTitle:'',lockedSubtitle:'',workspaceStage:'upload',projectName:'',projectUpdatedAt:null,interviewQuestions:[],interviewAnswers:{},interviewContext:'',smartAnalysis:null,ebookProgress:null,market:'kr'};
+/* 해외 마켓(영어) 생성 모드 토글 — 'kr'(기본)은 기존 국내 시장 동작을 그대로
+   유지하고, 'global'은 프롬프트 파이프라인 전체(시스템 프롬프트/모드
+   프리픽스/목차·챕터·부록/제목/썸네일·상세페이지·업로드자료)에서 영어·해외
+   플랫폼 지시로 분기한다. */
+function atlasSetMarket(m,opts){
+  opts=opts||{};
+  APP.market=(m==='global')?'global':'kr';
+  document.querySelectorAll('[data-market-btn]').forEach(function(el){
+    el.classList.toggle('active',el.getAttribute('data-market-btn')===APP.market);
+  });
+  if(!opts.noSave)atlasSaveDraft(false);
+}
 
 // ════════════════════════════════════════
 // ATLAS v0.7 SMART PREMIUM ENGINE
@@ -86,7 +98,7 @@ function atlasUpdateResultHeader(e){
 }
 function atlasCollectDraft(){
  function val(id){var e=document.getElementById(id);return e?e.value:'';}
- return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'upload',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,ebookProgress:ebookProgressLightweight(APP.ebookProgress)};
+ return {version:'0.7',savedAt:Date.now(),stage:APP.workspaceStage||'upload',market:APP.market||'kr',interviewQuestions:APP.interviewQuestions||[],interviewAnswers:APP.interviewAnswers||{},interviewContext:APP.interviewContext||'',smartAnalysis:APP.smartAnalysis||null,mode:typeof CV_MODE!=='undefined'?CV_MODE:'file',lockedTitle:APP.lockedTitle||'',lockedSubtitle:APP.lockedSubtitle||'',titleCandidates:APP.titleCandidates||[],titleAnalysis:APP.titleAnalysis||{},topic:{main:val('topic-main'),target:val('topic-target'),extra:val('topic-extra')},url:{input:val('url-input'),direction:val('url-direction'),extra:val('url-extra'),content:APP.urlContent||''},multi:{notes:val('ms-notes'),direction:val('ms-direction'),links:APP.multiLinks||[],files:(APP.multiFiles||[]).map(function(f){return {name:f.name,role:f.role};})},ebook:APP.ebook||null,ebookProgress:ebookProgressLightweight(APP.ebookProgress)};
 }
 function atlasSaveDraft(show){try{localStorage.setItem(atlasProjectStorageKey(),JSON.stringify(atlasCollectDraft()));if(show)showToast('success','현재 프로젝트를 저장했습니다.');}catch(e){if(show)showToast('error','프로젝트 저장에 실패했습니다.');}}
 /* V3 Phase 2 Round 24: 실제 재현된 두 번째 버그 — atlasLoadDraft()는 지금까지
@@ -123,6 +135,7 @@ function atlasLoadDraft(show){
     읽어도 에러 없이 안전하다(atlas-coding-bible: 기존 데이터 구조 삭제 금지 —
     과거 프로젝트 로드가 깨지면 안 된다). */
  APP.lockedTitle=d.lockedTitle||'';APP.lockedSubtitle=d.lockedSubtitle||'';APP.titleCandidates=d.titleCandidates||[];APP.titleAnalysis=d.titleAnalysis||{};APP.interviewQuestions=d.interviewQuestions||[];APP.interviewAnswers=d.interviewAnswers||{};APP.interviewContext=d.interviewContext||'';APP.smartAnalysis=d.smartAnalysis||null;APP.urlContent=d.url&&d.url.content||'';APP.multiLinks=d.multi&&d.multi.links||[];if(d.ebook)APP.ebook=d.ebook;APP._ebookProgressLightweightHint=d.ebookProgress||null;APP.ebookProgress=null;
+ atlasSetMarket((d.ebook&&d.ebook.market)||d.market||'kr',{noSave:true});
  function setv(id,v){var e=document.getElementById(id);if(e)e.value=v||'';}
  setv('topic-main',d.topic&&d.topic.main);setv('topic-target',d.topic&&d.topic.target);setv('topic-extra',d.topic&&d.topic.extra);setv('url-input',d.url&&d.url.input);setv('url-direction',d.url&&d.url.direction);setv('url-extra',d.url&&d.url.extra);setv('ms-notes',d.multi&&d.multi.notes);setv('ms-direction',d.multi&&d.multi.direction);
  if(typeof switchInputTab==='function'&&d.mode)switchInputTab(d.mode);if(typeof renderMultiLinks==='function')renderMultiLinks();
@@ -1120,6 +1133,7 @@ function checkCvReady(){
 }
 function resetConverter(){
   APP.selFile=null;APP.ebook=null;APP.editMode=false;APP.urlContent='';APP.multiFiles=[];APP.multiLinks=[];APP.titleCandidates=[];APP.selectedTitleIndex=-1;APP.lockedTitle='';APP.lockedSubtitle='';APP.interviewQuestions=[];APP.interviewAnswers={};APP.interviewContext='';APP.smartAnalysis=null;APP.ebookProgress=null;APP._ebookProgressLightweightHint=null;APP.projectName='';
+  atlasSetMarket('kr',{noSave:true});
   CV_MODE='file';
   var fi=document.getElementById('cv-fi');if(fi)fi.value='';
   var dz=document.getElementById('cv-dz');if(dz)dz.classList.remove('has-file');
@@ -1146,9 +1160,18 @@ function resetConverter(){
   checkCvReady();
 }
 
-var ATLAS_SYSTEM_PROMPT = `당신은 한국어 실전 전자책과 전자책 판매자료를 제작하는 전문 편집자입니다.
-모든 응답은 반드시 유효한 JSON 객체 하나만 반환합니다. 마크다운, 코드블록, JSON 앞뒤 설명은 금지합니다.
-JSON 키는 영어로 유지하고 모든 값은 한국어로 작성합니다.
+/* 2026-08-19: 사용자 지시로 해외 마켓(Gumroad·Etsy·Payhip 등, 영어) 생성 모드를
+   추가한다. 기존에는 이 값이 상수라 "한국어로 작성"이 모든 생성 호출에 무조건
+   박혀 있었다 — market 인자를 받는 함수로 바꾸고, 'kr'(기본값)일 때는 기존
+   문자열과 완전히 동일한 결과를 반환해 회귀가 없게 한다. 'global'일 때는 첫
+   두 줄(정체성·출력 언어)만 영어 출력 지시로 바꾸고 나머지 품질/판매정책/문체
+   규칙은 그대로 재사용한다(한국어로 쓰인 지시문이어도 모델이 "응답은 영어로"
+   지시를 정확히 따르는 데 문제 없음 — 규칙 자체를 번역할 필요는 없다). */
+function atlasSystemPromptFor(market){
+  var identity = market==='global'
+    ? '당신은 영어로 실전 전자책과 전자책 판매자료를 제작하는 전문 편집자입니다.\n모든 응답은 반드시 유효한 JSON 객체 하나만 반환합니다. 마크다운, 코드블록, JSON 앞뒤 설명은 금지합니다.\nJSON 키는 영어로 유지하고 모든 값도 영어로 작성합니다(자연스러운 영어 원어민 문체, 번역투 금지).'
+    : '당신은 한국어 실전 전자책과 전자책 판매자료를 제작하는 전문 편집자입니다.\n모든 응답은 반드시 유효한 JSON 객체 하나만 반환합니다. 마크다운, 코드블록, JSON 앞뒤 설명은 금지합니다.\nJSON 키는 영어로 유지하고 모든 값은 한국어로 작성합니다.';
+  return identity+`
 
 [전자책 품질]
 - 독자가 실제로 실행할 수 있는 단계, 방법, 주의점, 예시를 제공합니다.
@@ -1169,6 +1192,7 @@ JSON 키는 영어로 유지하고 모든 값은 한국어로 작성합니다.
 [문체]
 - 과장보다 명확성, 감정보다 구체성, 홍보 문구보다 구매 판단에 필요한 정보를 우선합니다.
 - 상황으로 공감하고 해결 과정과 결과물 구성을 명료하게 제시합니다.`;
+}
 
 /* Atlas V3 Phase 1 — 이전에는 제목 생성 호출이 두 곳(openTitleStudio/
    generateTitlesFromSmartAnalysis)에 각각 비슷하지만 다른 규칙 문구를 손으로
@@ -1177,17 +1201,26 @@ JSON 키는 영어로 유지하고 모든 값은 한국어로 작성합니다.
    문자열을 썼는데(정책/품질 규칙이 전혀 없는 경우도 있었다), 이제는 다른 모든
    생성 호출과 동일하게 ATLAS_SYSTEM_PROMPT를 system으로 쓰고, 제목만의 규칙은
    이 상수로 user 프롬프트 쪽에 얹는다. */
-var TITLE_GENERATION_RULES = `[제목 후보 규칙]
+/* 2026-08-19: market 인자를 받는 함수로 변경(해외 마켓 모드) — 'kr'(기본값)은
+   기존 문자열과 완전히 동일, 'global'만 제목/부제 길이 권장치를 영어 기준으로
+   바꾼다. 나머지 규칙(과장 금지, 12개 후보, 중복 금지, JSON 형식 주의 등)은
+   시장과 무관하게 그대로 재사용한다. */
+function titleGenerationRulesFor(market){
+  var lengthGuideline = market==='global'
+    ? '- 제목은 영어 30~60자(자연스러운 영어 논픽션 제목 길이) 권장, 부제는 40~90자 권장입니다.'
+    : '- 제목은 한국어 14~32자 권장, 부제는 18~48자 권장입니다.';
+  return `[제목 후보 규칙]
 - 과장, 보장, 구체적인 수익 금액, 100%, 무조건, 누구나 성공 표현을 금지합니다.
 - 궁금증·문제공감·실전 효용·신뢰·검색 의도를 균형 있게 사용합니다.
 - 입력에 없는 판매 실적이나 경험을 창작하지 않습니다.
 - 정확히 12개 후보를 생성합니다.
 - 12개는 서로 뚜렷하게 달라야 합니다 — 같은 문장을 단어만 바꾼 유사 문구를 반복하지 마세요. 같은 type 안의 두 후보도 서로 다른 소재·각도·문장 구조를 써야 합니다.
 - "완벽 가이드", "모든 것을 알려드립니다", "총정리" 같은 상투적인 AI 생성 문구를 피하고, 분석된 실제 주제·독자·문제에서 나온 구체적인 표현을 씁니다.
-- 제목은 한국어 14~32자 권장, 부제는 18~48자 권장입니다.
+${lengthGuideline}
 - scores.total은 다른 점수를 종합해 100점 만점으로 현실적으로 평가합니다.
 - [JSON 형식 주의] title/subtitle/reason 등 모든 문자열 값 안에서는 큰따옴표(")를 절대 쓰지 마세요 — 단어를 강조하거나 인용할 때는 작은따옴표(')나 「」를 대신 쓰세요. 큰따옴표가 문자열 안에 그대로 들어가면 JSON이 깨집니다.
 - [JSON 형식 주의] 12개 후보를 배열 요소로만 나열하세요. 후보 사이에 번호, 설명 문장, 마크다운 목록 기호(1. / - / • 등)를 JSON 구조 밖에 추가하지 마세요.`;
+}
 
 /* 2026-08-13: 사용자 리포트 — 제목 후보 생성 중 JSON 파싱이 실패하면 원인을
    확인하려면 매번 개발자 콘솔에서 window.__atlasLastRawResponse를 직접
@@ -1390,11 +1423,13 @@ function smartInterviewAnswerText(){return (APP.interviewQuestions||[]).map(func
 function skipSmartInterview(){APP.interviewAnswers={};generateTitlesFromSmartAnalysis(true);}
 function submitSmartInterview(){if(!validateSmartInterview())return;generateTitlesFromSmartAnalysis(false);}
 async function generateTitlesFromSmartAnalysis(skipped){
+  var market=APP.market||'kr';
   var btn=document.getElementById('si-submit-btn');var old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ 제목 설계 중...';}
-  var prompt=`당신은 한국 전자책 상품의 제목과 후킹을 설계하는 편집자입니다. 앞선 자료 분석과 사용자 답변을 반영해 판매용 전자책 제목 후보를 만드세요.\n\n[앞선 분석]\n${JSON.stringify(APP.smartAnalysis||APP.titleAnalysis||{})}\n\n[사용자 답변]\n${skipped?'사용자가 추가 질문을 건너뛰고 자료만으로 진행함':smartInterviewAnswerText()}\n\n${TITLE_GENERATION_RULES}\n\n유효한 JSON만 반환:\n{"analysis":{"topic":"","target":"","pain":"","angle":"","sourceSummary":""},"titles":[{"title":"","subtitle":"","type":"궁금증형|문제공감형|실전형|검색형|신뢰형|프리미엄형","reason":"","scores":{"hook":0,"trust":0,"search":0,"policy":0,"total":0}}]}`;
+  var roleLine=market==='global'?'You are an editor who designs titles and hooks for English-language ebook products sold on global platforms like Gumroad, Etsy, and Payhip. Reflect the prior source analysis and the user\'s answers to craft ebook title candidates for sale.':'당신은 한국 전자책 상품의 제목과 후킹을 설계하는 편집자입니다. 앞선 자료 분석과 사용자 답변을 반영해 판매용 전자책 제목 후보를 만드세요.';
+  var prompt=`${roleLine}\n\n[앞선 분석]\n${JSON.stringify(APP.smartAnalysis||APP.titleAnalysis||{})}\n\n[사용자 답변]\n${skipped?'사용자가 추가 질문을 건너뛰고 자료만으로 진행함':smartInterviewAnswerText()}\n\n${titleGenerationRulesFor(market)}\n\n유효한 JSON만 반환:\n{"analysis":{"topic":"","target":"","pain":"","angle":"","sourceSummary":""},"titles":[{"title":"","subtitle":"","type":"궁금증형|문제공감형|실전형|검색형|신뢰형|프리미엄형","reason":"","scores":{"hook":0,"trust":0,"search":0,"policy":0,"total":0}}]}`;
   try{
     var content=await buildApiContent(prompt);
-    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:ATLAS_SYSTEM_PROMPT,messages:[{role:'user',content:content}]});
+    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:atlasSystemPromptFor(market),messages:[{role:'user',content:content}]});
     var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');
     var obj=window.AtlasIncrementalEbookEngine.robustJsonParse(raw,'{','}','titles-interview');
     APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');atlasSetSimpleStep(2);window.scrollTo(0,0);
@@ -1411,13 +1446,16 @@ async function openTitleStudio(isRetry){
   var gw=atlasGatewayStatus();
   if(gw.checked&&!gw.reachable){showToast('error','AI 서버가 실행되지 않았습니다.');return;}
   if(gw.checked&&gw.reachable&&!gw.configured){showApp('settings');showToast('error','서버에 API 키가 설정되지 않았습니다.');return;}
+  var market=APP.market||'kr';
   var btn=isRetry?document.getElementById('ts-retry-btn'):document.getElementById('cv-genbtn');
   var old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ 자료 분석 중...';}
-  var prompt=`당신은 한국 전자책 상품을 기획하는 시니어 편집자입니다. 제공된 자료를 분석하고, 추가 질문이 필요한지 스스로 판단한 뒤 제목 후보까지 설계하세요.
+  var roleLine=market==='global'?'You are a senior editor who plans English-language ebook products for global marketplaces (Gumroad, Etsy, Payhip). Analyze the provided material, decide for yourself whether follow-up questions are needed, and design title candidates.':'당신은 한국 전자책 상품을 기획하는 시니어 편집자입니다. 제공된 자료를 분석하고, 추가 질문이 필요한지 스스로 판단한 뒤 제목 후보까지 설계하세요.';
+  var angleLine=market==='global'?'- 자료를 단순 번역하거나 짜깁기하지 않고 영어권 글로벌 독자에게 맞는 새 상품 각도를 제안합니다.':'- 자료를 단순 번역하거나 짜깁기하지 않고 한국 독자에게 맞는 새 상품 각도를 제안합니다.';
+  var prompt=`${roleLine}
 
 [분석 원칙]
 - 주제 입력, PLR, 여러 문서와 링크를 구분해 핵심 주제·독자·문제·차별화 각도를 찾습니다.
-- 자료를 단순 번역하거나 짜깁기하지 않고 한국 독자에게 맞는 새 상품 각도를 제안합니다.
+${angleLine}
 - 후킹은 과장 대신 궁금증, 문제 공감, 구체적 효용, 신뢰, 실전성을 사용합니다.
 
 [스마트 인터뷰 판단]
@@ -1426,7 +1464,7 @@ async function openTitleStudio(isRetry){
 - 질문은 최대 5개이며, 답을 몰라도 진행 가능한 사소한 질문은 만들지 않습니다.
 - 답이 동시에 여러 개 해당될 수 있는 질문(예: 여러 유형/채널이 함께 해당되는 경우)은 반드시 type을 "multiChoice"로 지정하세요. 하나만 고를 수 있는 질문은 "choice"로 지정합니다. 질문 문장 안에 "복수 선택 가능합니다" 같은 안내 문구를 직접 쓰지 마세요 — 화면이 type에 맞춰 자동으로 표시합니다(문구와 실제 선택 동작이 어긋나면 안 됩니다).
 
-${TITLE_GENERATION_RULES}
+${titleGenerationRulesFor(market)}
 
 [출력]
 유효한 JSON 하나만 반환하세요.
@@ -1439,7 +1477,7 @@ ${TITLE_GENERATION_RULES}
 }`;
   try{
     var content=await buildApiContent(prompt);
-    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:ATLAS_SYSTEM_PROMPT,messages:[{role:'user',content:content}]});
+    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:atlasSystemPromptFor(market),messages:[{role:'user',content:content}]});
     var raw=(data.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');
     var obj=window.AtlasIncrementalEbookEngine.robustJsonParse(raw,'{','}','titles-initial');
     APP.smartAnalysis=obj.analysis||{};APP.titleAnalysis=obj.analysis||{};var iv=obj.interview||{};APP.interviewContext=iv.reason||'';APP.interviewQuestions=(iv.questions||[]).slice(0,5).map(normalizeInterviewQuestion);APP.interviewAnswers={};
@@ -1481,25 +1519,34 @@ function lockTitleAndGenerate(){
    "생성 방식"만 바뀐다. 이미 완료된 챕터는 다시 생성하지 않고, 실패한 챕터만
    재생성한다. 진행률은 완료 유닛 수(목차1+챕터7+부록1=9유닛) 기준 실시간 계산이며,
    사용자는 언제든 중지할 수 있고 다시 시작하면 완료된 부분부터 이어서 진행한다. */
-function ebookModeWrapperPrefix(){
+function ebookModeWrapperPrefix(market){
+  market=market||APP.market||'kr';
   if(CV_MODE==='file'){
     if(!APP.selFile)throw new Error('파일을 선택해주세요.');
-    return '업로드한 문서를 단순 번역하지 말고 핵심 개념을 재구성하여 한국 독자용 새 전자책으로 집필하세요. 사용자는 해당 문서를 활용할 권한이 있다고 전제하되, 원문 문장과 목차를 그대로 복제하지 마세요.\n\n';
+    return market==='global'
+      ? 'Do not simply translate the uploaded document — restructure its core ideas into a brand-new ebook written for English-speaking global readers. Assume the user has the rights to use this document, but do not copy the original sentences or table of contents verbatim.\n\n'
+      : '업로드한 문서를 단순 번역하지 말고 핵심 개념을 재구성하여 한국 독자용 새 전자책으로 집필하세요. 사용자는 해당 문서를 활용할 권한이 있다고 전제하되, 원문 문장과 목차를 그대로 복제하지 마세요.\n\n';
   } else if(CV_MODE==='topic'){
     var topic=document.getElementById('topic-main').value.trim();
     var target=document.getElementById('topic-target').value.trim();
     var extra=document.getElementById('topic-extra').value.trim();
     var topicPrompt='주제: '+topic+(target?'\n대상 독자: '+target:'')+(extra?'\n추가 요구사항: '+extra:'');
-    return '아래 주제로 한국 베스트셀러 전자책을 처음부터 완전히 새로 창작해주세요.\n\n'+topicPrompt+'\n\n위 주제를 기반으로 실전 전문 지식과 구체적 예시를 풍부하게 담아 창작하세요.\n\n';
+    return market==='global'
+      ? 'Create a brand-new bestseller-quality English-language ebook from scratch on the topic below.\n\n'+topicPrompt+'\n\nBase it on the topic above and fill it with practical expertise and concrete examples for a global audience.\n\n'
+      : '아래 주제로 한국 베스트셀러 전자책을 처음부터 완전히 새로 창작해주세요.\n\n'+topicPrompt+'\n\n위 주제를 기반으로 실전 전문 지식과 구체적 예시를 풍부하게 담아 창작하세요.\n\n';
   } else if(CV_MODE==='url'){
     var urlVal=document.getElementById('url-input').value.trim();
     var urlDir=document.getElementById('url-direction').value.trim();
     var urlExtra=document.getElementById('url-extra').value.trim();
     var urlFetched=APP.urlContent||'';
     var urlContext='참고 URL: '+urlVal+(urlExtra?'\n추가 URL:\n'+urlExtra:'')+(urlDir?'\n전자책 방향: '+urlDir:'')+(urlFetched?'\n\nURL에서 불러온 내용 (참고용):\n'+urlFetched.substring(0,8000):'');
-    return '아래 URL의 내용을 분석하여 한국 독자용 전자책을 새롭게 창작해주세요.\n\n'+urlContext+'\n\nURL의 핵심 내용을 살리되 원문의 표현과 구조를 복제하지 말고, 실전 예시와 한국 실정에 맞는 내용으로 재구성하세요.\n\n';
+    return market==='global'
+      ? 'Analyze the content of the URL below and create a brand-new ebook for English-speaking global readers.\n\n'+urlContext+'\n\nKeep the core substance of the URL, but do not copy its wording or structure verbatim — rework it with practical examples suited to a global audience.\n\n'
+      : '아래 URL의 내용을 분석하여 한국 독자용 전자책을 새롭게 창작해주세요.\n\n'+urlContext+'\n\nURL의 핵심 내용을 살리되 원문의 표현과 구조를 복제하지 말고, 실전 예시와 한국 실정에 맞는 내용으로 재구성하세요.\n\n';
   } else if(CV_MODE==='multi'){
-    return '여러 자료를 종합하여 하나의 독창적인 한국어 전자책을 만드세요.\n- 핵심 자료는 중심 근거로 사용합니다.\n- 참고 자료는 보충에만 사용합니다.\n- 자료 간 중복은 통합하고 충돌하는 주장은 단정하지 않습니다.\n- 유튜브 링크에 자막이 없으면 제목과 사용자 메모 이상을 추측하지 않습니다.\n- 원문 문장과 목차를 그대로 복제하지 말고 새로운 구조와 표현으로 집필합니다.\n- 최신성이 필요한 정보는 확인 필요를 표시합니다.\n\n';
+    return market==='global'
+      ? 'Synthesize multiple sources into one original English-language ebook for global readers.\n- Use core sources as the central evidence base.\n- Use reference sources only as supplements.\n- Merge overlapping content and avoid asserting claims that conflict across sources.\n- If a YouTube link has no transcript, do not guess beyond its title and the user\'s notes.\n- Do not copy original sentences or table of contents verbatim — write with new structure and wording.\n- Flag information that needs up-to-date verification.\n\n'
+      : '여러 자료를 종합하여 하나의 독창적인 한국어 전자책을 만드세요.\n- 핵심 자료는 중심 근거로 사용합니다.\n- 참고 자료는 보충에만 사용합니다.\n- 자료 간 중복은 통합하고 충돌하는 주장은 단정하지 않습니다.\n- 유튜브 링크에 자막이 없으면 제목과 사용자 메모 이상을 추측하지 않습니다.\n- 원문 문장과 목차를 그대로 복제하지 말고 새로운 구조와 표현으로 집필합니다.\n- 최신성이 필요한 정보는 확인 필요를 표시합니다.\n\n';
   }
   return '';
 }
@@ -1508,7 +1555,7 @@ var EBOOK_PROGRESS_STORE_KEY='current';
 
 function newEbookProgressState(){
   return {
-    status:'idle', stopRequested:false,
+    status:'idle', stopRequested:false, market:APP.market||'kr',
     outline:null, chapters:new Array(7).fill(null), chapterStatus:new Array(7).fill('pending'),
     appendices:null, appendicesStatus:'pending', errorMessage:null,
     failedUnitId:null, mergedEbook:null,
@@ -1637,8 +1684,8 @@ async function continueEbookPipeline(){
   try{
     if(!p.outline){
       p.status='outline';renderEbookProgressUI();
-      var prefix=ebookModeWrapperPrefix();
-      var outline=await E.generateOutline(prefix);
+      var prefix=ebookModeWrapperPrefix(p.market);
+      var outline=await E.generateOutline(prefix, p.market);
       p.outline=outline;
       p.chapterStatus=new Array(7).fill('pending');
       p.unitTimestamps.outline=Date.now();
@@ -1659,7 +1706,7 @@ async function continueEbookPipeline(){
       if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
       p.chapterStatus[i]='processing';renderEbookProgressUI();
       var brief=p.outline.chapterBriefs[i];
-      var chapter=await E.generateChapter(p.outline, brief);
+      var chapter=await E.generateChapter(p.outline, brief, p.market);
       p.chapters[i]=chapter;
       p.chapterStatus[i]='completed';
       p.unitTimestamps['chapter'+(i+1)]=Date.now();
@@ -1670,7 +1717,7 @@ async function continueEbookPipeline(){
 
     if(p.appendicesStatus!=='completed'){
       p.status='appendices';p.appendicesStatus='processing';renderEbookProgressUI();
-      var appendices=await E.generateAppendices(p.outline);
+      var appendices=await E.generateAppendices(p.outline, p.market);
       p.appendices=appendices;
       p.appendicesStatus='completed';
       p.unitTimestamps.appendices=Date.now();
@@ -1725,6 +1772,7 @@ async function finalizeIncrementalEbook(p){
   var E=window.AtlasIncrementalEbookEngine;
   var u=APP.user;
   var ebook=E.mergeFinalEbook(p);
+  ebook.market=p.market||'kr';
   ebook.title=APP.lockedTitle;
   if(APP.lockedSubtitle)ebook.subtitle=APP.lockedSubtitle;
   ebook=sanitizeKmongSalesClaims(ebook);
@@ -2106,8 +2154,10 @@ function atlasBuildThumbnailPrompt(ebook){
   var title=ebook.title||'';
   var subtitle=ebook.subtitle||'';
   var category=ebook.category||'';
+  var market=ebook.market||'kr';
+  var platforms=market==='global'?'Gumroad·Etsy·Payhip·Instagram':'크몽·탈잉·스마트스토어·인스타그램';
   var lines=[];
-  lines.push('아래 전자책의 표지/썸네일 이미지를 만들어주세요. 크몽·탈잉·스마트스토어·인스타그램 등 온라인 판매 채널에서 스크롤 중에도 시선을 붙잡는 "상업용 전자책 표지" 품질이 목표입니다.');
+  lines.push('아래 전자책의 표지/썸네일 이미지를 만들어주세요. '+platforms+' 등 온라인 판매 채널에서 스크롤 중에도 시선을 붙잡는 "상업용 전자책 표지" 품질이 목표입니다.');
   lines.push('');
   lines.push('[책 정보]');
   lines.push('- 제목: '+title);
@@ -2130,8 +2180,12 @@ function atlasBuildThumbnailPrompt(ebook){
   lines.push('- 사람 얼굴/저작권이 있는 캐릭터·로고·브랜드는 넣지 마세요.');
   lines.push('');
   lines.push('[제목 타이포그래피]');
-  lines.push('- 한글 타이포그래피를 정확하게 렌더링할 수 있다면, 위 제목을 굵고 가독성 높은 산세리프 서체로 이미지 상단 또는 중앙에 2~3줄 이내로 배치해주세요.');
-  lines.push('- 한글 텍스트 렌더링이 정확하지 않다면 제목 텍스트는 빼고, 대신 상단 또는 중앙에 텍스트를 나중에 얹을 수 있는 여백 공간을 의도적으로 남겨주세요.');
+  if(market==='global'){
+    lines.push('- 위 제목(영문)을 굵고 가독성 높은 산세리프 서체로 이미지 상단 또는 중앙에 2~3줄 이내로 배치해주세요.');
+  }else{
+    lines.push('- 한글 타이포그래피를 정확하게 렌더링할 수 있다면, 위 제목을 굵고 가독성 높은 산세리프 서체로 이미지 상단 또는 중앙에 2~3줄 이내로 배치해주세요.');
+    lines.push('- 한글 텍스트 렌더링이 정확하지 않다면 제목 텍스트는 빼고, 대신 상단 또는 중앙에 텍스트를 나중에 얹을 수 있는 여백 공간을 의도적으로 남겨주세요.');
+  }
   lines.push('');
   lines.push('[규격]');
   lines.push('- 이미지 크기는 가로 652px × 세로 488px로 만들어주세요(가로형, 약 4:3 비율). 이 크기·비율을 벗어나지 않게 구도를 잡아주세요.');
@@ -2217,8 +2271,11 @@ function atlasBuildListingMaterialsPrompt(ebook){
   var title=ebook.title||'';
   var subtitle=ebook.subtitle||'';
   var category=ebook.category||'';
+  var market=ebook.market||'kr';
+  var platforms=market==='global'?'Gumroad·Etsy·Payhip':'크몽·탈잉·스마트스토어';
   var lines=[];
-  lines.push('아래 전자책을 크몽·탈잉·스마트스토어 등 온라인 판매 플랫폼에 업로드할 때 쓸 자료 일체를 작성해주세요.');
+  lines.push('아래 전자책을 '+platforms+' 등 온라인 판매 플랫폼에 업로드할 때 쓸 자료 일체를 작성해주세요.');
+  if(market==='global')lines.push('모든 결과물은 영어로 작성해주세요(자연스러운 원어민 문체로).');
   lines.push('');
   lines.push('[책 정보]');
   lines.push('- 제목: '+title);
@@ -2306,7 +2363,7 @@ async function retryFailedChapter(i){
   try{
     var E=window.AtlasIncrementalEbookEngine;
     var brief=p.outline.chapterBriefs[i];
-    var chapter=await E.generateChapter(p.outline, brief);
+    var chapter=await E.generateChapter(p.outline, brief, p.market);
     p.chapters[i]=chapter;
     p.chapterStatus[i]='completed';
     p.unitTimestamps['chapter'+(i+1)]=Date.now();
