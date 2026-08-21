@@ -288,20 +288,28 @@ function renderCvEbook(e){
      쪽수와 안 맞았다. 원인: 이 번호는 "챕터 하나 = 오프너+본문 2페이지"
      라는 옛 규칙으로 미리 계산한 값인데(A4 여러 장으로 나누는 기능 이전
      설계), 긴 챕터 본문은 이제 실제로는 여러 물리적 PDF 페이지가 될 수
-     있어 더 이상 맞지 않는다. 실제 최종 쪽수는 PDF로 저장하는 시점(캡처가
-     끝나야)에야 정해지는 값이라 목차를 그리는 이 시점에는 애초에 알 수
-     없다 — 페이지 하단 러닝 푸터에서 똑같은 이유로 "N / 전체" 표시를 뺀
-     것과 동일한 원칙으로, 틀릴 수밖에 없는 번호를 아예 표시하지 않는다. */
-  var toc='<div class="pg inn"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">목차</div>';
+     있어 더 이상 맞지 않는다. 렌더링 시점(지금)에는 실제 쪽수를 알 수
+     없으므로 .tpg span은 항상 비워둔다.
+     2026-08-21: 사용자가 "번호를 없애지 말고 실제 쪽수와 맞춰 보여달라"고
+     재요청 — PDF로 저장하는 시점에는 결국 모든 페이지를 순서대로
+     캡처하므로, js/application.js의 atlasDownloadEbookPdf()가 목차보다
+     뒤에 있는 챕터/결론/부록을 먼저 캡처해 실제 시작 쪽수를 계산한 뒤
+     아래 .tpg span에 텍스트를 채워 넣고 목차만 다시 캡처한다(그 값을
+     넣는 시점에만 유효 — 캡처가 끝나면 화면 Preview는 다시 비운다).
+     data-atlas-tpg-(chapter/conclusion/appendix), data-atlas-(chapter-open/
+     conclusion-page/appendix-open) 속성은 그 계산이 이 DOM에서 어느
+     요소를 찾아야 하는지 알려주는 훅이다. */
+  var toc='<div class="pg inn" data-atlas-toc-page="1"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">목차</div>';
   for(var i=0;i<chs.length;i++){
     toc+='<div class="ti">'
       +'<span class="tn">CHAPTER '+pad(chs[i].number)+'</span>'
       +'<span class="tt">'+x(chs[i].title)+'</span>'
       +'<span class="tdots"></span>'
+      +'<span class="tpg" data-atlas-tpg-chapter="'+i+'"></span>'
       +'</div>';
   }
-  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span><span class="tdots"></span></div>';
-  if(apps.length)toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span><span class="tdots"></span></div>';
+  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span><span class="tdots"></span><span class="tpg" data-atlas-tpg-conclusion="1"></span></div>';
+  if(apps.length)toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span><span class="tdots"></span><span class="tpg" data-atlas-tpg-appendix="1"></span></div>';
   toc+=nextFooter()+'</div>';
   pages.push(toc);
   // 서론
@@ -328,7 +336,7 @@ function renderCvEbook(e){
         +'<div class="chop-title-sub"'+fsStyleAttr(ch.titleFontSizeSub)+'>'+x(_chtp.sub)+'</div>'
         +'</div>'
       : '<div class="chop-title" contenteditable="false" data-atlas-field="chapterTitle" data-atlas-chapter="'+i+'"'+fsStyleAttr(ch.titleFontSizeMain)+'>'+x(ch.title)+'</div>';
-    pages.push('<div class="pg chop">'
+    pages.push('<div class="pg chop" data-atlas-chapter-open="'+i+'">'
       +'<div class="chop-badge">CHAPTER '+pad(ch.number)+'</div>'
       +_chTitleHtml
       +fontSizeCtl(!!_chtp.sub)
@@ -406,7 +414,7 @@ function renderCvEbook(e){
     pages.push(h);
   }
   // 결론
-  var concl='<div class="pg inn" style="background:#fafaf9"><div class="ey">'+ebIcon('crown',12)+' CONCLUSION</div><div class="sh">결론</div>';
+  var concl='<div class="pg inn" style="background:#fafaf9" data-atlas-conclusion-page="1"><div class="ey">'+ebIcon('crown',12)+' CONCLUSION</div><div class="sh">결론</div>';
   var conclusionHtml=e.conclusion&&e.conclusion.length>10&&e.conclusion.charAt(0)!=='['?renderText(e.conclusion):'<p>이 전자책을 통해 다양한 전략과 방법을 살펴봤습니다. 꾸준히 실천하며 성장해 나가시길 진심으로 응원합니다. 작은 것부터 하나씩 시작하면 반드시 변화가 찾아올 것입니다.</p>';
   concl+='<div class="chb" contenteditable="false" data-atlas-field="conclusion">'+conclusionHtml+'</div>';
   concl+='<div class="impactb"><div class="impactb-mark">&ldquo;</div><p>이 책을 완독한 당신은 이미 99%를 앞서 있습니다</p><small>지금 바로 첫 번째 실천을 시작하세요</small></div>';
@@ -415,7 +423,7 @@ function renderCvEbook(e){
   // 부록 — renderText로 통일해 본문/서론과 같은 문단·목록 타이포그래피를 적용
   if(apps.length){
     for(var i=0;i<apps.length;i++){
-      var apHtml='<div class="pg inn"><div class="ey">'+ebIcon('file',12)+' APPENDIX '+(i+1)+'</div><div class="sh">'+x(apps[i].title)+'</div>';
+      var apHtml='<div class="pg inn"'+(i===0?' data-atlas-appendix-open="1"':'')+'><div class="ey">'+ebIcon('file',12)+' APPENDIX '+(i+1)+'</div><div class="sh">'+x(apps[i].title)+'</div>';
       apHtml+='<div class="chb" contenteditable="false" data-atlas-field="appendixContent" data-atlas-appendix="'+i+'">'+renderText(apps[i].content||'')+'</div>';
       apHtml+=nextFooter()+'</div>';
       pages.push(apHtml);
