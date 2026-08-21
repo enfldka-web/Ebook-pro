@@ -1205,6 +1205,15 @@ textarea{resize:vertical}
 
 /* Chapter Summary (real ch.summary field) — a genuine AI-written recap,
    distinct from the Tip box above; positioned at the chapter's close. */
+/* 2026-08-21: 생각 정리 질문(reflectionQuestions) — actionItems(초록, "무엇을
+   하라")와 뚜렷이 구분되도록 아직 쓰이지 않은 티얼 톤을 쓰고, 정답이 아니라
+   스스로에게 던지는 질문이라는 뉘앙스를 위해 문장을 이탤릭으로 살짝 기울인다. */
+.reflb{background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:16px 20px;margin:20px 0}
+.reflb h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#0f766e;letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px}
+.reflb h4 svg{width:14px;height:14px}
+.reflb-row{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:#134e4a;line-height:1.7;margin-bottom:6px;font-style:italic}
+.reflb-row:last-child{margin-bottom:0}
+.reflb-num{flex-shrink:0;font-weight:700;font-style:normal;color:#0f766e}
 .chsum{margin-top:26px;padding:18px 22px;background:#f8f9fc;border:1px solid #eef0fb;border-radius:12px}
 .chsum h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#64748b;letter-spacing:.6px;text-transform:uppercase;margin-bottom:9px}
 .chsum h4 svg{width:14px;height:14px}

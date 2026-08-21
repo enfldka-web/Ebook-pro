@@ -267,8 +267,10 @@ function createApp(opts){
          appendices(체크리스트/도구 비교표/실행 플랜 3개)는 모두 max_tokens가
          chapter 못지않게 크다(실제 Windows에서 각각 6000/5000으로는 부족해
          응답이 중간에 잘려 JSON이 깨지는 문제가 재현됨) — 같은 넉넉한 타임아웃을
-         적용한다. */
-      var timeoutMs = (callType==='chapter'||callType==='outline'||callType==='appendices') ? acfg.chapterTimeoutMs : acfg.timeoutMs;
+         적용한다. review(전체 원고 검수 — 서론+7챕터+결론을 통째로 되돌려 받음,
+         max_tokens=32000)는 이 중에서도 가장 큰 응답이라 반드시 같은 목록에
+         포함한다. */
+      var timeoutMs = (callType==='chapter'||callType==='outline'||callType==='appendices'||callType==='review') ? acfg.chapterTimeoutMs : acfg.timeoutMs;
       safeLog('anthropic-generate-start', { callType: callType, model: requestBody.model, max_tokens: requestBody.max_tokens, timeoutMs: timeoutMs });
       anthropicProvider.generateWithRetry(requestBody, { env: env, fetchImpl: fetchImpl, timeoutMs: timeoutMs }).then(function(result){
         if(!result.success){

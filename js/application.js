@@ -1557,18 +1557,19 @@ function newEbookProgressState(){
   return {
     status:'idle', stopRequested:false, market:APP.market||'kr',
     outline:null, chapters:new Array(7).fill(null), chapterStatus:new Array(7).fill('pending'),
-    appendices:null, appendicesStatus:'pending', errorMessage:null,
+    appendices:null, appendicesStatus:'pending', reviewStatus:'pending', errorMessage:null,
     failedUnitId:null, mergedEbook:null,
     unitTimestamps:{}, // unitId -> 완료 시각(ms epoch)
-    unitRetryCount:{ outline:0, chapter1:0, chapter2:0, chapter3:0, chapter4:0, chapter5:0, chapter6:0, chapter7:0, appendices:0 }
+    unitRetryCount:{ outline:0, chapter1:0, chapter2:0, chapter3:0, chapter4:0, chapter5:0, chapter6:0, chapter7:0, appendices:0, review:0 }
   };
 }
 
 function ebookProgressPct(p){
-  var units=0, total=9; // outline(1) + chapters(7) + appendices(1)
+  var units=0, total=10; // outline(1) + chapters(7) + appendices(1) + review(1)
   if(p.outline)units+=1;
   units+=p.chapterStatus.filter(function(s){return s==='completed';}).length;
   if(p.appendicesStatus==='completed')units+=1;
+  if(p.reviewStatus==='completed')units+=1;
   return Math.round(units/total*100);
 }
 
@@ -1578,6 +1579,7 @@ function ebookProgressLightweight(p){
   if(!p) return null;
   return {
     status:p.status, chapterStatus:p.chapterStatus.slice(), appendicesStatus:p.appendicesStatus,
+    reviewStatus:p.reviewStatus,
     hasOutline:!!p.outline, failedUnitId:p.failedUnitId, progressPct:ebookProgressPct(p),
     unitTimestamps:Object.assign({},p.unitTimestamps), unitRetryCount:Object.assign({},p.unitRetryCount),
     hasMergedEbook:!!p.mergedEbook
@@ -1653,13 +1655,15 @@ function renderEbookProgressUI(){
     }
     var aLabel='부록'+(p.appendicesStatus==='completed'?' 완료':p.appendicesStatus==='processing'?' 생성 중...':p.appendicesStatus==='failed'?' 실패':' 대기');
     rows.push('<div class="cv-pstep '+(p.appendicesStatus==='completed'?'done':p.appendicesStatus==='processing'?'active':(p.appendicesStatus==='failed'?'failed':''))+'">'+cvStepIcon(p.appendicesStatus)+'<span>'+aLabel+'</span></div>');
+    var rLabel='전체 원고 다듬기'+(p.reviewStatus==='completed'?' 완료':p.reviewStatus==='processing'?' 생성 중...':p.reviewStatus==='failed'?' 실패':' 대기');
+    rows.push('<div class="cv-pstep '+(p.reviewStatus==='completed'?'done':p.reviewStatus==='processing'?'active':(p.reviewStatus==='failed'?'failed':''))+'">'+cvStepIcon(p.reviewStatus)+'<span>'+rLabel+'</span></div>');
     list.innerHTML=rows.join('');
   }
 
   var stopBtn=document.getElementById('cv-ebook-stop-btn');
   var resumeBtn=document.getElementById('cv-ebook-resume-btn');
   var cancelBtn=document.getElementById('cv-ebook-cancel-btn');
-  var running=(p.status==='outline'||p.status==='chapters'||p.status==='appendices'||p.status==='merging');
+  var running=(p.status==='outline'||p.status==='chapters'||p.status==='appendices'||p.status==='review'||p.status==='merging');
   if(stopBtn)stopBtn.style.display=running?'':'none';
   if(resumeBtn)resumeBtn.style.display=(!running&&p.status!=='completed'&&p.status!=='idle')?'':'none';
   if(cancelBtn)cancelBtn.style.display=(p.status!=='completed'&&p.status!=='idle')?'':'none';
@@ -1726,6 +1730,31 @@ async function continueEbookPipeline(){
     }
     if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
 
+    /* 2026-08-21: 사용자 요청 — 7개 챕터가 서로 다른 API 호출로 따로 집필돼
+       문장 리듬이 미묘하게 어긋나거나 다른 챕터에서 이미 설명한 내용을 다시
+       설명하는 반복이 생길 수 있다는 지적. 최종 병합 직전에 원고 전체(서론+
+       7챕터+결론)를 한 번 더 검수해 흐름·중복·용어만 다듬는 단계를 추가한다
+       (E.reviewManuscript, incremental-ebook-engine.js 참고 — 새 사실/예시는
+       추가하지 않고 표현만 다듬음). 이미 완료돼 있으면(재개 시) 다시 하지
+       않는다 — 다른 유닛들과 동일한 재개 원칙(§1). */
+    if(p.reviewStatus!=='completed'){
+      p.status='review';p.reviewStatus='processing';renderEbookProgressUI();
+      var revised=await E.reviewManuscript(p.outline, p.chapters, p.market);
+      if(revised && typeof revised.intro==='string')p.outline.intro=revised.intro;
+      if(revised && typeof revised.conclusion==='string')p.outline.conclusion=revised.conclusion;
+      if(revised && Array.isArray(revised.chapters)){
+        revised.chapters.forEach(function(rev){
+          var idx=p.chapters.findIndex(function(ch){return ch&&ch.number===rev.number;});
+          if(idx!==-1 && typeof rev.content==='string' && rev.content.trim())p.chapters[idx].content=rev.content;
+        });
+      }
+      p.reviewStatus='completed';
+      p.unitTimestamps.review=Date.now();
+      persistEbookProgress();
+      renderEbookProgressUI();
+    }
+    if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
+
     p.status='merging';renderEbookProgressUI();
     await finalizeIncrementalEbook(p);
   }catch(e){
@@ -1761,6 +1790,7 @@ async function continueEbookPipeline(){
       var procIdx=p.chapterStatus.indexOf('processing');
       if(procIdx!==-1){ p.chapterStatus[procIdx]='failed'; p.failedUnitId='chapter'+(procIdx+1); }
       else if(p.appendicesStatus==='processing'){ p.appendicesStatus='failed'; p.failedUnitId='appendices'; }
+      else if(p.reviewStatus==='processing'){ p.reviewStatus='failed'; p.failedUnitId='review'; }
     }
     persistEbookProgress();
     renderEbookProgressUI();
@@ -2661,6 +2691,7 @@ function resumeIncrementalEbookGeneration(){
     return s;
   });
   if(p.appendicesStatus==='failed'){ p.unitRetryCount.appendices=(p.unitRetryCount.appendices||0)+1; p.appendicesStatus='pending'; }
+  if(p.reviewStatus==='failed'){ p.unitRetryCount.review=(p.unitRetryCount.review||0)+1; p.reviewStatus='pending'; }
   if(p.failedUnitId==='outline'){ p.unitRetryCount.outline=(p.unitRetryCount.outline||0)+1; }
   p.failedUnitId=null;
   document.getElementById('cv-process-state').style.display='';
@@ -2685,6 +2716,12 @@ async function retryFailedChapter(i){
     p.chapters[i]=chapter;
     p.chapterStatus[i]='completed';
     p.unitTimestamps['chapter'+(i+1)]=Date.now();
+    /* 이 챕터 내용이 방금 통째로 바뀌었으므로, 이전에 전체 원고 검수(review)가
+       이미 끝나 있었다면 그 결과는 이 새 챕터를 반영하지 못한 상태다 —
+       pending으로 되돌려 아래 continueEbookPipeline()이 검수를 다시 돌리게
+       한다(리뷰가 없던 상태에서 재시도한 경우는 원래 그대로 pending이라
+       영향 없음). */
+    if(p.reviewStatus==='completed')p.reviewStatus='pending';
     persistEbookProgress();
     renderEbookProgressUI();
     // 이 장만 재생성한 뒤에도 나머지가 이미 모두 끝나 있었다면 이어서 최종 병합까지 진행한다.
@@ -2756,8 +2793,8 @@ async function startGenerate(titleLocked){
 
   // 실제 호출 전 예상 호출 횟수/max_tokens만 콘솔에 남긴다(API Key/Prompt 전문은 절대 출력하지 않음).
   var remainingChapters=APP.ebookProgress.chapterStatus.filter(function(s){return s!=='completed';}).length;
-  var remainingUnits=(APP.ebookProgress.outline?0:1)+remainingChapters+(APP.ebookProgress.appendicesStatus==='completed'?0:1);
-  console.log('[incremental-ebook] 시작 — 예상 실제 Anthropic 호출 횟수: '+remainingUnits+'회 (목차 max_tokens=16000, 챕터별 max_tokens=9000, 부록 max_tokens=16000)');
+  var remainingUnits=(APP.ebookProgress.outline?0:1)+remainingChapters+(APP.ebookProgress.appendicesStatus==='completed'?0:1)+(APP.ebookProgress.reviewStatus==='completed'?0:1);
+  console.log('[incremental-ebook] 시작 — 예상 실제 Anthropic 호출 횟수: '+remainingUnits+'회 (목차 max_tokens=16000, 챕터별 max_tokens=9000, 부록 max_tokens=16000, 전체 원고 검수 max_tokens=32000)');
 
   await continueEbookPipeline();
 }
@@ -3255,7 +3292,8 @@ function downloadDocx(e){
     // 본문 문단 중간에 끼워 넣던 comparisonTable/framework/timeline을 "본문이
     // 전부 끝난 뒤"로 옮겼다 — DOCX도 Preview == Export를 지키기 위해 똑같이
     // 맞춘다. 순서: 본문 전체 → comparisonTable → framework → timeline →
-    // actionBox → copyBox → warningBox → keyPoints → actionItems → summary.
+    // actionBox → copyBox → warningBox → keyPoints → actionItems →
+    // reflectionQuestions → summary.
     // 실제 데이터가 없는 필드는 미리보기와 마찬가지로 완전히 생략한다.
     for(var i=0;i<chs.length;i++){
       var ch=chs[i];
@@ -3301,6 +3339,11 @@ function downloadDocx(e){
       if(ch.actionItems&&ch.actionItems.length){
         body+=label('✅ 즉시 실천 체크리스트','059669');
         ch.actionItems.forEach(function(a){body+=bullet(a,'  □');});
+      }
+      // reflectionQuestions
+      if(ch.reflectionQuestions&&ch.reflectionQuestions.length){
+        body+=label('🔍 생각 정리 질문','0f766e');
+        ch.reflectionQuestions.forEach(function(q,qi){body+=bullet(q,'  Q'+(qi+1)+'.');});
       }
       // summary
       if(ch.summary){
