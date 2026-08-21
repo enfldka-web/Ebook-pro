@@ -2006,6 +2006,7 @@ function atlasDownloadEbookPdf(){
   }
   var pageEls=Array.prototype.slice.call(edoc.querySelectorAll('.pg'));
   if(!pageEls.length){showToast('error','전자책을 먼저 생성해주세요.');return;}
+  var tocEl=edoc.querySelector('[data-atlas-toc-page]');
   var title=(APP.ebook.title||'전자책').replace(/[\/\\:*?"<>|]/g,'_');
   /* 2026-08-20: 사용자 리포트 — 이 안내 토스트가 항상 "전체 24페이지"처럼
      같은 숫자를 보여준다는 지적. 원인: pageEls.length는 표지/목차/챕터
@@ -2208,30 +2209,107 @@ function atlasDownloadEbookPdf(){
       requestAnimationFrame(function(){requestAnimationFrame(resolve);});
     });
   });
-  pageEls.forEach(function(pg){
+  /* 2026-08-21: 사용자 지시 — 목차 옆 페이지 번호를 없애지 말고(PR #79)
+     실제 PDF 쪽수와 정확히 맞춰 보여달라는 재요청. 목차를 그리는 시점
+     (js/renderers.js)에는 뒤에 오는 챕터 본문이 실제로 몇 장이 될지 알
+     수 없다는 문제(PR #79에서 번호를 뺀 이유)는 그대로지만, "PDF로
+     저장"을 실행하는 지금 이 시점에는 어차피 모든 페이지를 순서대로
+     html2canvas로 캡처하므로, 목차보다 뒤에 있는 챕터/결론/부록을 먼저
+     캡처해 실제로 몇 장을 차지하는지 센 다음(목차는 구조상 항상 이보다
+     앞에 오므로 이 순서가 항상 가능하다), 그 결과를 목차 DOM에 채워
+     넣고 목차만 다시 한번 캡처하면 정확한 번호를 얻을 수 있다.
+     그래서 캡처를 "측정"과 "PDF 조립" 두 단계로 나눈다:
+     1단계 — pageEls를 순서대로 한 번씩 캡처하며(전체 캡처 횟수는 기존과
+       동일) 각 페이지가 최종적으로 몇 장을 차지하는지(pageCount)와,
+       renderers.js가 표시해둔 data-atlas-chapter-open/-conclusion-page/
+       -appendix-open 지점의 시작 쪽수를 기록만 해둔다(아직 PDF에 쓰지
+       않는다). 목차 자신도 이때 한 번 캡처되지만(아직 번호가 비어있는
+       상태), 이 캡처는 목차가 몇 장인지 확인하는 용도의 임시값일 뿐—
+       목차 안에 챕터/결론/부록 페이지 자체가 없으므로 이 순서가 뒤바뀌어
+       문제가 될 일은 없다.
+     2단계 — 1단계에서 얻은 시작 쪽수를 목차의 .tpg span에 실제 텍스트로
+       채워 넣고 목차만 다시 캡처해 정확한 이미지로 교체한다. 그 다음
+       화면(Preview)의 번호는 바로 다시 비운다 — 이 숫자는 "지금 저장
+       중인 PDF 한 부"에 대해서만 유효하고 내용을 다시 수정하면 달라질
+       수 있어(Preview==Export 원칙), 확정되지 않은 값을 화면에 남겨두지
+       않는다.
+     3단계 — 1단계에서 이미 캡처해둔 이미지들(목차만 2단계의 새 이미지로
+       교체)을 원래 순서 그대로 PDF에 실제로 그려 넣는다.
+     전체 페이지를 두 번 캡처하는 게 아니라 목차 한 페이지만 추가로 한 번
+     더 캡처하는 구조라 처리 시간은 거의 늘지 않는다. */
+  function atlasCapturePageRecord(pg){
     var isFlowPage=pg.classList.contains('inn');
-    chain=chain.then(function(){
-      var rect=pg.getBoundingClientRect();
-      var pw=Math.ceil(rect.width),ph=Math.ceil(rect.height);
-      var vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
-      return html2canvas(pg,{scale:CAPTURE_SCALE,useCORS:true,allowTaint:true,windowWidth:vw,windowHeight:vh,width:pw,height:ph});
-    }).then(function(canvas){
+    var rect=pg.getBoundingClientRect();
+    var pw=Math.ceil(rect.width),ph=Math.ceil(rect.height);
+    var vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
+    /* 2026-08-13: 실제 html2canvas/jsPDF를 진짜로 돌려서 찾은 진짜 원인 —
+       이 두 안전장치(폰트 대기, width/height 명시)를 다 넣은 뒤에도 매번
+       잘렸던 이유는 html2canvas가 아니라 jsPDF 쪽에 있었다. jsPDF의
+       unit:'px'는 기본적으로 px→pt 환산 배율이 반대로 뒤집혀 있고(공식
+       hotfixes:['px_scaling']로 고쳐야 하는, jsPDF 자체의 알려진 결함),
+       거기에 더해 addPage()/생성자가 orientation을 명시하지 않으면 항상
+       'portrait'로 간주해 폭>높이인 페이지(표지·챕터 시작·목차처럼 짧은
+       페이지 전부가 여기 해당)를 강제로 가로/세로를 뒤바꿔버린다 —
+       전자책 페이지 크기 자체가 이미지와 다른 비율로 뒤틀린 채 저장되고,
+       그 안에 원래 크기의 이미지를 그대로 넣으니 페이지 경계 밖으로
+       넘친 부분이 잘려 보인 것이었다(표지/챕터 시작처럼 세로보다 가로가
+       긴 페이지에서 특히 두드러졌던 것도 이 때문). hotfixes 적용 +
+       페이지마다 실제 가로/세로 비율에 맞는 orientation을 명시적으로
+       넘겨 두 문제를 모두 없앤다(실제 orientation 적용은 조립 단계에서). */
+    return html2canvas(pg,{scale:CAPTURE_SCALE,useCORS:true,allowTaint:true,windowWidth:vw,windowHeight:vh,width:pw,height:ph}).then(function(canvas){
       var w=canvas.width,h=canvas.height;
-      /* 2026-08-13: 실제 html2canvas/jsPDF를 진짜로 돌려서 찾은 진짜 원인 —
-         이 두 안전장치(폰트 대기, width/height 명시)를 다 넣은 뒤에도 매번
-         잘렸던 이유는 html2canvas가 아니라 jsPDF 쪽에 있었다. jsPDF의
-         unit:'px'는 기본적으로 px→pt 환산 배율이 반대로 뒤집혀 있고(공식
-         hotfixes:['px_scaling']로 고쳐야 하는, jsPDF 자체의 알려진 결함),
-         거기에 더해 addPage()/생성자가 orientation을 명시하지 않으면 항상
-         'portrait'로 간주해 폭>높이인 페이지(표지·챕터 시작·목차처럼 짧은
-         페이지 전부가 여기 해당)를 강제로 가로/세로를 뒤바꿔버린다 —
-         전자책 페이지 크기 자체가 이미지와 다른 비율로 뒤틀린 채 저장되고,
-         그 안에 원래 크기의 이미지를 그대로 넣으니 페이지 경계 밖으로
-         넘친 부분이 잘려 보인 것이었다(표지/챕터 시작처럼 세로보다 가로가
-         긴 페이지에서 특히 두드러졌던 것도 이 때문). hotfixes 적용 +
-         페이지마다 실제 가로/세로 비율에 맞는 orientation을 명시적으로
-         넘겨 두 문제를 모두 없앤다. */
-      if(!isFlowPage){
+      if(!isFlowPage)return {pg:pg,isFlowPage:false,canvas:canvas,w:w,h:h,pageCount:1};
+      // 본문 페이지: 캡처된 폭을 A4 가로폭으로 보고, 실제 A4 비율로 세로
+      // 한 장 높이를 정한 뒤, 그 높이를 넘지 않으면서도 문단/행 중간을
+      // 자르지 않는 안전한 경계에서만 나눈다(atlasComputeSafePageBreaks).
+      var pageHeightPx=Math.round(w*A4_RATIO);
+      var continuationTopPad=Math.round(44*CAPTURE_SCALE);
+      var cutPoints=atlasComputeSafePageBreaks(pg,canvas,h,pageHeightPx,continuationTopPad);
+      return {pg:pg,isFlowPage:true,canvas:canvas,w:w,h:h,cutPoints:cutPoints,pageCount:cutPoints.length-1};
+    });
+  }
+  var records=[];
+  var chapterStartPage={},conclusionStartPage=null,appendixStartPage=null,runningPage=1;
+  pageEls.forEach(function(pg){
+    chain=chain.then(function(){
+      return atlasCapturePageRecord(pg);
+    }).then(function(rec){
+      records.push(rec);
+      // 이 페이지 자신의 pageCount를 더하기 "전"의 runningPage가 곧 이
+      // 페이지가 시작되는 실제 PDF 쪽수다.
+      if(pg.hasAttribute('data-atlas-chapter-open'))chapterStartPage[pg.getAttribute('data-atlas-chapter-open')]=runningPage;
+      if(pg.hasAttribute('data-atlas-conclusion-page'))conclusionStartPage=runningPage;
+      if(pg.hasAttribute('data-atlas-appendix-open'))appendixStartPage=runningPage;
+      runningPage+=rec.pageCount;
+    });
+  });
+  chain=chain.then(function(){
+    if(!tocEl)return;
+    Object.keys(chapterStartPage).forEach(function(idx){
+      var span=tocEl.querySelector('[data-atlas-tpg-chapter="'+idx+'"]');
+      if(span)span.textContent='P.'+chapterStartPage[idx];
+    });
+    if(conclusionStartPage!=null){
+      var cspan=tocEl.querySelector('[data-atlas-tpg-conclusion]');
+      if(cspan)cspan.textContent='P.'+conclusionStartPage;
+    }
+    if(appendixStartPage!=null){
+      var aspan=tocEl.querySelector('[data-atlas-tpg-appendix]');
+      if(aspan)aspan.textContent='P.'+appendixStartPage;
+    }
+    return atlasCapturePageRecord(tocEl).then(function(freshTocRec){
+      for(var i=0;i<records.length;i++){
+        if(records[i].pg===tocEl){records[i]=freshTocRec;break;}
+      }
+      // 화면 Preview는 다시 번호 없는 원래 상태로 되돌린다(주석 참고 —
+      // 이 값은 지금 저장되는 PDF 한 부에 대해서만 유효하다).
+      Array.prototype.forEach.call(tocEl.querySelectorAll('.tpg'),function(sp){sp.textContent='';});
+    });
+  });
+  chain=chain.then(function(){
+    records.forEach(function(rec){
+      var canvas=rec.canvas,w=rec.w,h=rec.h;
+      if(!rec.isFlowPage){
         /* 2026-08-20: 사용자 지시 — 표지/챕터 구분면/뒤표지/저작권 페이지가
            자기 원본("포스터") 비율 그대로 저장되어 실제 A4와 다른 크기로
            나온다는 지적. 이 페이지들은 원래 폭 대비 높이가 A4보다 짧은
@@ -2289,12 +2367,9 @@ function atlasDownloadEbookPdf(){
         doc.addImage(posterCanvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,w,pageHeightPx);
         return;
       }
-      // 본문 페이지: 캡처된 폭을 A4 가로폭으로 보고, 실제 A4 비율로 세로
-      // 한 장 높이를 정한 뒤, 그 높이를 넘지 않으면서도 문단/행 중간을
-      // 자르지 않는 안전한 경계에서만 나눈다(atlasComputeSafePageBreaks).
       var pageHeightPx=Math.round(w*A4_RATIO);
       var continuationTopPad=Math.round(44*CAPTURE_SCALE);
-      var cutPoints=atlasComputeSafePageBreaks(pg,canvas,h,pageHeightPx,continuationTopPad);
+      var cutPoints=rec.cutPoints;
       for(var i=0;i<cutPoints.length-1;i++){
         var sy=cutPoints[i];
         var sh=cutPoints[i+1]-sy;
