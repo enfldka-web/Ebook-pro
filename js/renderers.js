@@ -400,6 +400,11 @@ function renderCvEbook(e){
     if(ch.actionItems&&ch.actionItems.length){
       h+='<div class="cklist"><h4>'+ebIcon('checkCircle',14)+' 즉시 실천 체크리스트</h4>'+ch.actionItems.map(function(a){return '<div class="cklrow"><div class="ckl-check">'+ebIcon('checkCircle',11)+'</div><span>'+x(a)+'</span></div>';}).join('')+'</div>';
     }
+    // Reflection questions — real ch.reflectionQuestions (self-reflection prompts, distinct
+    // from actionItems: not "do this", but "think about your own situation")
+    if(ch.reflectionQuestions&&ch.reflectionQuestions.length){
+      h+='<div class="reflb"><h4>'+ebIcon('search',14)+' 생각 정리 질문</h4>'+ch.reflectionQuestions.map(function(q,qi){return '<div class="reflb-row"><span class="reflb-num">Q'+(qi+1)+'.</span><span>'+x(q)+'</span></div>';}).join('')+'</div>';
+    }
     // Chapter Summary — real ch.summary (genuine AI-written recap, required per chapter)
     if(ch.summary){
       h+='<div class="chsum"><h4>'+ebIcon('library',14)+' 이 장 요약</h4><p>'+x(ch.summary)+'</p></div>';

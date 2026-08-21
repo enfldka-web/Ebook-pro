@@ -239,7 +239,7 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
      전체 생성과 부분 재생성 모두 이 함수 하나만 호출한다 — 스키마는 항상
      하나의 소스에서만 나온다. */
   E.chapterSchemaString = function(brief){
-    return '{"number":'+brief.number+',"title":"챕터 제목","content":"'+brief.type+' 본문(3500자 이상)","summary":"챕터 요약 2~3문장","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"],"framework":{"name":"체계 이름","steps":[{"title":"단계 제목","description":"단계 설명"}]},"timeline":[{"stage":"1단계","label":"단계 이름","description":"설명"}],"comparisonTable":{"title":"비교 제목","headers":["기준","A","B"],"rows":[["기준1","A 값","B 값"]]}}';
+    return '{"number":'+brief.number+',"title":"챕터 제목","content":"'+brief.type+' 본문(3500자 이상)","summary":"챕터 요약 2~3문장","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"],"reflectionQuestions":["생각 정리 질문1","생각 정리 질문2","생각 정리 질문3"],"framework":{"name":"체계 이름","steps":[{"title":"단계 제목","description":"단계 설명"}]},"timeline":[{"stage":"1단계","label":"단계 이름","description":"설명"}],"comparisonTable":{"title":"비교 제목","headers":["기준","A","B"],"rows":[["기준1","A 값","B 값"]]}}';
   };
 
   /* ── 2) 챕터별 생성(7회 반복) ── 이미 완성된 outline의 해당 chapterBrief만 그
@@ -274,6 +274,7 @@ ${otherBriefs}
 - actionBox는 오늘 바로 할 수 있는 행동 하나입니다.
 - keyPoints는 새로운 인사이트 3개입니다.
 - actionItems는 구체적인 실행 단계 3개 이상입니다.
+- reflectionQuestions는 이 챕터를 다 읽은 독자가 책을 잠시 덮고 스스로에게 던져볼 생각 정리 질문 3개입니다. actionItems(무엇을 할지)와 달리 정답이 정해진 질문이 아니라, 이 챕터의 내용을 독자 자신의 상황에 비춰보게 만드는 질문이어야 합니다(예: "지금 내 경우엔 어디서부터 막혀 있는가", "이 방법 중 나는 어떤 것을 이미 시도해봤는가"). 이 챕터의 실제 내용과 무관한 일반적인 질문("오늘 하루 어땠나요?" 같은)을 넣지 마세요.
 - framework는 이 챕터가 실제로 이름 붙일 수 있는 체계·모델·방법론을 설명할 때만 포함하세요(예: "3단계 검증 프레임워크"). 해당 없으면 framework 필드 자체를 응답에서 완전히 생략하세요. 포함할 경우 name과 3~5개의 steps(각 title+description)로 구성합니다.
 - timeline은 이 챕터가 시간순 과정이나 여정을 설명할 때만 포함하세요(예: "첫 달 → 3개월 차 → 6개월 차"). 해당 없으면 timeline 필드 자체를 응답에서 완전히 생략하세요. 포함할 경우 3개 이상의 단계(각 stage+label+description)로 구성합니다.
 - comparisonTable은 이 챕터가 실제로 두 가지 이상의 대상·선택지·전후 상태를 비교할 때만 포함하세요. 해당 없으면 comparisonTable 필드 자체를 응답에서 완전히 생략하세요. 포함할 경우 title, headers(비교 기준 열), rows(각 행)로 구성합니다.
@@ -326,6 +327,66 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
   {"title":"${titles[1]}","content":"도구별 특징, 사용법, 확인 시점"},
   {"title":"${titles[2]}","content":"단계별 실행 계획"}
 ]`;
+  };
+
+  /* ── 4) 전체 원고 검수/다듬기 ── outline(서론/결론)과 7개 챕터가 서로 다른
+     API 호출로 각각 따로 집필되다 보니(챕터는 다른 챕터의 "브리핑 요약"만
+     참고하고 실제 완성된 문장은 서로 보지 못함), 책 전체를 한 사람이 처음
+     부터 끝까지 쓴 것과 비교하면 챕터마다 문장 리듬·말투가 미묘하게 다르거나
+     이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 반복이 생길 수
+     있다. 이 단계는 완성된 원고 전체(서론+7챕터+결론)를 한 번의 호출로 다시
+     보여주고 "흐름·중복·용어 통일"만 다듬게 한다 — 새로운 사실/예시/주장을
+     추가하지 않는다(FACTUALITY_RULES 재확인). 부록은 체크리스트/자료 성격이라
+     서사적 리듬 문제가 크지 않고, preface는 있어도 매우 짧아 이미 intro/
+     conclusion과 같은 outline 호출에서 함께 써져 서로 어긋날 위험이 작으므로
+     범위에서 제외했다(비용 대비 효과가 낮은 부분까지 넣지 않는다). */
+  E.buildManuscriptReviewPrompt = function(outline, chapters, market){
+    market = market||'kr';
+    var chapterBlocks = chapters.map(function(ch){
+      return '--- '+ch.number+'장: '+(ch.title||'')+' ---\n'+(ch.content||'');
+    }).join('\n\n');
+    return ebookBlueprintGuidelines()+`아래는 이미 완성된 전자책 원고(서론·7개 챕터·결론)입니다. 서론과 결론은 함께 집필됐지만, 7개 챕터는 각각 다른 시점에 따로 집필되어 챕터마다 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다르거나, 이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 등 중복이 있을 수 있습니다.
+이 원고 전체를 한 명의 저자가 처음부터 끝까지 직접 쓴 것처럼 자연스럽게 다듬어 다시 작성하세요. 반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
+
+[전자책 정보]
+제목: ${outline.title}
+부제목: ${outline.subtitle}
+
+[다듬을 때 반드시 지킬 것]
+- 오직 문장 흐름·리듬·용어 통일·중복 정리만 합니다 — 새로운 사실, 예시, 주장, 수치를 추가하지 않습니다.
+- 각 섹션이 원래 다루던 핵심 내용·구조·분량은 그대로 유지합니다 — 내용을 삭제하거나 통째로 새로 쓰지 않습니다.
+- 책 전체에서 같은 개념·용어는 항상 같은 이름으로 부르도록 통일합니다.
+- 이미 다른 챕터에서 충분히 설명한 개념을 이 챕터에서 처음부터 다시 설명하고 있다면, 완전히 삭제하지 말고 "앞서 살펴본 것처럼" 같은 자연스러운 연결로 간결하게 줄이세요(각 챕터가 그 챕터만 읽어도 이해되는 최소한의 맥락은 남겨둡니다).
+- 여러 챕터의 도입 문장이나 마무리 문장이 똑같은 패턴으로 반복된다면 서로 다른 방식으로 시작·마무리하도록 자연스럽게 바꾸세요.
+- chapters 배열의 number는 아래 원고와 정확히 같은 장 번호를 그대로 사용하고, 순서와 개수를 바꾸지 마세요.
+
+${FACTUALITY_RULES}
+
+${WRITING_STYLE_RULES}
+
+[원고 전문]
+--- 서론 ---
+${outline.intro||''}
+
+${chapterBlocks}
+
+--- 결론 ---
+${outline.conclusion||''}
+
+아래 스키마를 정확히 따르세요.
+{
+  "intro":"다듬어진 서론 전체",
+  "conclusion":"다듬어진 결론 전체",
+  "chapters":[
+    {"number":1,"content":"다듬어진 1장 본문 전체"},
+    {"number":2,"content":"다듬어진 2장 본문 전체"},
+    {"number":3,"content":"다듬어진 3장 본문 전체"},
+    {"number":4,"content":"다듬어진 4장 본문 전체"},
+    {"number":5,"content":"다듬어진 5장 본문 전체"},
+    {"number":6,"content":"다듬어진 6장 본문 전체"},
+    {"number":7,"content":"다듬어진 7장 본문 전체"}
+  ]
+}`;
   };
 
   /* Atlas V3 Phase 1 — 신규: outline 스키마 안의 sales 객체 모양도 챕터 스키마와
@@ -663,6 +724,17 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
     return callGateway(E.buildAppendicesPrompt(outline, market), 16000, 'appendices', market).then(function(data){
       var text = extractResponseText(data);
       return robustJsonParse(text, '[', ']', 'appendices');
+    });
+  };
+
+  /* 원고 전체(서론+7챕터+결론)를 되돌려 받아야 하므로 다른 어떤 단계보다도
+     출력 분량이 크다(챕터 7개 × 3500자 이상 + 서론/결론) — outline/appendices의
+     16000보다 넉넉하게 잡아 중간에 잘리지 않게 한다(claude-sonnet-4-6 최대
+     출력 128K 대비 충분히 여유). */
+  E.reviewManuscript = function(outline, chapters, market){
+    return callGateway(E.buildManuscriptReviewPrompt(outline, chapters, market), 32000, 'review', market).then(function(data){
+      var text = extractResponseText(data);
+      return robustJsonParse(text, '{', '}', 'review');
     });
   };
 
