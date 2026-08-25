@@ -485,6 +485,96 @@ function createApp(opts){
     });
   });
 
+  /* ── 비밀번호 재설정 — 2026-08-21: 실제 SaaS 출시 전 점검에서 발견된 공백을
+     메운다. 그동안 로그인 기능만 있고 비밀번호를 잊었을 때 복구할 방법이
+     전혀 없어, 비밀번호를 잊은 실사용자는 그 계정을 영영 못 쓰게 되는
+     상태였다(회원 탈퇴 기능도 아직 없어 재가입도 불가능했음). 흐름은 이메일
+     인증(send-verification/signup)과 동일한 패턴 — 코드 발송 → 코드+새
+     비밀번호로 교체. 다만 이메일이 가입돼 있지 않을 때도 항상 같은 성공
+     응답을 준다("계정이 있다면 보냈습니다") — 응답 차이로 "이 이메일이
+     가입돼 있는지"를 알아낼 수 없게 하기 위해서다(계정 존재 여부 열거
+     공격 방지, 회원가입의 "이미 사용 중인 이메일입니다" 409와는 다른
+     맥락 — 그쪽은 가입 자체를 막아야 하니 알려줄 수밖에 없지만, 비밀번호
+     재설정은 굳이 알려줄 필요가 없다). */
+  app.post('/api/auth/send-password-reset', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'비밀번호 재설정 기능이 아직 설정되지 않았습니다(DATABASE_URL/JWT_SECRET 필요).', code:'not_configured' } });
+    if(!emailConfigured()) return res.status(503).json({ error: { message:'이메일 발송 기능이 아직 설정되지 않았습니다(RESEND_API_KEY 필요).', code:'not_configured' } });
+    var body = req.body || {};
+    var email = String(body.email || '').trim().toLowerCase();
+    if(!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: { message:'올바른 이메일 주소를 입력해주세요.', code:'invalid_request' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message: 'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('SELECT id FROM users WHERE email=$1', [email]);
+    }).then(function(ur){
+      if(!ur.rows.length) return null; // 계정이 없어도 조용히 성공 처리(아래) — 존재 여부를 알려주지 않는다
+      return db.query('SELECT last_sent_at FROM password_resets WHERE email=$1', [email]).then(function(prev){
+        var prevRow = prev.rows[0];
+        if(prevRow && (Date.now() - new Date(prevRow.last_sent_at).getTime()) < VERIFICATION_RESEND_COOLDOWN_MS){
+          return Promise.reject({ httpStatus: 429, message:'인증번호를 너무 자주 요청했습니다. 잠시 후 다시 시도해주세요.', code:'rate_limited' });
+        }
+        var code = String(crypto.randomInt(100000, 1000000));
+        var expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
+        return db.query(
+          'INSERT INTO password_resets (email, code, attempts, expires_at, last_sent_at) VALUES ($1,$2,0,$3,now()) ' +
+          'ON CONFLICT (email) DO UPDATE SET code=$2, attempts=0, expires_at=$3, last_sent_at=now()',
+          [email, code, expiresAt]
+        ).then(function(){
+          return resendProvider.sendPasswordResetEmail({ env: env, fetchImpl: fetchImpl, to: email, code: code });
+        }).then(function(sendResult){
+          if(!sendResult.ok){
+            safeLog('send-password-reset-email-failed', { status: sendResult.status, body: sendResult.data });
+            return Promise.reject({ httpStatus: 502, message:'인증번호 이메일 발송에 실패했습니다.', code:'email_send_failed' });
+          }
+        });
+      });
+    }).then(function(){
+      res.json({ ok:true, message:'해당 이메일로 가입된 계정이 있다면 인증번호를 보냈습니다.' });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('send-password-reset-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'인증번호 발송 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+
+  app.post('/api/auth/reset-password', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'비밀번호 재설정 기능이 아직 설정되지 않았습니다(DATABASE_URL/JWT_SECRET 필요).', code:'not_configured' } });
+    var body = req.body || {};
+    var email = String(body.email || '').trim().toLowerCase();
+    var code = String(body.code || '').trim();
+    var newPassword = String(body.newPassword || '');
+    if(!email || !code || !newPassword) return res.status(400).json({ error: { message:'이메일, 인증번호, 새 비밀번호를 모두 입력해주세요.', code:'invalid_request' } });
+    if(newPassword.length < 8) return res.status(400).json({ error: { message:'비밀번호는 8자 이상이어야 합니다.', code:'weak_password' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message: 'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('SELECT code, attempts, expires_at FROM password_resets WHERE email=$1', [email]);
+    }).then(function(vr){
+      var vrow = vr.rows[0];
+      if(!vrow) return Promise.reject({ httpStatus: 400, message:'먼저 이메일로 인증번호를 받아주세요.', code:'verification_not_requested' });
+      if(new Date(vrow.expires_at).getTime() < Date.now()) return Promise.reject({ httpStatus: 400, message:'인증번호가 만료되었습니다. 다시 요청해주세요.', code:'verification_expired' });
+      if(vrow.attempts >= VERIFICATION_MAX_ATTEMPTS) return Promise.reject({ httpStatus: 400, message:'인증 시도 횟수를 초과했습니다. 인증번호를 다시 요청해주세요.', code:'verification_too_many_attempts' });
+      if(vrow.code !== code){
+        return db.query('UPDATE password_resets SET attempts=attempts+1 WHERE email=$1', [email]).then(function(){
+          return Promise.reject({ httpStatus: 400, message:'인증번호가 올바르지 않습니다.', code:'verification_mismatch' });
+        });
+      }
+      return db.query('SELECT id FROM users WHERE email=$1', [email]);
+    }).then(function(ur){
+      var userRow = ur.rows[0];
+      if(!userRow) return Promise.reject({ httpStatus: 400, message:'해당 이메일로 가입된 계정이 없습니다.', code:'user_not_found' });
+      return bcrypt.hash(newPassword, BCRYPT_ROUNDS).then(function(hash){
+        return db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, userRow.id]);
+      }).then(function(){
+        db.query('DELETE FROM password_resets WHERE email=$1', [email]).catch(function(){});
+        safeLog('password-reset-success', { userId: userRow.id });
+        res.json({ ok:true });
+      });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('reset-password-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'비밀번호 재설정 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+
   /* ── 토스페이먼츠 정기구독 — 2026-08-13: 카드 등록 1회(빌링키 발급) 후
      매달 서버가 자동으로 청구하는 진짜 정기구독. 시크릿 키는 여기서 절대
      브라우저로 전달하지 않는다(server/providers/toss-payments-provider.js
