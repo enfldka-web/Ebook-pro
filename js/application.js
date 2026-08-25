@@ -584,7 +584,7 @@ function showPage(pg,sub){
 }
 function showApp(section){
   // 1. 모든 콘텐츠 섹션 숨기기
-  var sections=['dashboard','converter','history','settings'];
+  var sections=['dashboard','converter','history','settings','admin'];
   sections.forEach(function(s){
     var el=document.getElementById('app-'+s);
     if(el)el.style.display='none';
@@ -603,7 +603,7 @@ function showApp(section){
   if(tbTarget)tbTarget.classList.add('active');
 
   // 3. 상단바 제목
-  var titles={dashboard:'대시보드',converter:'전자책 생성',history:'내 전자책',settings:'설정'};
+  var titles={dashboard:'대시보드',converter:'전자책 생성',history:'내 전자책',settings:'설정',admin:'관리자'};
   var tt=document.getElementById('topbar-title');
   if(tt)tt.textContent=titles[section]||section;
 
@@ -614,6 +614,7 @@ function showApp(section){
   if(section==='dashboard')renderDashboard();
   else if(section==='history')renderHistory();
   else if(section==='settings')renderSettings();
+  else if(section==='admin')renderAdminDashboard();
   else if(section==='converter'){setupConverter();checkCvReady();}
 
   // 6. converter 벗어날 때 내부 상태 리셋
@@ -856,6 +857,7 @@ function initApp(){
   if(uname)uname.textContent=u.name;
   var pb=document.getElementById('sb-uplan');
   if(pb){pb.textContent=u.isAdmin?'관리자':(u.subscriptionStatus==='active'?'구독중':(u.trialUsed?'체험완료':'무료체험'));pb.className='plan-badge plan-'+(u.isAdmin?'admin':(u.subscriptionStatus==='active'?'pro':'free'));}
+  var sbAdmin=document.getElementById('sb-admin');if(sbAdmin)sbAdmin.style.display=u.isAdmin?'':'none';
   // setup converter
   setupConverter();
   // AI 서버(Anthropic Gateway) 연결 상태를 미리 한 번 확인해둔다(Loading이 무한정
@@ -991,6 +993,47 @@ function renderDashboard(){
   }
 
   if(window.AtlasIcons)AtlasIcons.applyAll(document.getElementById('app-dashboard'));
+}
+/* 2026-08-21: 최소 관리자 대시보드 — 실제 SaaS 출시 전 점검에서 발견된
+   공백. 접근 권한은 서버(/api/admin/stats, ADMIN_EMAILS)가 다시 한번
+   확인하므로, 사이드바에 버튼이 보인다고 이 화면 자체를 신뢰하지 않고
+   항상 응답을 그대로 렌더링한다(403이면 그 사실을 그대로 보여줌). */
+function atlasFormatWon(n){ return '₩'+Number(n||0).toLocaleString('ko-KR'); }
+function renderAdminDashboard(){
+  var grid=document.getElementById('admin-stat-grid');
+  var failedEl=document.getElementById('admin-failed-payments');
+  if(grid)grid.innerHTML='';
+  if(failedEl)failedEl.textContent='불러오는 중...';
+  atlasAuthFetch('/api/admin/stats').then(function(result){
+    if(!result.ok||!result.body){
+      if(grid)grid.innerHTML='<div class="a2-empty"><div class="a2-empty-title">통계를 불러오지 못했습니다</div><div class="a2-empty-sub">'+x((result.body&&result.body.error&&result.body.error.message)||'관리자 권한이 필요합니다.')+'</div></div>';
+      if(failedEl)failedEl.textContent='';
+      return;
+    }
+    var s=result.body;
+    if(grid){
+      grid.innerHTML=[
+        '<div class="stat-card"><div class="stat-card-top"><span class="a2-icon-chip blue" data-icon="user"></span></div><div class="stat-val">'+s.totalUsers+'</div><div class="stat-label">총 가입자</div><div class="stat-caption">최근 30일 신규 '+s.newUsers30d+'명</div></div>',
+        '<div class="stat-card"><div class="stat-card-top"><span class="a2-icon-chip green" data-icon="checkCircle"></span></div><div class="stat-val">'+s.activeSubscriptions+'</div><div class="stat-label">활성 구독자</div><div class="stat-caption">결제 실패(past_due) '+s.pastDueSubscriptions+'명</div></div>',
+        '<div class="stat-card"><div class="stat-card-top"><span class="a2-icon-chip amber" data-icon="card"></span></div><div class="stat-val">'+atlasFormatWon(s.revenueThisMonth)+'</div><div class="stat-label">이번 달 매출</div><div class="stat-caption">누적 '+atlasFormatWon(s.revenueTotal)+'</div></div>'
+      ].join('');
+    }
+    if(failedEl){
+      if(!s.recentFailedPayments||!s.recentFailedPayments.length){
+        failedEl.textContent='최근 실패한 결제가 없습니다.';
+      }else{
+        failedEl.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">'
+          +'<thead><tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--a2-border)">이메일</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--a2-border)">금액</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--a2-border)">실패 시각</th></tr></thead>'
+          +'<tbody>'+s.recentFailedPayments.map(function(p){
+            return '<tr><td style="padding:6px;border-bottom:1px solid var(--a2-border)">'+x(p.email)+'</td><td style="padding:6px;border-bottom:1px solid var(--a2-border)">'+atlasFormatWon(p.amount)+'</td><td style="padding:6px;border-bottom:1px solid var(--a2-border)">'+x(atlasFormatDateKo(p.createdAt))+'</td></tr>';
+          }).join('')+'</tbody></table>';
+      }
+    }
+    if(window.AtlasIcons)AtlasIcons.applyAll(document.getElementById('app-admin'));
+  }).catch(function(){
+    if(grid)grid.innerHTML='<div class="a2-empty"><div class="a2-empty-title">서버에 연결하지 못했습니다</div></div>';
+    if(failedEl)failedEl.textContent='';
+  });
 }
 function renderHistory(){
   if(!APP.user)return;

@@ -80,4 +80,33 @@ function sendPasswordResetEmail(opts){
   });
 }
 
-module.exports = { config: config, isConfigured: isConfigured, sendVerificationEmail: sendVerificationEmail, sendPasswordResetEmail: sendPasswordResetEmail };
+/* 2026-08-21: 결제 실패 알림 — 실제 SaaS 출시 전 점검에서 발견된 공백.
+   그동안 매달 자동청구가 실패해도 서버 로그(safeLog)에만 남고 사용자는
+   "구독중" 배지가 조용히 사라진 걸 스스로 눈치채는 수밖에 없었다. */
+function sendPaymentFailedEmail(opts){
+  opts = opts || {};
+  var cfg = config(opts.env);
+  var fetchImpl = opts.fetchImpl || fetch;
+  var html = '<div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:24px">'
+    + '<h2 style="margin:0 0 12px">Atlas AI eBook Studio</h2>'
+    + '<p style="color:#555;font-size:14px;line-height:1.6">' + (opts.name ? opts.name+'님, ' : '') + '등록하신 카드로 이번 달 구독 결제를 시도했지만 실패했습니다.</p>'
+    + '<p style="color:#555;font-size:14px;line-height:1.6">카드 한도, 잔액, 유효기간 등을 확인하신 뒤 서비스 내 설정 화면에서 결제 수단을 갱신하고 다시 구독해주세요. 별도 조치가 없으면 구독이 일시 중지됩니다.</p>'
+    + '<p style="color:#999;font-size:12px">이미 결제 수단을 갱신하셨다면 이 메일을 무시하셔도 됩니다.</p>'
+    + '</div>';
+  return fetchImpl(RESEND_API_BASE + '/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
+    body: JSON.stringify({
+      from: cfg.fromEmail,
+      to: [opts.to],
+      subject: '[Atlas AI] 구독 결제에 실패했습니다',
+      html: html
+    })
+  }).then(function(res){
+    return res.json().catch(function(){ return {}; }).then(function(json){
+      return { ok: res.ok, status: res.status, data: json };
+    });
+  });
+}
+
+module.exports = { config: config, isConfigured: isConfigured, sendVerificationEmail: sendVerificationEmail, sendPasswordResetEmail: sendPasswordResetEmail, sendPaymentFailedEmail: sendPaymentFailedEmail };

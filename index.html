@@ -74,7 +74,7 @@
            대표자/사업자등록번호/통신판매업신고번호/주소) — 사용자가 알려준
            실제 값. 상세 법적 문서는 위 이용약관/개인정보처리방침/환불정책
            페이지에도 동일하게 표시돼 있다(#pg-legal). -->
-      <div style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.7">마메드네 · 대표: 김진석 · 사업자등록번호 809-11-03069 · 통신판매업신고 제 2025-서울노원-1053호<br>서울 노원구 동일로215길48 326동1309호</div>
+      <div style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.7">마메드네 · 대표: 김진석 · 사업자등록번호 809-11-03069 · 통신판매업신고 제 2025-서울노원-1053호<br>서울 노원구 동일로215길48 326동1309호 · 문의: <a href="mailto:enfldka@gmail.com" style="color:inherit;text-decoration:underline">enfldka@gmail.com</a></div>
       <div class="al-version">ATLAS AI EBOOK STUDIO · FINAL</div>
     </div>
   </div>
@@ -370,6 +370,11 @@
       <button class="a2-nav-item" id="sb-converter" onclick="showApp('converter')"><span data-icon="generate"></span>전자책 생성</button>
       <button class="a2-nav-item" id="sb-history" onclick="showApp('history')"><span data-icon="library"></span>내 전자책</button>
       <div class="sb-divider"></div>
+      <!-- 2026-08-21: 관리자 계정(ADMIN_EMAILS)에게만 보인다 — initApp()이
+           APP.user.isAdmin을 보고 display를 토글한다(js/application.js).
+           별도 role 컬럼/권한 체계를 새로 만들지 않고 기존 관리자 판별
+           기준을 그대로 재사용한다. -->
+      <button class="a2-nav-item" id="sb-admin" style="display:none" onclick="showApp('admin')"><span data-icon="briefcase"></span>관리자</button>
       <button class="a2-nav-item" id="sb-settings" onclick="showApp('settings')"><span data-icon="settings"></span>설정</button>
     </nav>
     <div class="sb-bottom">
@@ -857,6 +862,20 @@
             </div>
           </div>
         </div>
+        <!-- 2026-08-21: 실제 SaaS 출시 전 점검에서 발견된 공백 — 앱 안에
+             "문의하기" 같은 고객지원 창구가 전혀 없어, 결제 문제가 생겨도
+             이용자가 어디로 연락해야 할지 알 방법이 없었다(개인정보 문의
+             이메일이 법적 문서 안에만 있었음). 새 백엔드/티켓 시스템을
+             만들지 않고, 법적 문서에서 이미 쓰고 있는 것과 같은 연락처
+             (enfldka@gmail.com)로 가는 mailto 링크만 추가한다 — 1인 운영
+             규모에 맞는 최소 해결책. -->
+        <div class="settings-section">
+          <div class="settings-title"><span data-icon="ai" data-icon-size="14"></span>고객지원</div>
+          <div class="settings-row">
+            <div><div class="settings-label">문의하기</div><div class="settings-desc">결제, 계정, 이용 중 문제가 있다면 언제든 이메일로 연락해주세요.</div></div>
+            <a class="a2-btn a2-btn-secondary" href="mailto:enfldka@gmail.com?subject=%5BAtlas%20AI%5D%20%EB%AC%B8%EC%9D%98"><span data-icon="ai"></span>enfldka@gmail.com</a>
+          </div>
+        </div>
         <div class="settings-section">
           <div class="settings-title"><span data-icon="logout" data-icon-size="14"></span>계정 관리</div>
           <div class="settings-row">
@@ -876,7 +895,20 @@
       </div>
     </div>
 
-    
+    <!-- 2026-08-21: 관리자 전용 최소 대시보드 — 실제 SaaS 출시 전 점검에서
+         발견된 공백. renderAdminDashboard()가 /api/admin/stats를 불러와
+         채운다(js/application.js). 접근 자체는 서버가 다시 한번 확인하므로
+         (ADMIN_EMAILS 아닌 계정은 403), 이 화면이 보인다고 신뢰하지 않고
+         항상 서버 응답을 기준으로 렌더링한다. -->
+    <div id="app-admin" class="content" style="display:none">
+      <div class="stat-grid" id="admin-stat-grid"></div>
+      <div class="card">
+        <div class="settings-section">
+          <div class="settings-title"><span data-icon="alertTriangle" data-icon-size="14"></span>최근 결제 실패</div>
+          <div id="admin-failed-payments" class="settings-desc">불러오는 중...</div>
+        </div>
+      </div>
+    </div>
 
   </div>
 </div>

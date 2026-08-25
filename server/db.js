@@ -50,6 +50,14 @@ function createDb(opts){
          값으로 덮어쓴다(server/image-gateway.js /api/auth/delete-account). */
       return pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at timestamptz');
     }).then(function(){
+      /* 2026-08-21: 로그인 무차별 대입(brute-force) 방지. email_verifications의
+         attempts 컬럼과 같은 발상 — 실패할 때마다 세고, 문턱을 넘으면 일정
+         시간 잠근다. login_locked_until이 미래 시각이면 비밀번호가 맞아도
+         로그인을 거부한다(server/image-gateway.js). */
+      return pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts integer NOT NULL DEFAULT 0');
+    }).then(function(){
+      return pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS login_locked_until timestamptz');
+    }).then(function(){
       return pool.query(
         'CREATE TABLE IF NOT EXISTS subscriptions (' +
         '  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,' +
