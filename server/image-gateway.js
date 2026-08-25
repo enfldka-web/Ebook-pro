@@ -212,9 +212,13 @@ function createApp(opts){
   function alertOps(label, meta){
     if(!env.OPS_ALERT_WEBHOOK_URL) return;
     var f = fetchImpl || fetch;
+    var msg = '[Atlas 운영 알림] '+label+' — '+JSON.stringify(meta||{});
+    /* Slack Incoming Webhook은 "text" 키를, Discord Webhook은 "content" 키를
+       메시지 본문으로 읽는다 — 서로 모르는 키는 조용히 무시하므로, 둘 다
+       같이 보내면 어느 쪽 웹훅 URL을 넣든 추가 설정 없이 그대로 동작한다. */
     f(env.OPS_ALERT_WEBHOOK_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text: '[Atlas 운영 알림] '+label+' — '+JSON.stringify(meta||{}) })
+      body: JSON.stringify({ text: msg, content: msg })
     }).catch(function(){});
   }
 
