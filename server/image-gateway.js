@@ -92,6 +92,7 @@ function createApp(opts){
   function isAdminEmail(email){ return !!email && ADMIN_EMAILS.indexOf(String(email).toLowerCase())!==-1; }
   var dbReady = db ? db.ensureSchema().catch(function(e){
     console.error('[image-gateway] db-schema-init-failed', e.message);
+    alertOps('DB 스키마 초기화 실패 — 서버 전체가 503으로 응답 중', { message: e.message });
     db = null; /* 스키마 준비 자체가 실패하면(접속 불가 등) 이후 쿼리도 다 실패할 것이므로 db를 비워 503으로 통일한다 */
   }) : Promise.resolve();
 
@@ -197,6 +198,25 @@ function createApp(opts){
 
   /* API Key/Prompt 원문을 로그에 남기지 않는다 — 요청 메타데이터만 남긴다. */
   function safeLog(label, meta){ console.log('[image-gateway] '+label, JSON.stringify(meta)); }
+  /* 2026-08-21: 실제 SaaS 출시 전 점검에서 발견된 공백 — 서버 장애/결제
+     실패가 console.log(safeLog)에만 남고 아무도 실시간으로 알 방법이
+     없었다. Sentry 같은 전용 SDK를 새 의존성으로 추가하는 대신(이 파일
+     전체가 지켜온 "직접 fetch 호출, SDK 의존성 추가 없음" 원칙 —
+     resend-email-provider.js/toss-payments-provider.js와 동일), 범용
+     웹훅 URL(OPS_ALERT_WEBHOOK_URL) 하나에 {text:...} 형태로 POST한다 —
+     Slack/Discord Incoming Webhook이 이 형식을 그대로 받아들이므로 별도
+     서비스 가입 없이(이미 쓰는 Slack/Discord만 있으면) 바로 동작한다.
+     값이 없으면(설정 전) 조용히 아무 것도 하지 않는다 — 다른 선택적
+     기능들과 동일한 원칙. 알림 자체가 실패해도(웹훅 URL이 잘못됐거나
+     네트워크 문제) 원래 처리 흐름을 절대 막지 않는다(catch로 삼킴). */
+  function alertOps(label, meta){
+    if(!env.OPS_ALERT_WEBHOOK_URL) return;
+    var f = fetchImpl || fetch;
+    f(env.OPS_ALERT_WEBHOOK_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text: '[Atlas 운영 알림] '+label+' — '+JSON.stringify(meta||{}) })
+    }).catch(function(){});
+  }
 
   /* 2026-08-13: "1회 무료 체험"이 예전엔 usageStore(메모리, 익명 세션 쿠키)
      기준이었다 — 서버 재시작 시 초기화되고 실제 계정과 무관했다. 이제 실제
@@ -245,8 +265,39 @@ function createApp(opts){
     });
   });
 
+  /* 2026-08-21: /api/anthropic-gateway/generate 요청 빈도 제한 — 실제 SaaS
+     출시 전 점검에서 발견된 공백. 구독 중이면 canGenerate()가 무제한 호출을
+     허용하는데, 짧은 시간에 반복 호출을 막을 장치가 전혀 없어 비용 남용
+     위험이 있었다. 메모리 기반 슬라이딩 윈도우로 충분하다 — 서버 재시작
+     시 초기화되는 것도(MVP 범위) 실질적 위협은 아니다: 남용의 핵심은
+     "짧은 시간에 폭주"이지, 재시작 순간 카운터가 비는 것 자체가 새로운
+     공격 경로가 되지는 않는다. 사용자별로 제한하는 게 이상적이지만, 이
+     라우트는 outline 호출만 인증을 강제하고(§ 무료체험 게이트) chapter/
+     appendices/review는 별도 인증 검사가 없다 — 다만 클라이언트는 로그인
+     토큰이 있으면 모든 호출에 Authorization 헤더를 싣는다(js/anthropic-
+     gateway-client.js authHeader()) 실제로는 거의 항상 userId를 얻을 수
+     있다. 토큰이 전혀 없는 극히 드문 경우에만 전체 공유 버킷('anon')으로
+     떨어진다 — Render 프록시 뒤에서 req.ip가 신뢰할 수 있는 값인지
+     (trust proxy 설정) 확인 없이 IP 기준으로 나누면 오히려 여러 사용자를
+     한 버킷으로 잘못 묶어 무고한 사용자를 막을 위험이 있어, 그 위험을
+     감수하지 않는 더 단순하고 안전한 선택이다. */
+  var GENERATE_RATE_WINDOW_MS = 10*60*1000;
+  var GENERATE_RATE_MAX = 30;
+  var generateRateLog = {};
+  function checkGenerateRateLimit(key){
+    var now = Date.now();
+    var arr = (generateRateLog[key]||[]).filter(function(t){ return now-t < GENERATE_RATE_WINDOW_MS; });
+    if(arr.length >= GENERATE_RATE_MAX){ generateRateLog[key] = arr; return false; }
+    arr.push(now);
+    generateRateLog[key] = arr;
+    return true;
+  }
   app.post('/api/anthropic-gateway/generate', function(req, res){
     var body = req.body || {};
+    var rateLimitKey = (authConfigured() && verifyAuthHeader(req)) || 'anon';
+    if(!checkGenerateRateLimit(rateLimitKey)){
+      return res.status(429).json({ error: { message:'요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.', code:'rate_limited' } });
+    }
     if(!anthropicProvider.isConfigured(env)){
       return res.status(503).json({ error: { message:'AI 서버에 Anthropic API 키가 설정되지 않았습니다.', code:'not_configured' } });
     }
@@ -292,6 +343,13 @@ function createApp(opts){
             retries: result.retries,
             body: result.data || null
           });
+          /* network_error/timeout, 또는 Anthropic 쪽 5xx는 "이 요청 하나가
+             잘못됨"이 아니라 인프라/업스트림 장애 신호다 — 실시간으로 알
+             가치가 있는 경우만 골라 alertOps를 울린다(단순 4xx는 대개
+             요청 자체의 문제라 매번 알림을 울리면 소음이 된다). */
+          if(result.errorKind==='network_error' || result.errorKind==='timeout' || (result.status && result.status>=500)){
+            alertOps('Anthropic 업스트림 장애('+(result.errorKind||result.status)+')', { callType: callType, status: result.status, errorKind: result.errorKind });
+          }
           var httpStatus = result.status || 502;
           return res.status(httpStatus>=400&&httpStatus<600?httpStatus:502).json({
             error: {
@@ -311,6 +369,7 @@ function createApp(opts){
         res.json(result.data);
       }).catch(function(err){
         safeLog('anthropic-generate-unexpected-error', { message: err && err.message });
+        alertOps('전자책 생성 호출 중 예기치 않은 오류', { message: err && err.message });
         res.status(500).json({ error: { message:'예기치 않은 오류가 발생했습니다.', code:'internal_error' } });
       });
     }
@@ -444,6 +503,14 @@ function createApp(opts){
     });
   });
 
+  /* 2026-08-21: 로그인 무차별 대입 방지 — 실제 SaaS 출시 전 점검에서 발견된
+     공백. 이메일 인증번호(email_verifications.attempts, 5회 제한)에는
+     이미 있던 보호장치가 로그인 자체에는 없어서 비밀번호를 무한히 계속
+     틀려볼 수 있었다. 같은 문턱(5회)을 재사용하되, 잠그는 시간은 15분으로
+     둔다(인증번호처럼 "다시 요청하면 리셋"이 아니라, 그 계정 소유자가
+     아니면 그냥 기다리는 것 외에 우회 수단이 없어야 하므로 더 길게 잡음). */
+  var LOGIN_MAX_ATTEMPTS = 5;
+  var LOGIN_LOCKOUT_MS = 15*60*1000;
   app.post('/api/auth/login', function(req, res){
     if(!authConfigured()) return res.status(503).json({ error: { message:'로그인 기능이 아직 설정되지 않았습니다(DATABASE_URL/JWT_SECRET 필요).', code:'not_configured' } });
     var body = req.body || {};
@@ -456,12 +523,29 @@ function createApp(opts){
     }).then(function(ur){
       var userRow = ur.rows[0];
       if(!userRow) return Promise.reject({ httpStatus: 401, message:'이메일 또는 비밀번호가 올바르지 않습니다.', code:'invalid_credentials' });
+      if(userRow.login_locked_until && new Date(userRow.login_locked_until).getTime() > Date.now()){
+        var minutesLeft = Math.max(1, Math.ceil((new Date(userRow.login_locked_until).getTime()-Date.now())/60000));
+        return Promise.reject({ httpStatus: 429, message:'로그인 시도가 너무 많아 잠시 잠겼습니다. 약 '+minutesLeft+'분 후 다시 시도해주세요.', code:'login_locked' });
+      }
       return bcrypt.compare(password, userRow.password_hash).then(function(ok){
-        if(!ok) return Promise.reject({ httpStatus: 401, message:'이메일 또는 비밀번호가 올바르지 않습니다.', code:'invalid_credentials' });
-        return db.query('SELECT * FROM subscriptions WHERE user_id=$1', [userRow.id]).then(function(sr){
-          var token = issueToken(userRow.id);
-          safeLog('auth-login-success', { userId: userRow.id });
-          res.json({ token: token, user: userPublicShape(userRow, sr.rows[0]) });
+        if(!ok){
+          var nextAttempts = (userRow.failed_login_attempts||0)+1;
+          var lockingNow = nextAttempts >= LOGIN_MAX_ATTEMPTS;
+          var lockUntil = lockingNow ? new Date(Date.now()+LOGIN_LOCKOUT_MS) : null;
+          return db.query('UPDATE users SET failed_login_attempts=$1, login_locked_until=$2 WHERE id=$3', [lockingNow?0:nextAttempts, lockUntil, userRow.id]).then(function(){
+            if(lockingNow){
+              return Promise.reject({ httpStatus: 429, message:'로그인 시도가 너무 많아 15분간 잠겼습니다. 잠시 후 다시 시도하거나 비밀번호를 재설정해주세요.', code:'login_locked' });
+            }
+            return Promise.reject({ httpStatus: 401, message:'이메일 또는 비밀번호가 올바르지 않습니다.', code:'invalid_credentials' });
+          });
+        }
+        var resetAttempts = userRow.failed_login_attempts ? db.query('UPDATE users SET failed_login_attempts=0, login_locked_until=NULL WHERE id=$1', [userRow.id]) : Promise.resolve();
+        return resetAttempts.then(function(){
+          return db.query('SELECT * FROM subscriptions WHERE user_id=$1', [userRow.id]).then(function(sr){
+            var token = issueToken(userRow.id);
+            safeLog('auth-login-success', { userId: userRow.id });
+            res.json({ token: token, user: userPublicShape(userRow, sr.rows[0]) });
+          });
         });
       });
     }).catch(function(err){
@@ -641,6 +725,19 @@ function createApp(opts){
     res.json({ clientKey: cfg.clientKey });
   });
 
+  /* 2026-08-21: 결제 실패 알림 — best-effort로만 보낸다(이메일 발송 자체가
+     실패해도 결제 실패 처리 흐름 자체를 막지 않는다, RESEND_API_KEY가
+     없는 환경에서도 조용히 건너뛴다). */
+  function notifyPaymentFailed(userId){
+    if(!resendProvider.isConfigured(env)) return Promise.resolve();
+    return db.query('SELECT email, name FROM users WHERE id=$1', [userId]).then(function(ur){
+      var userRow = ur.rows[0];
+      if(!userRow) return;
+      return resendProvider.sendPaymentFailedEmail({ env: env, fetchImpl: fetchImpl, to: userRow.email, name: userRow.name }).then(function(sendResult){
+        if(!sendResult.ok) safeLog('payment-failed-email-send-failed', { userId: userId, status: sendResult.status });
+      });
+    }).catch(function(e){ safeLog('payment-failed-email-error', { userId: userId, message: e && e.message }); });
+  }
   function chargeAndAdvance(userId, sub){
     var orderId = 'sub_'+userId+'_'+Date.now();
     return tossProvider.chargeBilling({
@@ -651,8 +748,11 @@ function createApp(opts){
       if(!result.ok){
         var errMsg = (result.data && result.data.message) || '결제 실패';
         safeLog('toss-charge-failed', { userId: userId, message: errMsg });
+        alertOps('정기결제 청구 실패', { userId: userId, message: errMsg });
         return db.query('UPDATE subscriptions SET status=$1, updated_at=now() WHERE user_id=$2', ['past_due', userId]).then(function(){
           return db.query('INSERT INTO payments (user_id, order_id, amount, status) VALUES ($1,$2,$3,$4)', [userId, orderId, sub.plan_amount||SUBSCRIPTION_AMOUNT, 'failed']);
+        }).then(function(){
+          return notifyPaymentFailed(userId);
         }).then(function(){ return { ok:false }; });
       }
       var paymentKey = result.data && result.data.paymentKey;
@@ -753,6 +853,47 @@ function createApp(opts){
       if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
       safeLog('toss-reactivate-error', { message: err && err.message });
       res.status(500).json({ error: { message:'구독 재개 처리 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+
+  /* ── 관리자 대시보드 — 2026-08-21: 실제 SaaS 출시 전 점검에서 발견된 공백.
+     가입자/매출/실패 결제 현황을 보려면 DB를 직접 SQL로 조회해야 했다.
+     별도 role 컬럼/권한 체계를 새로 만들지 않고, 무료체험 우회에 이미
+     쓰이는 ADMIN_EMAILS/isAdminEmail() 기준을 그대로 재사용한다 — 이
+     이메일로 가입한 계정만 통계를 볼 수 있다. */
+  app.get('/api/admin/stats', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'인증 기능이 아직 설정되지 않았습니다.', code:'not_configured' } });
+    var userId = verifyAuthHeader(req);
+    if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('SELECT email FROM users WHERE id=$1', [userId]);
+    }).then(function(ur){
+      var userRow = ur.rows[0];
+      if(!userRow || !isAdminEmail(userRow.email)) return Promise.reject({ httpStatus: 403, message:'관리자 권한이 필요합니다.', code:'forbidden' });
+      return Promise.all([
+        db.query("SELECT count(*)::int AS c FROM users WHERE deleted_at IS NULL"),
+        db.query("SELECT count(*)::int AS c FROM users WHERE deleted_at IS NULL AND created_at >= now() - interval '30 days'"),
+        db.query("SELECT count(*)::int AS c FROM subscriptions WHERE status='active'"),
+        db.query("SELECT count(*)::int AS c FROM subscriptions WHERE status='past_due'"),
+        db.query("SELECT coalesce(sum(amount),0)::int AS s FROM payments WHERE status='paid' AND created_at >= date_trunc('month', now())"),
+        db.query("SELECT coalesce(sum(amount),0)::int AS s FROM payments WHERE status='paid'"),
+        db.query("SELECT p.id, p.amount, p.created_at, u.email FROM payments p JOIN users u ON u.id=p.user_id WHERE p.status='failed' ORDER BY p.created_at DESC LIMIT 10")
+      ]).then(function(results){
+        res.json({
+          totalUsers: results[0].rows[0].c,
+          newUsers30d: results[1].rows[0].c,
+          activeSubscriptions: results[2].rows[0].c,
+          pastDueSubscriptions: results[3].rows[0].c,
+          revenueThisMonth: results[4].rows[0].s,
+          revenueTotal: results[5].rows[0].s,
+          recentFailedPayments: results[6].rows.map(function(r){ return { id:r.id, amount:r.amount, createdAt:r.created_at, email:r.email }; })
+        });
+      });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('admin-stats-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'통계를 불러오지 못했습니다.', code:'internal_error' } });
     });
   });
 
