@@ -87,6 +87,22 @@ function createDb(opts){
         '  last_sent_at timestamptz NOT NULL DEFAULT now()' +
         ')'
       );
+    }).then(function(){
+      /* 2026-08-21: 비밀번호 재설정. email_verifications와 컬럼 구조는
+         동일하지만(이메일당 코드 1개, 재요청 시 UPSERT) 별도 테이블로 둔다 —
+         회원가입 인증은 "아직 계정이 없는 이메일"을 대상으로 하고 비밀번호
+         재설정은 "이미 계정이 있는 이메일"을 대상으로 해서 성격이 다르고,
+         한 테이블을 겸용하면 두 흐름의 만료/시도횟수 정책이 서로 얽힐
+         위험이 있다. */
+      return pool.query(
+        'CREATE TABLE IF NOT EXISTS password_resets (' +
+        '  email text PRIMARY KEY,' +
+        '  code text NOT NULL,' +
+        '  attempts integer NOT NULL DEFAULT 0,' +
+        '  expires_at timestamptz NOT NULL,' +
+        '  last_sent_at timestamptz NOT NULL DEFAULT now()' +
+        ')'
+      );
     });
   }
 

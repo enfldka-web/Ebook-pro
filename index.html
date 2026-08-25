@@ -95,8 +95,41 @@
       <div class="auth-err" id="login-err"></div>
       <div class="auth-form">
         <div class="form-group"><label class="form-label">이메일</label><input id="l-email" class="form-input" type="email" placeholder="your@email.com"/></div>
-        <div class="form-group"><label class="form-label">비밀번호</label><input id="l-pw" class="form-input" type="password" placeholder="비밀번호 입력"/></div>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input id="l-pw" class="form-input" type="password" placeholder="비밀번호 입력"/>
+          <div style="text-align:right;margin-top:6px"><a href="#" onclick="showForgotPasswordForm(true);return false;" style="font-size:12px;color:var(--a2-text-faint);text-decoration:underline">비밀번호를 잊으셨나요?</a></div>
+        </div>
         <button class="btn-auth" onclick="doLogin()">로그인 →</button>
+      </div>
+    </div>
+    <!-- 2026-08-21: 실제 SaaS 출시 전 점검에서 발견된 공백 — 로그인 기능만
+         있고 비밀번호를 잊었을 때 복구할 방법이 전혀 없었다. 회원가입의
+         이메일 인증번호 단계(#form-signup, atlasSendSignupCode/doSignup)와
+         동일한 2단계 패턴(이메일 → 코드+새 비밀번호)을 그대로 재사용한다.
+         doForgotPassword()/atlasSendPasswordResetCode()가 이 폼을 다룬다
+         (js/application.js). 서버가 "가입되지 않은 이메일"에도 항상 같은
+         성공 응답을 주므로(계정 존재 여부 열거 방지), 이 화면 문구도 그
+         사실을 그대로 반영해 "보냈습니다"가 아니라 "가입돼 있다면
+         보냈습니다"로 쓴다. -->
+    <div id="form-forgot" style="display:none">
+      <div class="auth-title">비밀번호를 잊으셨나요?</div>
+      <div class="auth-sub">가입한 이메일로 재설정 인증번호를 보내드립니다</div>
+      <div class="auth-err" id="forgot-err"></div>
+      <div class="auth-form">
+        <div class="form-group"><label class="form-label">이메일</label><input id="fp-email" class="form-input" type="email" placeholder="your@email.com"/></div>
+        <div id="forgot-code-row" style="display:none">
+          <div class="form-group">
+            <label class="form-label">인증번호</label>
+            <div style="display:flex;gap:8px">
+              <input id="fp-code" class="form-input" type="text" inputmode="numeric" maxlength="6" placeholder="이메일로 받은 6자리 숫자" style="flex:1"/>
+              <button type="button" class="a2-btn a2-btn-secondary a2-btn-sm" id="forgot-resend-btn" onclick="atlasSendPasswordResetCode(true)" style="white-space:nowrap">재전송</button>
+            </div>
+            <div class="a2-hint" id="forgot-code-hint" style="margin-top:4px"><span id="forgot-code-email"></span>로 가입된 계정이 있다면 인증번호를 보냈습니다.</div>
+          </div>
+          <div class="form-group"><label class="form-label">새 비밀번호</label><input id="fp-pw" class="form-input" type="password" placeholder="8자 이상"/></div>
+        </div>
+        <button class="btn-auth" id="forgot-submit-btn" onclick="doForgotPassword()">재설정 코드 받기 →</button>
       </div>
     </div>
     <div id="form-signup" style="display:none">

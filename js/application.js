@@ -592,6 +592,11 @@ function switchAuthTab(tab){
   document.getElementById('tab-signup').classList.toggle('active',tab==='signup');
   document.getElementById('form-login').style.display=tab==='login'?'':'none';
   document.getElementById('form-signup').style.display=tab==='signup'?'':'none';
+  // 비밀번호 재설정 화면(showForgotPasswordForm)에서 넘어오는 경우를 포함해,
+  // 로그인/회원가입 탭으로 돌아올 때는 항상 탭 자체와 그 폼들이 보이는
+  // 정상 상태로 되돌린다.
+  var tabs=document.querySelector('#pg-auth .auth-tabs');if(tabs)tabs.style.display='';
+  var forgotForm=document.getElementById('form-forgot');if(forgotForm)forgotForm.style.display='none';
   if(tab==='signup')atlasResetSignupCodeStep();
 }
 /* 2026-08-14: 이용약관/개인정보처리방침/환불정책 탭 전환. switchAuthTab()과
@@ -691,6 +696,95 @@ function atlasSendSignupCode(isResend){
     if(resendBtn){resendBtn.disabled=true;resendBtn.textContent='재전송';setTimeout(function(){resendBtn.disabled=false;},60000);}
     showToast('success',isResend?'인증번호를 다시 보냈습니다.':'인증번호를 보냈습니다. 이메일을 확인해주세요.');
     var codeInput=document.getElementById('s-code');if(codeInput)codeInput.focus();
+  }).catch(function(){
+    showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    if(busyBtn){busyBtn.disabled=false;busyBtn.textContent=oldText;}
+  });
+}
+/* 2026-08-21: 비밀번호 재설정 — 회원가입의 2단계(이메일 인증번호) 패턴을
+   그대로 재사용한다(atlasSendSignupCode/doSignup과 대칭 구조). show=true면
+   로그인/회원가입 탭과 폼을 숨기고 이 폼만 보여준다(탭 자체가 아니라
+   로그인 화면에서 링크로 진입하는 별도 흐름이라 .auth-tabs와는 독립적으로
+   토글한다). */
+function showForgotPasswordForm(show){
+  var tabs=document.querySelector('#pg-auth .auth-tabs');
+  var loginForm=document.getElementById('form-login');
+  var signupForm=document.getElementById('form-signup');
+  var forgotForm=document.getElementById('form-forgot');
+  if(show){
+    if(tabs)tabs.style.display='none';
+    if(loginForm)loginForm.style.display='none';
+    if(signupForm)signupForm.style.display='none';
+    if(forgotForm)forgotForm.style.display='';
+    atlasResetForgotPasswordStep();
+  }else{
+    switchAuthTab('login'); // .auth-tabs/#form-forgot 복원까지 여기서 함께 처리됨
+  }
+}
+var atlasForgotCodeSent=false;
+function atlasResetForgotPasswordStep(){
+  atlasForgotCodeSent=false;
+  var row=document.getElementById('forgot-code-row');if(row)row.style.display='none';
+  var codeInput=document.getElementById('fp-code');if(codeInput)codeInput.value='';
+  var pwInput=document.getElementById('fp-pw');if(pwInput)pwInput.value='';
+  var emailInput=document.getElementById('fp-email');if(emailInput){emailInput.value='';emailInput.disabled=false;}
+  var btn=document.getElementById('forgot-submit-btn');if(btn)btn.textContent='재설정 코드 받기 →';
+  var err=document.getElementById('forgot-err');if(err)err.style.display='none';
+}
+function doForgotPassword(){
+  if(!atlasForgotCodeSent){atlasSendPasswordResetCode(false);return;}
+  var email=document.getElementById('fp-email').value.trim();
+  var code=document.getElementById('fp-code').value.trim();
+  var pw=document.getElementById('fp-pw').value;
+  var err=document.getElementById('forgot-err');
+  if(!code){showErr(err,'이메일로 받은 인증번호를 입력해주세요.');return;}
+  if(!pw||pw.length<8){showErr(err,'새 비밀번호는 8자 이상이어야 합니다.');return;}
+  err.style.display='none';
+  var btn=document.getElementById('forgot-submit-btn');
+  var oldText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='변경 중...';}
+  atlasAuthFetch('/api/auth/reset-password',{method:'POST',body:JSON.stringify({email:email,code:code,newPassword:pw})}).then(function(result){
+    if(btn){btn.disabled=false;btn.textContent=oldText;}
+    if(!result.ok||!result.body||!result.body.ok){
+      showErr(err,(result.body&&result.body.error&&result.body.error.message)||'비밀번호 재설정에 실패했습니다.');
+      return;
+    }
+    showForgotPasswordForm(false);
+    var loginEmail=document.getElementById('l-email');if(loginEmail)loginEmail.value=email;
+    showToast('success','비밀번호가 변경됐습니다. 새 비밀번호로 로그인해주세요.');
+  }).catch(function(){
+    if(btn){btn.disabled=false;btn.textContent=oldText;}
+    showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+  });
+}
+/* isResend: "재전송" 버튼에서 호출될 때 true — atlasSendSignupCode(isResend)와
+   동일한 역할 구분. */
+function atlasSendPasswordResetCode(isResend){
+  var email=document.getElementById('fp-email').value.trim();
+  var err=document.getElementById('forgot-err');
+  if(!isResend&&!email){showErr(err,'이메일을 입력해주세요.');return;}
+  err.style.display='none';
+  var mainBtn=document.getElementById('forgot-submit-btn');
+  var resendBtn=document.getElementById('forgot-resend-btn');
+  var busyBtn=isResend?resendBtn:mainBtn;
+  var oldText=busyBtn?busyBtn.textContent:'';
+  if(busyBtn){busyBtn.disabled=true;busyBtn.textContent='전송 중...';}
+  atlasAuthFetch('/api/auth/send-password-reset',{method:'POST',body:JSON.stringify({email:email})}).then(function(result){
+    if(!result.ok||!result.body||!result.body.ok){
+      showErr(err,(result.body&&result.body.error&&result.body.error.message)||'인증번호 발송에 실패했습니다.');
+      if(busyBtn){busyBtn.disabled=false;busyBtn.textContent=oldText;}
+      return;
+    }
+    atlasForgotCodeSent=true;
+    var emailInput=document.getElementById('fp-email');if(emailInput)emailInput.disabled=true;
+    var row=document.getElementById('forgot-code-row');if(row)row.style.display='';
+    var emailLabel=document.getElementById('forgot-code-email');if(emailLabel)emailLabel.textContent=email;
+    if(mainBtn){mainBtn.disabled=false;mainBtn.textContent='비밀번호 재설정 →';}
+    if(resendBtn){resendBtn.disabled=true;resendBtn.textContent='재전송';setTimeout(function(){resendBtn.disabled=false;},60000);}
+    // 계정 존재 여부를 알려주지 않는 서버 응답 원칙과 동일하게, 여기서도
+    // "보냈습니다"가 아니라 "가입돼 있다면 보냈습니다"로 안내한다.
+    showToast('info',isResend?'인증번호를 다시 요청했습니다.':'가입된 이메일이라면 인증번호를 보냈습니다.');
+    var codeInput=document.getElementById('fp-code');if(codeInput)codeInput.focus();
   }).catch(function(){
     showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
     if(busyBtn){busyBtn.disabled=false;busyBtn.textContent=oldText;}
