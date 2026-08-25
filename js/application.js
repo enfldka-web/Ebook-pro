@@ -407,6 +407,55 @@ function atlasOpenSubscribeCheckout(){
     showToast('error','결제 서버에 연결하지 못했습니다.');
   });
 }
+/* 2026-08-21: 회원 탈퇴 — .atlas-modal-bg/.atlas-modal 패턴은 bootstrap.js의
+   openAtlasPartialModal()과 동일(이 프로젝트에서 이미 쓰이는 동적 모달
+   방식을 그대로 재사용, 새 모달 시스템을 만들지 않는다). 파괴적 동작이라
+   confirm() 한 줄로는 부족해 현재 비밀번호 재입력을 요구한다(공유 기기에서
+   로그아웃을 깜빡한 세션이 그대로 계정을 지워버리는 것을 막는 안전장치). */
+function openDeleteAccountModal(){
+  if(!APP.user){showToast('error','로그인이 필요합니다.');return;}
+  var bg=document.createElement('div');
+  bg.className='atlas-modal-bg';
+  bg.id='atlas-delete-account-modal';
+  bg.innerHTML='<div class="atlas-modal">'
+    +'<h3>회원 탈퇴</h3>'
+    +'<p>탈퇴하면 더 이상 로그인할 수 없고, 진행 중인 구독이 있다면 즉시 해지됩니다. 이 작업은 되돌릴 수 없습니다. 계속하려면 현재 비밀번호를 입력해주세요.</p>'
+    +'<div class="atlas-form-row"><label>현재 비밀번호</label><input type="password" id="delete-account-pw" class="form-input" placeholder="비밀번호 입력"/></div>'
+    +'<div class="auth-err" id="delete-account-err" style="display:none;margin-top:8px"></div>'
+    +'<div class="atlas-modal-actions">'
+      +'<button class="aft-btn" onclick="document.getElementById(\'atlas-delete-account-modal\').remove()">취소</button>'
+      +'<button class="a2-btn a2-btn-danger" id="delete-account-confirm-btn" onclick="confirmDeleteAccount()"><span data-icon="trash"></span>탈퇴하기</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(bg);
+  if(window.AtlasIcons)AtlasIcons.applyAll(bg);
+  var pwInput=document.getElementById('delete-account-pw');if(pwInput)pwInput.focus();
+}
+function confirmDeleteAccount(){
+  var pwInput=document.getElementById('delete-account-pw');
+  var pw=pwInput?pwInput.value:'';
+  var err=document.getElementById('delete-account-err');
+  if(!pw){showErr(err,'비밀번호를 입력해주세요.');return;}
+  err.style.display='none';
+  var btn=document.getElementById('delete-account-confirm-btn');
+  var oldText=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.textContent='처리 중...';}
+  atlasAuthFetch('/api/auth/delete-account',{method:'POST',body:JSON.stringify({password:pw})}).then(function(result){
+    if(!result.ok||!result.body||!result.body.ok){
+      showErr(err,(result.body&&result.body.error&&result.body.error.message)||'회원 탈퇴에 실패했습니다.');
+      if(btn){btn.disabled=false;btn.innerHTML=oldText;}
+      return;
+    }
+    var m=document.getElementById('atlas-delete-account-modal');if(m)m.remove();
+    clearCurrentUser();
+    APP.ebook=null;APP.selFile=null;
+    showPage('landing');
+    showToast('success','회원 탈퇴가 완료됐습니다. 그동안 이용해주셔서 감사합니다.');
+  }).catch(function(){
+    showErr(err,'서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    if(btn){btn.disabled=false;btn.innerHTML=oldText;}
+  });
+}
 function atlasFormatDateKo(dateStr){
   try{ return new Date(dateStr).toLocaleDateString('ko-KR'); }
   catch(e){ return ''; }
