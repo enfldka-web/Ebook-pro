@@ -863,6 +863,15 @@
             <div><div class="settings-label">로그아웃</div><div class="settings-desc">현재 기기에서 로그아웃합니다</div></div>
             <button class="a2-btn a2-btn-danger" onclick="doLogout()"><span data-icon="logout"></span>로그아웃</button>
           </div>
+          <!-- 2026-08-21: 실제 SaaS 출시 전 점검에서 발견된 공백 — 개인정보처리방침
+               7항이 "회원 탈퇴를 통해 개인정보의 삭제를 요청할 수 있습니다"라고
+               이미 약속하고 있는데 실제로 탈퇴할 방법이 전혀 없었다.
+               openDeleteAccountModal()/confirmDeleteAccount()가 처리한다
+               (js/application.js, /api/auth/delete-account). -->
+          <div class="settings-row">
+            <div><div class="settings-label">회원 탈퇴</div><div class="settings-desc">계정을 삭제합니다. 진행 중인 구독은 즉시 해지되며, 이 작업은 되돌릴 수 없습니다.</div></div>
+            <button class="a2-btn a2-btn-danger" onclick="openDeleteAccountModal()"><span data-icon="trash"></span>회원 탈퇴</button>
+          </div>
         </div>
       </div>
     </div>

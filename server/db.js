@@ -42,6 +42,14 @@ function createDb(opts){
         ')'
       );
     }).then(function(){
+      /* 2026-08-21: 회원 탈퇴. users 행 자체를 DELETE하지 않는다 — payments가
+         user_id를 FK(ON DELETE CASCADE)로 참조하는데, 결제 기록은 전자상거래법상
+         5년 보관 의무가 있어(개인정보처리방침 3항) 탈퇴한다고 함께 지워지면
+         안 된다. 대신 이 컬럼으로 "탈퇴 처리됨"만 표시하고, 실제 개인 식별
+         정보(email/name/password_hash)는 탈퇴 처리 시점에 재사용 불가능한
+         값으로 덮어쓴다(server/image-gateway.js /api/auth/delete-account). */
+      return pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at timestamptz');
+    }).then(function(){
       return pool.query(
         'CREATE TABLE IF NOT EXISTS subscriptions (' +
         '  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,' +

@@ -204,9 +204,12 @@ function createApp(opts){
      기준으로 판단한다. 구독 중(status==='active')이면 무료체험 소진 여부와
      무관하게 항상 허용한다. */
   function fetchTrialSubStatus(userId){
-    return db.query('SELECT trial_used, email FROM users WHERE id=$1', [userId]).then(function(ur){
+    return db.query('SELECT trial_used, email, deleted_at FROM users WHERE id=$1', [userId]).then(function(ur){
       var userRow = ur.rows[0];
-      if(!userRow) return null;
+      // 탈퇴 처리된 계정은 존재하지 않는 것과 동일하게 취급한다(아래 null
+      // 처리와 합류) — 그렇지 않으면 탈퇴 후에도 유효한 토큰이 남아있는 한
+      // trial_used:false로 다시 무료체험을 소모할 수 있는 구멍이 생긴다.
+      if(!userRow || userRow.deleted_at) return null;
       // 관리자 이메일은 구독 중인 것과 동일하게 취급해 무료체험 제한을
       // 완전히 우회한다 — 아래 /generate의 outline 게이트도 이 값 하나만
       // 보고 판단하므로 별도 우회 분기를 추가할 필요가 없다.
@@ -476,12 +479,66 @@ function createApp(opts){
       if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
       return fetchUserWithSub(userId);
     }).then(function(found){
-      if(!found) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+      // 탈퇴 처리된 계정의 토큰이 아직 남아있어도(다른 탭 등) 더 이상 로그인
+      // 상태로 취급하지 않는다 — delete-account 사용자 리포트: 탈퇴가 이
+      // 토큰으로 재현되면 안 된다.
+      if(!found || found.userRow.deleted_at) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
       res.json({ user: userPublicShape(found.userRow, found.subRow) });
     }).catch(function(err){
       if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
       safeLog('auth-me-error', { message: err && err.message });
       res.status(500).json({ error: { message:'사용자 정보를 불러오지 못했습니다.', code:'internal_error' } });
+    });
+  });
+
+  /* ── 회원 탈퇴 — 2026-08-21: 실제 SaaS 출시 전 점검에서 발견된 공백. 개인
+     정보처리방침 7항이 "회원 탈퇴를 통해 개인정보의 삭제를 요청할 수
+     있습니다"라고 이미 약속하고 있는데 실제로는 탈퇴할 방법이 전혀 없었다.
+     users 행 자체를 DELETE하지 않는다(server/db.js 주석 참고 — payments가
+     user_id를 ON DELETE CASCADE로 참조하는데, 결제 기록은 전자상거래법상
+     5년 보관 의무가 있어 함께 지워지면 안 됨). 대신:
+     1) 개인 식별 정보(email/name/password_hash)를 재사용 불가능한 값으로
+        덮어써 그 사람을 더 이상 식별할 수 없게 하고 deleted_at을 남긴다
+        (이메일을 비식별화하므로 원래 이메일로 재가입도 다시 가능해진다 —
+        일반적인 "탈퇴 후 재가입 가능" 기대와 일치).
+     2) 구독 중이었다면 즉시 해지하고 billing_key를 지운다(탈퇴한 계정을
+        계속 청구할 수는 없다 — 기존 "구독 취소"처럼 결제 주기 끝까지
+        기다리지 않고 즉시 처리).
+     비밀번호 재확인을 요구한다(body.password) — 로그아웃을 깜빡한 공유
+     기기 등에서 세션만 탈취해 계정을 지워버리는 것을 막는, 이런 종류의
+     파괴적 동작에 흔히 쓰이는 안전장치다. */
+  app.post('/api/auth/delete-account', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'회원 탈퇴 기능이 아직 설정되지 않았습니다.', code:'not_configured' } });
+    var userId = verifyAuthHeader(req);
+    if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+    var body = req.body || {};
+    var password = String(body.password || '');
+    if(!password) return res.status(400).json({ error: { message:'본인 확인을 위해 현재 비밀번호를 입력해주세요.', code:'invalid_request' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('SELECT * FROM users WHERE id=$1', [userId]);
+    }).then(function(ur){
+      var userRow = ur.rows[0];
+      if(!userRow || userRow.deleted_at) return Promise.reject({ httpStatus: 401, message:'로그인이 필요합니다.', code:'unauthorized' });
+      return bcrypt.compare(password, userRow.password_hash).then(function(ok){
+        if(!ok) return Promise.reject({ httpStatus: 401, message:'비밀번호가 올바르지 않습니다.', code:'invalid_credentials' });
+        var anonymizedEmail = 'deleted_'+userId+'@deleted.atlas.local';
+        return bcrypt.hash(crypto.randomBytes(32).toString('hex'), BCRYPT_ROUNDS).then(function(deadHash){
+          return db.query(
+            'UPDATE users SET email=$1, name=$2, password_hash=$3, deleted_at=now() WHERE id=$4',
+            [anonymizedEmail, '탈퇴한 회원', deadHash, userId]
+          );
+        }).then(function(){
+          return db.query('UPDATE subscriptions SET status=$1, billing_key=NULL, cancel_at_period_end=false, updated_at=now() WHERE user_id=$2', ['canceled', userId]);
+        }).then(function(){
+          safeLog('account-deleted', { userId: userId });
+          res.json({ ok:true });
+        });
+      });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('delete-account-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'회원 탈퇴 처리 중 오류가 발생했습니다.', code:'internal_error' } });
     });
   });
 
