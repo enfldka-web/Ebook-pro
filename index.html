@@ -69,12 +69,17 @@
         <button class="al-btn al-btn-secondary" onclick="showPage('auth','signup')"><strong>처음이신가요?</strong><small>계정을 만들고 시작하기</small></button>
       </div>
       <div class="al-secure">🔒 구독자 전용 서비스 · 무단 사용 및 외부 공유 금지</div>
+      <!-- 2026-08-26: 사용자 요청 — 사업자등록번호·통신판매업신고번호·주소·
+           연락처 등 개인 식별 정보(재택 사업자라 사업장 주소=자택 주소)를
+           방문자 누구나 바로 보는 랜딩 페이지 하단에서는 뺀다. 완전히
+           삭제하는 게 아니라 노출 위치만 바꾼 것 — 전자상거래법상 "상시
+           게시" 의무는 굳이 모든 페이지 하단에 눈에 띄게 박아둬야 하는 게
+           아니라 "언제든 확인 가능"하면 되므로, 아래 이용약관/개인정보
+           처리방침 링크를 타고 들어가면 그 페이지 상단에서 여전히 확인할
+           수 있다(#pg-legal, 그대로 유지). 문의 이메일도 같은 이유로
+           이 화면에서는 빼고, 로그인 후 Settings의 "고객지원" 섹션과
+           개인정보처리방침/환불정책 문서 안에는 그대로 남겨둔다. -->
       <div style="margin-top:10px;font-size:11px;color:#475569"><a href="?legal=terms" target="_blank" style="color:inherit;text-decoration:underline">이용약관</a> · <a href="?legal=privacy" target="_blank" style="color:inherit;text-decoration:underline">개인정보처리방침</a> · <a href="?legal=refund" target="_blank" style="color:inherit;text-decoration:underline">환불정책</a></div>
-      <!-- 2026-08-21: 전자상거래법상 통신판매업자 상시 게시 의무 항목(상호/
-           대표자/사업자등록번호/통신판매업신고번호/주소) — 사용자가 알려준
-           실제 값. 상세 법적 문서는 위 이용약관/개인정보처리방침/환불정책
-           페이지에도 동일하게 표시돼 있다(#pg-legal). -->
-      <div style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.7">마메드네 · 대표: 김진석 · 사업자등록번호 809-11-03069 · 통신판매업신고 제 2025-서울노원-1053호<br>서울 노원구 동일로215길48 326동1309호 · 문의: <a href="mailto:enfldka@gmail.com" style="color:inherit;text-decoration:underline">enfldka@gmail.com</a></div>
       <div class="al-version">ATLAS AI EBOOK STUDIO · FINAL</div>
     </div>
   </div>
