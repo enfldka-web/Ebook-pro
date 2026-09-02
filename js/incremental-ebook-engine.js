@@ -966,23 +966,50 @@ ${writingStyleRules(market)}
     });
   }
 
+  /* 2026-09-02: 사용자 리포트 — "AI가 만든 내용의 형식이 깨져서 처리하지
+     못했습니다" 오류가 전자책 한 권 만들 때마다 종종 뜨고, 그때마다 사용자가
+     직접 "이 장만 다시 생성"/"이어서 생성"을 눌러야 했다. robustJsonParse()는
+     이미 6단계 보정을 시도하지만, 그래도 실패하는 경우는 대부분 응답이 진짜
+     중간에 잘렸거나(변덕스러운 확률적 문제) AI가 그 순간 우연히 깨진 형식을
+     반환한 것 — "같은 프롬프트를 한 번 더 보내면" 대개 정상적인 JSON이
+     돌아온다(실제로 매번 재현되는 결정론적 버그가 아니라 확률적 현상이므로).
+     지금까지는 이 실패를 곧바로 사용자에게 보여주고 수동 재시도를 요구했는데,
+     이제 그 앞에 "같은 요청을 자동으로 최대 2번 더 보내보기"를 넣어 사용자가
+     보기도 전에 조용히 회복시킨다 — 사용자에게는 그 장이 조금 더 오래
+     걸렸을 뿐 성공한 것처럼 보인다. JSON 파싱 실패로 분류되는 에러만
+     재시도한다(robustJsonParse가 던지는 에러는 항상 err.rawResponseText를
+     들고 있다는 점으로 식별 — network_error/timeout처럼 이미 서버 쪽에서
+     별도로 재시도되는 다른 종류의 실패나, trial_exhausted 같은 재시도해도
+     의미 없는 사업 로직 에러까지 여기서 다시 시도하지 않는다). */
+  var PARSE_RETRY_MAX = 2;
+  function callGatewayWithParseRetry(promptText, maxTokens, callType, market, openChar, closeChar, unitLabel){
+    function attempt(retryCount){
+      return callGateway(promptText, maxTokens, callType, market).then(function(data){
+        var text = extractResponseText(data);
+        return robustJsonParse(text, openChar, closeChar, unitLabel);
+      }).catch(function(err){
+        var isParseFailure = err && err.rawResponseText !== undefined;
+        if(isParseFailure && retryCount < PARSE_RETRY_MAX){
+          console.warn('[incremental-ebook] ['+unitLabel+'] JSON 파싱 실패 — 자동으로 다시 시도합니다 ('+(retryCount+1)+'/'+PARSE_RETRY_MAX+')');
+          return attempt(retryCount+1);
+        }
+        throw err;
+      });
+    }
+    return attempt(0);
+  }
+
   /* outline은 제목/서문(600자+)/서론(800자+)/결론(1200자+)/7개 챕터 브리핑/부록
      제목/저작권/판매 카피(hook·pains·learnings·benefits·faqs 등)까지 한 번에
      담아야 해서 6000 max_tokens로는 부족했다 — 실제 Windows에서 응답이 배열
      중간에서 잘려 "Expected ',' or '}'" 파싱 오류로 재현된 원인. 16000으로
      늘려 잘리지 않게 한다(claude-sonnet-4-6 최대 출력 128K 대비 충분히 여유). */
   E.generateOutline = function(modeWrapperPrefix, market){
-    return callGateway(E.buildOutlinePrompt(modeWrapperPrefix, market), 16000, 'outline', market).then(function(data){
-      var text = extractResponseText(data);
-      return robustJsonParse(text, '{', '}', 'outline');
-    });
+    return callGatewayWithParseRetry(E.buildOutlinePrompt(modeWrapperPrefix, market), 16000, 'outline', market, '{', '}', 'outline');
   };
 
   E.generateChapter = function(outline, brief, market){
-    return callGateway(E.buildChapterPrompt(outline, brief, market), 9000, 'chapter', market).then(function(data){
-      var text = extractResponseText(data);
-      return robustJsonParse(text, '{', '}', 'chapter'+brief.number);
-    });
+    return callGatewayWithParseRetry(E.buildChapterPrompt(outline, brief, market), 9000, 'chapter', market, '{', '}', 'chapter'+brief.number);
   };
 
   /* 실제 Windows 실행에서 재현된 세 번째 종류의 실패: 부록 3개 각각이 실전
@@ -991,28 +1018,19 @@ ${writingStyleRules(market)}
      string"은 그 어떤 후처리 보정으로도 고칠 수 없는 진짜 truncation 신호다.
      목차와 동일하게 16000으로 늘려 잘리지 않게 한다. */
   E.generateAppendices = function(outline, market){
-    return callGateway(E.buildAppendicesPrompt(outline, market), 16000, 'appendices', market).then(function(data){
-      var text = extractResponseText(data);
-      return robustJsonParse(text, '[', ']', 'appendices');
-    });
+    return callGatewayWithParseRetry(E.buildAppendicesPrompt(outline, market), 16000, 'appendices', market, '[', ']', 'appendices');
   };
 
   /* 서론+결론만 되돌려 받으므로 outline의 16000보다 훨씬 여유 있게 잡을 필요는
      없다 — intro(800자+)/conclusion(1200자+) 두 필드 정도면 6000으로 충분하다. */
   E.reviewIntro = function(outline, chapters, market){
-    return callGateway(E.buildReviewIntroPrompt(outline, chapters, market), 6000, 'review', market).then(function(data){
-      var text = extractResponseText(data);
-      return robustJsonParse(text, '{', '}', 'reviewIntro');
-    });
+    return callGatewayWithParseRetry(E.buildReviewIntroPrompt(outline, chapters, market), 6000, 'review', market, '{', '}', 'reviewIntro');
   };
 
   /* 챕터 하나만 되돌려 받으므로, 원래 그 챕터를 생성할 때와 같은 예산(9000)이면
      "분량은 그대로 유지" 지시상 충분하다(원본보다 커질 이유가 없음). */
   E.reviewChapter = function(outline, chapters, chapterNumber, market){
-    return callGateway(E.buildReviewChapterPrompt(outline, chapters, chapterNumber, market), 9000, 'review', market).then(function(data){
-      var text = extractResponseText(data);
-      return robustJsonParse(text, '{', '}', 'reviewChapter'+chapterNumber);
-    });
+    return callGatewayWithParseRetry(E.buildReviewChapterPrompt(outline, chapters, chapterNumber, market), 9000, 'review', market, '{', '}', 'reviewChapter'+chapterNumber);
   };
 
   /* ── 최종 병합 ── outline + 완료된 7개 챕터 + 부록을 기존 ebook 스키마와
