@@ -567,10 +567,23 @@ ${KOREAN_LOCALIZATION_RULES}
     return '[전자책 정보]\n제목: '+outline.title+'\n부제목: '+outline.subtitle+'\n\n[원고 전문 — 참고용 문맥, 이 문맥과 자연스럽게 이어지도록 다듬을 것]\n--- 서론 ---\n'+(outline.intro||'')+'\n\n'+chapterBlocks+'\n\n--- 결론 ---\n'+(outline.conclusion||'')+'\n\n';
   }
 
+  /* 2026-09-02: 다듬기(review) 단계는 서론+결론 1개 + 챕터별 7개 = 총 8번
+     호출되는데, 매번 fullManuscriptContext(원고 전문, 위 함수)가 완전히 동일한
+     내용으로 다시 통째로 전송된다(챕터 하나만 다듬는 호출도 예외 없이 책 전체를
+     문맥으로 함께 보내야 하므로 — 위 주석 참고). buildReviewIntroPrompt/
+     buildReviewChapterPrompt의 반환값(단일 문자열)에 이 마커를 심어 "캐싱
+     가능한 원고 전문 구간"과 "매 호출 달라지는 지시문 구간"의 경계를 표시하고,
+     buildApiContent(js/application.js)가 이 마커를 찾아 콘텐츠 블록을 둘로
+     쪼갠 뒤 앞쪽에만 cache_control을 건다 — 8번 중 첫 호출만 정가, 나머지
+     7번은 캐시 읽기 요금(정가의 약 10%)만 낸다. 실제 원고 내용에 이 문자열이
+     우연히 등장할 일은 없는 구분자다. */
+  var CACHE_BREAKPOINT_MARKER = '\n\n===ATLAS_CACHE_BREAKPOINT===\n\n';
+  E.CACHE_BREAKPOINT_MARKER = CACHE_BREAKPOINT_MARKER;
+
   E.buildReviewIntroPrompt = function(outline, chapters, market){
     market = market||'kr';
     if(market==='global'){
-      return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+`Above is the full manuscript of an already-completed ebook (introduction, 7 chapters, conclusion). The 7 chapters were each written separately at different times, so sentence rhythm, tone, and word choice may differ subtly between them.
+      return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+CACHE_BREAKPOINT_MARKER+`Above is the full manuscript of an already-completed ebook (introduction, 7 chapters, conclusion). The 7 chapters were each written separately at different times, so sentence rhythm, tone, and word choice may differ subtly between them.
 
 Pick out just the introduction and conclusion, and rewrite them so they read as if one author wrote the whole book start to finish, flowing naturally with the manuscript above (chapter bodies are polished in separate calls, so don't return them here). Return a single JSON object only — no text outside the JSON.
 
@@ -589,7 +602,7 @@ Follow this schema exactly.
   "conclusion":"the polished conclusion in full"
 }`;
     }
-    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다를 수 있습니다.
+    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+CACHE_BREAKPOINT_MARKER+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다를 수 있습니다.
 
 이 중 서론과 결론만 골라, 한 명의 저자가 책 전체를 처음부터 끝까지 직접 쓴 것처럼 위 원고 전체와 자연스럽게 이어지도록 다듬어 다시 작성하세요(챕터 본문은 다른 호출에서 따로 다듬으므로 여기서는 반환하지 않습니다). 반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
 
@@ -613,7 +626,7 @@ ${writingStyleRules(market)}
     market = market||'kr';
     var target = chapters.filter(function(ch){return ch&&ch.number===chapterNumber;})[0];
     if(market==='global'){
-      return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+`Above is the full manuscript of an already-completed ebook (introduction, 7 chapters, conclusion). The 7 chapters were each written separately at different times, so sentence rhythm, tone, and word choice may differ subtly between them, or a concept already explained in one chapter may get re-explained from scratch in another.
+      return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+CACHE_BREAKPOINT_MARKER+`Above is the full manuscript of an already-completed ebook (introduction, 7 chapters, conclusion). The 7 chapters were each written separately at different times, so sentence rhythm, tone, and word choice may differ subtly between them, or a concept already explained in one chapter may get re-explained from scratch in another.
 
 Pick out just chapter ${chapterNumber} ("${(target&&target.title)||''}"), and rewrite it so it flows naturally with the manuscript above (other chapters, the intro, and the conclusion are polished in separate calls, so return only chapter ${chapterNumber}'s body here). Return a single JSON object only — no text outside the JSON.
 
@@ -634,7 +647,7 @@ Follow this schema exactly.
   "content":"the polished chapter ${chapterNumber} body in full"
 }`;
     }
-    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다르거나, 이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 등 중복이 있을 수 있습니다.
+    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+CACHE_BREAKPOINT_MARKER+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다르거나, 이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 등 중복이 있을 수 있습니다.
 
 이 중 ${chapterNumber}장("${(target&&target.title)||''}")만 골라, 위 원고 전체와 자연스럽게 이어지도록 다듬어 다시 작성하세요(다른 장·서론·결론은 다른 호출에서 따로 다듬으므로 여기서는 ${chapterNumber}장 본문만 반환합니다). 반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
 
@@ -954,12 +967,20 @@ ${writingStyleRules(market)}
      새 Gateway 경로를 만들지 않는다(기존 Anthropic Gateway 재사용). callType은
      Anthropic에 보내는 값이 아니라, 서버가 유닛 종류별로(챕터는 더 짧게) 타임아웃을
      고르는 데만 쓰는 라우팅 힌트다. 실제 호출 전 max_tokens만 콘솔에 남기고
-     Prompt 전문/API Key는 절대 출력하지 않는다. */
+     Prompt 전문/API Key는 절대 출력하지 않는다.
+
+     2026-09-02: 전자책 한 권 생성에 목차·챕터7·부록·다듬기8 등 약 17~19번의
+     호출이 일어나는데, 매 호출마다 시스템 프롬프트(품질/문체 규칙 전문) 전체를
+     다시 정가로 보내고 있었다 — 호출 사이에 이 텍스트는 단 한 글자도 바뀌지
+     않는다. Anthropic Prompt Caching(cache_control:{type:'ephemeral'})을 걸면
+     최초 1회만 정가로 캐시에 쓰고 이후 호출은 캐시 읽기 요금(정가의 약 10%)만
+     낸다 — 응답 품질은 완전히 동일, 비용만 줄어든다. */
   function callGateway(promptText, maxTokens, callType, market){
     return buildApiContent(promptText).then(function(content){
       console.log('[incremental-ebook] calling Anthropic gateway — callType='+callType+', max_tokens='+maxTokens+', promptVersion='+E.PROMPT_VERSION);
       return window.AtlasAnthropicGateway.generate({
-        model:'claude-sonnet-4-6', max_tokens:maxTokens, system:atlasSystemPromptFor(market||'kr'),
+        model:'claude-sonnet-4-6', max_tokens:maxTokens,
+        system:[{type:'text', text:atlasSystemPromptFor(market||'kr'), cache_control:{type:'ephemeral'}}],
         callType: callType,
         messages:[{role:'user', content: content}]
       });

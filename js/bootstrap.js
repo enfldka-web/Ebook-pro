@@ -160,7 +160,7 @@ async function runAtlasPartialRegeneration(){
      +'아래 스키마를 정확히 따르세요.\n'+schema+'\n유효한 JSON만 반환하세요.';
  }
  try{
-   var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:isChapter?9000:(isAppendices?16000:5000),system:atlasSystemPromptFor(market),callType:isChapter?'chapter':(isAppendices?'appendices':'partial'),messages:[{role:'user',content:[{type:'text',text:prompt}]}]});
+   var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:isChapter?9000:(isAppendices?16000:5000),system:[{type:'text',text:atlasSystemPromptFor(market),cache_control:{type:'ephemeral'}}],callType:isChapter?'chapter':(isAppendices?'appendices':'partial'),messages:[{role:'user',content:[{type:'text',text:prompt}]}]});
    var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');
    var obj=E.robustJsonParse(raw,openChar,closeChar,'partial-'+type);
    if(type==='sales')APP.ebook.sales=obj;
