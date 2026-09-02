@@ -26,6 +26,11 @@
 # 2026-08-21: OPS_ALERT_WEBHOOK_URL — 서버 장애/결제 실패를 실시간으로
 # 알림받기 위한 범용 웹훅(Slack/Discord Incoming Webhook 등). 비워두면
 # 지금처럼 서버 로그에만 남고 별도 동작 변화는 없다(선택 사항).
+# 2026-09-02: "본인 API 키(BYOK) 필수" 전환 — 구독자가 늘수록 AI 비용이
+# 운영자 한 명에게 몰리는 부담 때문에, 이제 회원은 각자 본인의 Anthropic
+# 키로 브라우저에서 직접 AI를 호출한다. 아래 ANTHROPIC_API_KEY는 더 이상
+# 일반 회원의 생성에 쓰이지 않고 ADMIN_EMAILS 계정의 로컬 테스트 용도로만
+# 남아있다(server/image-gateway.js /api/anthropic-gateway/generate).
 databases:
   - name: atlas-db
     plan: basic-256mb

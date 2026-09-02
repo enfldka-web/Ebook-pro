@@ -38,16 +38,23 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
   }
 
   /* 페이지 로드 시 한 번 조회해 캐시한다 — isConfigured()/isReachable()는 동기
-     함수여야 UI 렌더링(checkCvReady 등)에서 바로 쓸 수 있다. 사용자 키가 있으면
-     서버에 물어볼 필요 자체가 없다 — 즉시 "연결됨"으로 확정한다(로컬 서버가
-     없어도, 심지어 GitHub Pages처럼 서버가 존재하지 않는 곳에서도 정확하다). */
+     함수여야 UI 렌더링(checkCvReady 등)에서 바로 쓸 수 있다.
+
+     2026-09-02 — "본인 API 키 필수" 전환 이후 중요한 변경: 예전엔 본인 키가
+     있으면 서버에 아예 물어보지 않고 trialUsed:false/subscribed:false를 즉시
+     확정했다("체험 횟수 제한 자체가 무의미하다"는 이유) — 그런데 이 문서
+     기준으로 "본인 API 키 = AI 호출 비용을 누가 내는가"와 "구독 여부 =
+     Atlas 소프트웨어 이용료를 냈는가"는 서로 독립된 별개의 게이트다. 그 둘을
+     하나로 합쳐 판단하면, 본인 키만 넣으면 구독료를 한 번도 안 내고도 평생
+     무제한으로 쓸 수 있는 구멍이 생긴다(실제로 있었던 버그). 그래서 본인 키
+     유무와 무관하게 항상 서버의 /status를 조회해 실제 로그인 계정 기준
+     trialUsed/subscribed를 받아온다 — 이 엔드포인트는 인증 토큰만 필요할
+     뿐 운영자의 Anthropic 키나 비용과는 무관하므로(server/image-gateway.js
+     참고 — DB 조회만 함) 본인 키 모드에서 호출해도 안전하다. 본인 키가
+     있으면 configured만 항상 true로 강제한다(AI 호출 자체는 서버의 Anthropic
+     키 설정 여부와 무관하게 가능하므로). */
   G.refreshStatus = function(){
-    if(ownKey()){
-      /* 본인 키가 있으면 체험 횟수 제한 자체가 무의미하다(자기 키로 무제한
-         호출 가능) — trialUsed는 항상 false로 보고한다. */
-      statusCache = { reachable:true, configured:true, checked:true, mode:'own-key', trialUsed:false, subscribed:false };
-      return Promise.resolve(statusCache);
-    }
+    var mine = ownKey();
     var url = new URL(BASE+'/status', window.AtlasGatewayBaseUrl.resolve()).href;
     return fetch(url, { headers: authHeader() }).then(function(res){
       return res.text().then(function(raw){
@@ -63,11 +70,16 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
         return body;
       });
     }).then(function(body){
-      statusCache = { reachable:true, configured: !!body.configured, checked:true, mode:'gateway', trialUsed: !!body.trialUsed, subscribed: !!body.subscribed };
+      statusCache = { reachable:true, configured: mine?true:!!body.configured, checked:true, mode: mine?'own-key':'gateway', trialUsed: !!body.trialUsed, subscribed: !!body.subscribed };
       return statusCache;
     }).catch(function(err){
       console.error('[AtlasAnthropicGateway] gateway unreachable at '+url+' — is `node server/image-gateway.js` actually the process serving THIS page (same host:port)?', err && err.message);
-      statusCache = { reachable:false, configured:false, checked:true, mode:'gateway', trialUsed:false, subscribed:false };
+      /* 서버(구독/체험 판단의 유일한 기준)에 물어볼 수 없으면, 본인 키가
+         있더라도 구독 여부를 확인 못 한 것이므로 낙관적으로 열어주지 않는다
+         (안전한 기본값 = 막힘). 실제로 진짜 로그인 상태에서 이 경로를 타는
+         일은 거의 없다 — 이 화면에 도달하려면 이미 로그인에 성공했어야
+         하므로, 백엔드가 그 사이에 갑자기 응답을 못 하는 드문 경우만 해당. */
+      statusCache = { reachable:false, configured:false, checked:true, mode: mine?'own-key':'gateway', trialUsed:false, subscribed:false };
       return statusCache;
     });
   };
