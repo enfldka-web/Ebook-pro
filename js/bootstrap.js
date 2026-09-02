@@ -93,39 +93,72 @@ async function runAtlasPartialRegeneration(){
  var isChapter=type.indexOf('chapter:')===0;
  var isAppendices=type==='appendices';
  var openChar=isAppendices?'[':'{', closeChar=isAppendices?']':'}';
- var target='',schema='',otherChaptersBlock='';
- if(type==='sales'){
-   target=JSON.stringify(APP.ebook.sales||{});
-   schema='sales 객체만 반환: '+E.salesSchemaString();
- }else if(isChapter){
-   var idx=Number(type.split(':')[1]);
-   var thisChapter=APP.ebook.chapters[idx]||{};
-   target=JSON.stringify(thisChapter);
-   /* 전체 생성과 동일하게 "다른 챕터 목록"을 참고 정보로 함께 전달한다 —
-      이전에는 이 정보가 전혀 전달되지 않아 재생성된 챕터가 이미 다른
-      챕터가 다룬 내용을 다시 다루는 중복 위험이 있었다. */
-   otherChaptersBlock='\n\n[다른 챕터 목록 — 내용 중복 방지용 참고]\n'+(APP.ebook.chapters||[]).map(function(c,i){
-     return i===idx ? null : (i+1)+'장: '+(c.title||'')+' — '+(c.summary||String(c.content||'').slice(0,80));
-   }).filter(Boolean).join('\n');
-   schema='챕터 객체만 반환: '+E.chapterSchemaString({number:idx+1,type:thisChapter.type||'챕터'})+' — framework/timeline/comparisonTable은 이 챕터 내용에 실제로 해당할 때만 포함하고, 해당 없으면 키 자체를 생략하세요.';
- }else if(isAppendices){
-   target=JSON.stringify(APP.ebook.appendices||[]);
-   schema='부록 배열만 반환: [{"title":"","content":""}]';
- }else{
-   target=JSON.stringify(APP.ebook[type]||'');
-   schema='문자열 값 하나를 {"content":"..."} 형태로 반환';
- }
  var market=(APP.ebook&&APP.ebook.market)||'kr';
- var editorRoleLine=market==='global'
-   ?'You are a professional English-language ebook editor. Keep the overall title and direction of the ebook, and rewrite only the selected part.\n'
-   :'당신은 한국어 전자책 전문 편집자입니다. 전체 전자책의 제목과 방향은 유지하고 선택한 부분만 고쳐 쓰세요.\n';
- var prompt=E.ebookBlueprintGuidelines()+editorRoleLine
-   +'수정 방향: '+(dir||'가독성과 실전성을 높이고 후킹을 강화')+'\n\n'
-   +'[전자책 정보]\n'+JSON.stringify({title:APP.ebook.title,subtitle:APP.ebook.subtitle,description:APP.ebook.description,targetReader:APP.ebook.targetReader})+'\n\n'
-   +'[현재 선택 부분 — 이 내용을 위 수정 방향에 맞게 다시 씁니다]\n'+target
-   +otherChaptersBlock+'\n\n'
-   +E.FACTUALITY_RULES+'\n\n'+E.SALES_COPY_RULES+'\n\n'+E.WRITING_STYLE_RULES+'\n\n'+E.PRACTICALITY_RULES+'\n\n'+E.SOURCE_GROUNDING_RULES+'\n\n'+(market==='global'?'':E.KOREAN_LOCALIZATION_RULES)+'\n\n'
-   +'아래 스키마를 정확히 따르세요.\n'+schema+'\n유효한 JSON만 반환하세요.';
+ /* 2026-09-02 버그 수정 — 실제 사용자 리포트로 재현: 해외 시장(global) 모드로
+    만든 전자책을 부분 재생성해도 결과가 한국어로 나왔다. 원인은 전체 생성
+    (js/incremental-ebook-engine.js)에서 이미 고친 것과 완전히 같은 버그 —
+    editorRoleLine 한 줄만 영어였을 뿐, 스키마 설명/공유 규칙/"[전자책 정보]"
+    같은 라벨은 시장과 무관하게 전부 한국어 그대로였다. 전체 생성 수정과
+    동일한 원칙으로, 시장별로 완전히 분리된 문자열을 쓰고 절대 섞지 않는다. */
+ var target='',schema='',otherChaptersBlock='';
+ if(market==='global'){
+   if(type==='sales'){
+     target=JSON.stringify(APP.ebook.sales||{});
+     schema='Return the sales object only: '+E.salesSchemaString(market);
+   }else if(isChapter){
+     var idxEn=Number(type.split(':')[1]);
+     var thisChapterEn=APP.ebook.chapters[idxEn]||{};
+     target=JSON.stringify(thisChapterEn);
+     otherChaptersBlock='\n\n[Other Chapters — reference only, to avoid overlap]\n'+(APP.ebook.chapters||[]).map(function(c,i){
+       return i===idxEn ? null : 'Chapter '+(i+1)+': '+(c.title||'')+' — '+(c.summary||String(c.content||'').slice(0,80));
+     }).filter(Boolean).join('\n');
+     schema='Return the chapter object only: '+E.chapterSchemaString({number:idxEn+1,type:thisChapterEn.type||'chapter'}, market)+' — include framework/timeline/comparisonTable only when they genuinely apply to this chapter\'s content; omit the key entirely otherwise.';
+   }else if(isAppendices){
+     target=JSON.stringify(APP.ebook.appendices||[]);
+     schema='Return the appendices array only: [{"title":"","content":""}]';
+   }else{
+     target=JSON.stringify(APP.ebook[type]||'');
+     schema='Return a single string value as {"content":"..."}';
+   }
+   var editorRoleLineEn='You are a professional English-language ebook editor. Keep the overall title and direction of the ebook, and rewrite only the selected part.\n';
+   var prompt=E.ebookBlueprintGuidelines()+editorRoleLineEn
+     +'Revision direction: '+(dir||'improve readability and practicality, strengthen the hook')+'\n\n'
+     +'[Ebook Info]\n'+JSON.stringify({title:APP.ebook.title,subtitle:APP.ebook.subtitle,description:APP.ebook.description,targetReader:APP.ebook.targetReader})+'\n\n'
+     +'[Currently Selected Section — rewrite this to match the revision direction above]\n'+target
+     +otherChaptersBlock+'\n\n'
+     +E.factualityRules(market)+'\n\n'+E.salesCopyRules(market)+'\n\n'+E.writingStyleRules(market)+'\n\n'+E.practicalityRules(market)+'\n\n'+E.sourceGroundingRules(market)+'\n\n'
+     +'Follow this schema exactly.\n'+schema+'\nReturn valid JSON only.';
+ }else{
+   if(type==='sales'){
+     target=JSON.stringify(APP.ebook.sales||{});
+     schema='sales 객체만 반환: '+E.salesSchemaString(market);
+   }else if(isChapter){
+     var idx=Number(type.split(':')[1]);
+     var thisChapter=APP.ebook.chapters[idx]||{};
+     target=JSON.stringify(thisChapter);
+     /* 전체 생성과 동일하게 "다른 챕터 목록"을 참고 정보로 함께 전달한다 —
+        이전에는 이 정보가 전혀 전달되지 않아 재생성된 챕터가 이미 다른
+        챕터가 다룬 내용을 다시 다루는 중복 위험이 있었다. */
+     otherChaptersBlock='\n\n[다른 챕터 목록 — 내용 중복 방지용 참고]\n'+(APP.ebook.chapters||[]).map(function(c,i){
+       return i===idx ? null : (i+1)+'장: '+(c.title||'')+' — '+(c.summary||String(c.content||'').slice(0,80));
+     }).filter(Boolean).join('\n');
+     schema='챕터 객체만 반환: '+E.chapterSchemaString({number:idx+1,type:thisChapter.type||'챕터'}, market)+' — framework/timeline/comparisonTable은 이 챕터 내용에 실제로 해당할 때만 포함하고, 해당 없으면 키 자체를 생략하세요.';
+   }else if(isAppendices){
+     target=JSON.stringify(APP.ebook.appendices||[]);
+     schema='부록 배열만 반환: [{"title":"","content":""}]';
+   }else{
+     target=JSON.stringify(APP.ebook[type]||'');
+     schema='문자열 값 하나를 {"content":"..."} 형태로 반환';
+   }
+   var editorRoleLine='당신은 한국어 전자책 전문 편집자입니다. 전체 전자책의 제목과 방향은 유지하고 선택한 부분만 고쳐 쓰세요.\n';
+   var prompt=E.ebookBlueprintGuidelines()+editorRoleLine
+     +'수정 방향: '+(dir||'가독성과 실전성을 높이고 후킹을 강화')+'\n\n'
+     +'[전자책 정보]\n'+JSON.stringify({title:APP.ebook.title,subtitle:APP.ebook.subtitle,description:APP.ebook.description,targetReader:APP.ebook.targetReader})+'\n\n'
+     +'[현재 선택 부분 — 이 내용을 위 수정 방향에 맞게 다시 씁니다]\n'+target
+     +otherChaptersBlock+'\n\n'
+     +E.factualityRules(market)+'\n\n'+E.salesCopyRules(market)+'\n\n'+E.writingStyleRules(market)+'\n\n'+E.practicalityRules(market)+'\n\n'+E.sourceGroundingRules(market)+'\n\n'+E.KOREAN_LOCALIZATION_RULES+'\n\n'
+     +'아래 스키마를 정확히 따르세요.\n'+schema+'\n유효한 JSON만 반환하세요.';
+ }
  try{
    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:isChapter?9000:(isAppendices?16000:5000),system:atlasSystemPromptFor(market),callType:isChapter?'chapter':(isAppendices?'appendices':'partial'),messages:[{role:'user',content:[{type:'text',text:prompt}]}]});
    var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');

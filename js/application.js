@@ -1763,7 +1763,15 @@ function ebookModeWrapperPrefix(market){
     var topic=document.getElementById('topic-main').value.trim();
     var target=document.getElementById('topic-target').value.trim();
     var extra=document.getElementById('topic-extra').value.trim();
-    var topicPrompt='주제: '+topic+(target?'\n대상 독자: '+target:'')+(extra?'\n추가 요구사항: '+extra:'');
+    /* 2026-09-02 버그 수정 — 실제 사용자 리포트로 재현: 이 라벨들("주제:"/
+       "대상 독자:"/"추가 요구사항:")이 market 분기보다 먼저 만들어져서
+       해외 시장(global)에서도 그대로 한국어로 프롬프트에 들어가고 있었다.
+       AI가 프롬프트 맨 위 "영어로 써라"는 한 줄보다, 이런 한국어 라벨이
+       섞인 맥락에 더 크게 영향을 받아 본문이 한국어로 새는 원인 중 하나였다
+       (incremental-ebook-engine.js의 같은 종류 버그와 동일한 원인). */
+    var topicPrompt=market==='global'
+      ? 'Topic: '+topic+(target?'\nTarget Reader: '+target:'')+(extra?'\nAdditional Requirements: '+extra:'')
+      : '주제: '+topic+(target?'\n대상 독자: '+target:'')+(extra?'\n추가 요구사항: '+extra:'');
     return market==='global'
       ? 'Create a brand-new bestseller-quality English-language ebook from scratch on the topic below.\n\n'+topicPrompt+'\n\nBase it on the topic above and fill it with practical expertise and concrete examples for a global audience.\n\n'
       : '아래 주제로 한국 베스트셀러 전자책을 처음부터 완전히 새로 창작해주세요.\n\n'+topicPrompt+'\n\n위 주제를 기반으로 실전 전문 지식과 구체적 예시를 풍부하게 담아 창작하세요.\n\n';
@@ -1772,7 +1780,9 @@ function ebookModeWrapperPrefix(market){
     var urlDir=document.getElementById('url-direction').value.trim();
     var urlExtra=document.getElementById('url-extra').value.trim();
     var urlFetched=APP.urlContent||'';
-    var urlContext='참고 URL: '+urlVal+(urlExtra?'\n추가 URL:\n'+urlExtra:'')+(urlDir?'\n전자책 방향: '+urlDir:'')+(urlFetched?'\n\nURL에서 불러온 내용 (참고용):\n'+urlFetched.substring(0,8000):'');
+    var urlContext=market==='global'
+      ? 'Reference URL: '+urlVal+(urlExtra?'\nAdditional URLs:\n'+urlExtra:'')+(urlDir?'\nEbook Direction: '+urlDir:'')+(urlFetched?'\n\nContent fetched from the URL (for reference):\n'+urlFetched.substring(0,8000):'')
+      : '참고 URL: '+urlVal+(urlExtra?'\n추가 URL:\n'+urlExtra:'')+(urlDir?'\n전자책 방향: '+urlDir:'')+(urlFetched?'\n\nURL에서 불러온 내용 (참고용):\n'+urlFetched.substring(0,8000):'');
     return market==='global'
       ? 'Analyze the content of the URL below and create a brand-new ebook for English-speaking global readers.\n\n'+urlContext+'\n\nKeep the core substance of the URL, but do not copy its wording or structure verbatim — rework it with practical examples suited to a global audience.\n\n'
       : '아래 URL의 내용을 분석하여 한국 독자용 전자책을 새롭게 창작해주세요.\n\n'+urlContext+'\n\nURL의 핵심 내용을 살리되 원문의 표현과 구조를 복제하지 말고, 실전 예시와 한국 실정에 맞는 내용으로 재구성하세요.\n\n';
@@ -3165,6 +3175,14 @@ function downloadDocx(e){
     // 가짜 placeholder를 새로 지어내지 않음).
     var author=e.author||'';
     var chs=e.chapters||[];
+    /* 2026-09-02: 실제 사용자 리포트로 재현된 버그 — 해외 시장 모드로 생성해도
+       DOCX의 고정 틀(섹션 제목/박스 라벨/목차/저작권 문구)이 전부 하드코딩된
+       한국어였다. Preview(js/renderers.js)에서 같은 문제를 고치며 만든
+       EBOOK_UI_LABELS/L()을 그대로 재사용한다(Preview==Export 불변식 —
+       라벨 문구를 이 파일에 따로 복제하면 두 곳이 나중에 어긋날 위험이
+       생긴다). renderers.js가 이 파일보다 먼저 로드되므로 전역에서 바로
+       쓸 수 있다(index.html script 순서). */
+    var market=e.market||'kr';
 
     // cleanText와 동일한 처리 (미리보기와 일치)
     function ct(s){
@@ -3382,7 +3400,7 @@ function downloadDocx(e){
     // fabricated to fill a slot), matching the Preview's own optional-field
     // handling exactly.
     function docxComparisonTable(ctab){
-      var out=label(ctab.title||'비교','9333EA');
+      var out=label(ctab.title||L('comparison',market),'9333EA');
       var headerCells=ctab.headers.map(function(hd){
         return '<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F7F6FE"/></w:tcPr>'
           +'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="4C1D95"/>'
@@ -3408,7 +3426,7 @@ function downloadDocx(e){
       return out;
     }
     function docxFramework(fw){
-      var out=label(fw.name||'프레임워크','6366F1');
+      var out=label(fw.name||L('framework',market),'6366F1');
       (fw.steps||[]).forEach(function(st,si){
         out+='<w:p><w:pPr><w:spacing w:before="80" w:after="20"/></w:pPr>'
           +'<w:r><w:rPr><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="1a1a2e"/>'
@@ -3419,7 +3437,7 @@ function downloadDocx(e){
       return out;
     }
     function docxTimeline(items){
-      var out=label('타임라인','0E7490');
+      var out=label(L('timeline',market),'0E7490');
       (items||[]).forEach(function(tl,ti){
         var stageLbl=tl.stage?(tl.stage+' · '):'';
         out+='<w:p><w:pPr><w:spacing w:before="80" w:after="20"/></w:pPr>'
@@ -3434,7 +3452,7 @@ function downloadDocx(e){
       var out='<w:p><w:pPr><w:spacing w:before="100" w:after="20"/><w:shd w:val="clear" w:color="auto" w:fill="FFFBEB"/></w:pPr>'
         +'<w:r><w:rPr><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="B45309"/>'
         +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
-        +'<w:t xml:space="preserve">초보자 주의사항</w:t></w:r></w:p>';
+        +'<w:t xml:space="preserve">'+esc(L('beginnerCaution',market))+'</w:t></w:r></w:p>';
       (items||[]).forEach(function(w,wi){
         out+='<w:p><w:pPr><w:spacing w:before="20" w:after="20"/><w:ind w:left="200"/><w:shd w:val="clear" w:color="auto" w:fill="FFFBEB"/></w:pPr>'
           +'<w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="78350F"/>'
@@ -3449,10 +3467,10 @@ function downloadDocx(e){
         +'<w:pBdr><w:left w:val="single" w:sz="18" w:space="6" w:color="16A34A"/></w:pBdr></w:pPr>'
         +'<w:r><w:rPr><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="16A34A"/>'
         +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
-        +'<w:t xml:space="preserve">그대로 복사해서 쓰세요</w:t></w:r></w:p>';
+        +'<w:t xml:space="preserve">'+esc(L('copyAndUse',market))+'</w:t></w:r></w:p>';
       boxes.forEach(function(item,idx){
         var txt=typeof item==='string'?item:(item.prompt||item.template||item.text||'');
-        var lbl=typeof item==='string'?('프롬프트 '+(idx+1)):(item.label||item.title||('프롬프트 '+(idx+1)));
+        var lbl=typeof item==='string'?(L('prompt',market)+' '+(idx+1)):(item.label||item.title||(L('prompt',market)+' '+(idx+1)));
         out+='<w:p><w:pPr><w:spacing w:before="60" w:after="10"/><w:ind w:left="200"/><w:shd w:val="clear" w:color="auto" w:fill="DCFCE7"/></w:pPr>'
           +'<w:r><w:rPr><w:b/><w:sz w:val="19"/><w:szCs w:val="19"/><w:color w:val="15803D"/>'
           +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/></w:rPr>'
@@ -3468,7 +3486,7 @@ function downloadDocx(e){
       return out;
     }
     function docxSummary(text){
-      return label('이 장 요약','64748B')+plainPara(text,0,21,'374151');
+      return label(L('chapterSummary',market),'64748B')+plainPara(text,0,21,'374151');
     }
     function pageBreak(){
       return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
@@ -3538,24 +3556,24 @@ function downloadDocx(e){
 
     // ── 저자 서문
     if(e.preface){
-      body+=heading('PREFACE  |  저자 서문',2);
+      body+=heading('PREFACE  |  '+L('preface',market),2);
       body+=textToParas(e.preface,24);
       body+=divider();
     }
 
     // ── 서론
     if(e.intro){
-      body+=heading('INTRODUCTION  |  서론',2);
+      body+=heading('INTRODUCTION  |  '+L('introduction',market),2);
       body+=textToParas(e.intro,24);
       if(e.targetReader){
-        body+=label('📌 이 책이 필요한 독자','1B5CE8');
+        body+=label('📌 '+L('whoThisBookIsFor',market),'1B5CE8');
         body+=textToParas(e.targetReader,22,'475569');
       }
       body+=divider();
     }
 
     // ── 목차
-    body+=heading('CONTENTS  |  목차',2);
+    body+=heading('CONTENTS  |  '+L('contents',market),2);
     for(var i=0;i<chs.length;i++){
       body+='<w:p><w:pPr><w:spacing w:before="60" w:after="60"/>'
         +'<w:tabs><w:tab w:val="right" w:pos="8640"/></w:tabs></w:pPr>'
@@ -3574,11 +3592,11 @@ function downloadDocx(e){
     body+='<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
       +'<w:r><w:rPr><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="6366f1"/>'
       +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
-      +'</w:rPr><w:t xml:space="preserve">결론</w:t></w:r></w:p>';
+      +'</w:rPr><w:t xml:space="preserve">'+esc(L('conclusion',market))+'</w:t></w:r></w:p>';
     body+='<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>'
       +'<w:r><w:rPr><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="6366f1"/>'
       +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
-      +'</w:rPr><w:t xml:space="preserve">부록</w:t></w:r></w:p>';
+      +'</w:rPr><w:t xml:space="preserve">'+esc(L('appendix',market))+'</w:t></w:r></w:p>';
     body+=divider();
 
     // ── 챕터 (V3 Phase 1B: 각 장은 새 페이지에서 시작 — 미리보기의 장 오프너
@@ -3613,12 +3631,12 @@ function downloadDocx(e){
       // actionBox
       if(ch.actionBox){
         var ab=Array.isArray(ch.actionBox)?ch.actionBox:[ch.actionBox];
-        body+=label('🔥 지금 바로 실행','dc2626');
+        body+=label('🔥 '+L('todaysAction',market),'dc2626');
         ab.forEach(function(a,ai){body+=bullet(a,'  '+(ai+1)+'.');});
       }
       // copyBox
       if(ch.copyBox&&ch.copyBox.length){
-        var boxes=Array.isArray(ch.copyBox)?ch.copyBox:[{label:'프롬프트 템플릿',prompt:ch.copyBox}];
+        var boxes=Array.isArray(ch.copyBox)?ch.copyBox:[{label:L('promptTemplate',market),prompt:ch.copyBox}];
         body+=docxCopyBox(boxes);
       }
       // warningBox
@@ -3627,17 +3645,17 @@ function downloadDocx(e){
       }
       // keyPoints
       if(ch.keyPoints&&ch.keyPoints.length){
-        body+=label('💡 핵심 포인트','6366f1');
+        body+=label('💡 '+L('keyPoints',market),'6366f1');
         ch.keyPoints.forEach(function(kp,ki){body+=bullet(kp,'  '+(ki+1)+'.');});
       }
       // actionItems
       if(ch.actionItems&&ch.actionItems.length){
-        body+=label('✅ 즉시 실천 체크리스트','059669');
+        body+=label('✅ '+L('actionChecklist',market),'059669');
         ch.actionItems.forEach(function(a){body+=bullet(a,'  □');});
       }
       // reflectionQuestions
       if(ch.reflectionQuestions&&ch.reflectionQuestions.length){
-        body+=label('🔍 생각 정리 질문','0f766e');
+        body+=label('🔍 '+L('reflectionQuestions',market),'0f766e');
         ch.reflectionQuestions.forEach(function(q,qi){body+=bullet(q,'  Q'+(qi+1)+'.');});
       }
       // summary
@@ -3649,18 +3667,29 @@ function downloadDocx(e){
 
     // ── 결론
     body+=pageBreak();
-    body+=heading('CONCLUSION  |  결론',2);
+    body+=heading('CONCLUSION  |  '+L('conclusion',market),2);
     var conclusionContent=e.conclusion||'';
     if(!conclusionContent||conclusionContent.length<100||conclusionContent.charAt(0)==='['){
       var cTitles=(e.chapters||[]).map(function(c){return c.title||'';}).filter(Boolean);
-      conclusionContent='이 전자책을 통해 우리는 '+(cTitles.length?cTitles.join(', '):'다양한 전략과 방법')+
-        '에 대해 깊이 있게 살펴보았습니다.\n\n'+
-        '지식은 행동으로 옮길 때 비로소 가치를 발휘합니다. 각 챕터에서 배운 핵심 내용을 실천에 옮기는 것이 가장 중요합니다.\n\n';
-      (e.chapters||[]).forEach(function(ch){
-        var kp=(ch.keyPoints&&ch.keyPoints[0])||'';
-        if(kp)conclusionContent+='■ '+ch.title+': '+kp+'\n';
-      });
-      conclusionContent+='\n꾸준히 실천하며 성장해 나가시길 진심으로 응원합니다. 작은 것부터 하나씩 시작하면 반드시 변화가 찾아올 것입니다. 여러분의 성공을 응원합니다!';
+      if(market==='global'){
+        conclusionContent='In this ebook, we took a close look at '+(cTitles.length?cTitles.join(', '):'a range of strategies and methods')+
+          '.\n\n'+
+          'Knowledge only creates value once it becomes action. Putting what you learned in each chapter into practice matters most.\n\n';
+        (e.chapters||[]).forEach(function(ch){
+          var kp=(ch.keyPoints&&ch.keyPoints[0])||'';
+          if(kp)conclusionContent+='■ '+ch.title+': '+kp+'\n';
+        });
+        conclusionContent+='\nKeep practicing consistently, and real change will follow — start with just one small step. We\'re rooting for your success!';
+      }else{
+        conclusionContent='이 전자책을 통해 우리는 '+(cTitles.length?cTitles.join(', '):'다양한 전략과 방법')+
+          '에 대해 깊이 있게 살펴보았습니다.\n\n'+
+          '지식은 행동으로 옮길 때 비로소 가치를 발휘합니다. 각 챕터에서 배운 핵심 내용을 실천에 옮기는 것이 가장 중요합니다.\n\n';
+        (e.chapters||[]).forEach(function(ch){
+          var kp=(ch.keyPoints&&ch.keyPoints[0])||'';
+          if(kp)conclusionContent+='■ '+ch.title+': '+kp+'\n';
+        });
+        conclusionContent+='\n꾸준히 실천하며 성장해 나가시길 진심으로 응원합니다. 작은 것부터 하나씩 시작하면 반드시 변화가 찾아올 것입니다. 여러분의 성공을 응원합니다!';
+      }
     }
     body+=textToParas(conclusionContent,24);
     body+=divider();
@@ -3677,8 +3706,10 @@ function downloadDocx(e){
       });
     }else{
       body+=pageBreak();
-      body+=heading('APPENDIX 1  |  핵심 실천 체크리스트',3);
-      var apText='이 전자책의 핵심 내용을 실천하기 위한 체크리스트입니다. 각 항목을 완료하면 체크하세요.\n\n';
+      body+=heading('APPENDIX 1  |  '+(market==='global'?'Core Action Checklist':'핵심 실천 체크리스트'),3);
+      var apText=market==='global'
+        ?'A checklist to put this ebook\'s core content into practice. Check off each item as you complete it.\n\n'
+        :'이 전자책의 핵심 내용을 실천하기 위한 체크리스트입니다. 각 항목을 완료하면 체크하세요.\n\n';
       (e.chapters||[]).forEach(function(ch){
         apText+='【'+ch.title+'】\n';
         var items=(ch.actionItems&&ch.actionItems.length)?ch.actionItems:
@@ -3697,7 +3728,7 @@ function downloadDocx(e){
       +'<w:r><w:rPr><w:sz w:val="18"/><w:szCs w:val="18"/><w:color w:val="94a3b8"/>'
       +'<w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>'
       +'</w:rPr><w:t xml:space="preserve">ⓒ '+(c2.year||'2025')+' '+esc(author)+' · '
-      +esc(c2.publisher||'독립 출판')+' · ALL RIGHTS RESERVED</w:t></w:r></w:p>';
+      +esc(c2.publisher||L('independentPublisher',market))+' · ALL RIGHTS RESERVED</w:t></w:r></w:p>';
 
     var xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       +'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
