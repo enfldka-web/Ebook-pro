@@ -1590,13 +1590,30 @@ function currentInputSummary(){
   var links=APP.multiLinks.map(function(it){return '- '+it.url+' ['+it.role+'] '+(it.content?'\n  '+it.content.substring(0,1800):'');}).join('\n');
   return '복수 자료 프로젝트\n문서:\n'+files+'\n링크:\n'+links+'\n사용자 메모:\n'+(document.getElementById('ms-notes').value||'')+'\n전자책 방향:\n'+(document.getElementById('ms-direction').value||'');
 }
+/* 2026-09-02: 전자책 한 권 생성에 약 17~19번의 Anthropic 호출이 일어나는데,
+   업로드한 원본 파일(PLR PDF 등)을 매번 통째로 다시 첨부해 정가로 재전송하고
+   있었다 — 파일 내용은 그 호출들 사이에 전혀 바뀌지 않는다. 마지막 파일
+   블록에 cache_control을 걸면 최초 1회만 정가, 이후 호출은 캐시 읽기 요금
+   (정가의 약 10%)만 낸다. 또한 다듬기(review) 단계 프롬프트에는
+   AtlasIncrementalEbookEngine.CACHE_BREAKPOINT_MARKER가 심겨 있는데(원고
+   전문과 매번 달라지는 지시문의 경계) — 이걸 찾으면 앞부분(원고 전문)만
+   따로 캐싱되는 블록으로 쪼갠다. 마커가 없는 일반 프롬프트는 기존과 동일하게
+   블록 하나로 합쳐 보낸다(회귀 없음). */
 async function buildApiContent(promptText){
   var content=[];
   if(CV_MODE==='file'&&APP.selFile)content.push(await fileToApiBlock(APP.selFile));
   if(CV_MODE==='multi'){
     for(var i=0;i<APP.multiFiles.length;i++)content.push(await fileToApiBlock(APP.multiFiles[i].file));
   }
-  content.push({type:'text',text:currentInputSummary()+'\n\n'+promptText});
+  if(content.length)content[content.length-1].cache_control={type:'ephemeral'};
+  var marker=(window.AtlasIncrementalEbookEngine&&AtlasIncrementalEbookEngine.CACHE_BREAKPOINT_MARKER)||null;
+  var markerIdx=marker?promptText.indexOf(marker):-1;
+  if(markerIdx!==-1){
+    content.push({type:'text',text:currentInputSummary()+'\n\n'+promptText.slice(0,markerIdx),cache_control:{type:'ephemeral'}});
+    content.push({type:'text',text:promptText.slice(markerIdx+marker.length)});
+  }else{
+    content.push({type:'text',text:currentInputSummary()+'\n\n'+promptText});
+  }
   return content;
 }
 /* 2026-08-07 실사용 버그: AI가 만든 질문 문구에 "복수 선택 가능합니다"라고
@@ -1662,7 +1679,7 @@ async function generateTitlesFromSmartAnalysis(skipped){
   var prompt=`${roleLine}\n\n[앞선 분석]\n${JSON.stringify(APP.smartAnalysis||APP.titleAnalysis||{})}\n\n[사용자 답변]\n${skipped?'사용자가 추가 질문을 건너뛰고 자료만으로 진행함':smartInterviewAnswerText()}\n\n${titleGenerationRulesFor(market)}\n\n유효한 JSON만 반환:\n{"analysis":{"topic":"","target":"","pain":"","angle":"","sourceSummary":""},"titles":[{"title":"","subtitle":"","type":"궁금증형|문제공감형|실전형|검색형|신뢰형|프리미엄형","reason":"","scores":{"hook":0,"trust":0,"search":0,"policy":0,"total":0}}]}`;
   try{
     var content=await buildApiContent(prompt);
-    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:atlasSystemPromptFor(market),messages:[{role:'user',content:content}]});
+    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:[{type:'text',text:atlasSystemPromptFor(market),cache_control:{type:'ephemeral'}}],messages:[{role:'user',content:content}]});
     var raw=(data.content||[]).filter(function(z){return z.type==='text';}).map(function(z){return z.text;}).join('');
     var obj=window.AtlasIncrementalEbookEngine.robustJsonParse(raw,'{','}','titles-interview');
     APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');atlasSetSimpleStep(2);window.scrollTo(0,0);
@@ -1710,7 +1727,7 @@ ${titleGenerationRulesFor(market)}
 }`;
   try{
     var content=await buildApiContent(prompt);
-    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:atlasSystemPromptFor(market),messages:[{role:'user',content:content}]});
+    var data=await window.AtlasAnthropicGateway.generate({model:'claude-sonnet-4-6',max_tokens:5000,system:[{type:'text',text:atlasSystemPromptFor(market),cache_control:{type:'ephemeral'}}],messages:[{role:'user',content:content}]});
     var raw=(data.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');
     var obj=window.AtlasIncrementalEbookEngine.robustJsonParse(raw,'{','}','titles-initial');
     APP.smartAnalysis=obj.analysis||{};APP.titleAnalysis=obj.analysis||{};var iv=obj.interview||{};APP.interviewContext=iv.reason||'';APP.interviewQuestions=(iv.questions||[]).slice(0,5).map(normalizeInterviewQuestion);APP.interviewAnswers={};
