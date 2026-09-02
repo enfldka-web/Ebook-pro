@@ -355,6 +355,36 @@ function showTrialLimitPopup(type){
   if(window.AtlasIcons)AtlasIcons.applyAll(inner);
 }
 
+/* 2026-09-02: "본인 API 키 필수" 전환 이후, 키가 아직 없는 사용자에게 왜
+   막혔는지와 무엇을 해야 하는지 바로 알려주는 전용 안내창 — showTrialLimitPopup
+   (구독 유도)과는 다른 원인이라 다른 문구/버튼이 필요하다("구독해주세요"라고
+   보여주면, 이미 구독 중인 사용자를 혼란스럽게 만든다). */
+function showApiKeyRequiredPopup(){
+  var p=document.createElement('div');
+  p.className='atlas-modal-bg';
+  var inner=document.createElement('div');
+  inner.className='atlas-modal';
+  inner.style.cssText='max-width:420px;text-align:center';
+  inner.innerHTML='<div class="a2-icon-chip violet" data-icon="lock" style="margin:0 auto 16px"></div>'
+    +'<h3 style="margin-bottom:8px">본인 Anthropic API 키가 필요합니다</h3>'
+    +'<p style="margin-bottom:24px">전자책 생성에 드는 AI 비용은 각 회원이 본인의 Anthropic API 키로 직접 부담합니다(구독료와는 별개).<br>설정 화면에서 키를 등록하면 바로 생성할 수 있습니다.</p>';
+  var btn1=document.createElement('button');
+  btn1.className='a2-btn a2-btn-primary';
+  btn1.style.cssText='width:100%;margin-bottom:10px';
+  btn1.textContent='설정에서 API 키 등록하기';
+  btn1.onclick=function(){p.remove();showApp('settings');};
+  var btn2=document.createElement('button');
+  btn2.className='a2-btn a2-btn-secondary';
+  btn2.style.width='100%';
+  btn2.textContent='닫기';
+  btn2.onclick=function(){p.remove();};
+  inner.appendChild(btn1);
+  inner.appendChild(btn2);
+  p.appendChild(inner);
+  document.body.appendChild(p);
+  if(window.AtlasIcons)AtlasIcons.applyAll(inner);
+}
+
 function showTrialWelcomePopup(){
   if(localStorage.getItem('plrbooks_trial_welcomed'))return;
   localStorage.setItem('plrbooks_trial_welcomed','1');
@@ -539,17 +569,24 @@ function addTrialCount(type){
   t[type]=(t[type]||0)+1;
   localStorage.setItem('plrbooks_trial',JSON.stringify(t));
 }
-/* 2026-08-13: "무료 체험 1회 → 넘으면 구독(토스페이먼츠) 유도" 흐름. 본인 API
-   키(AtlasUserApiKey)가 있으면 그 키로 무제한 호출이 가능하므로 항상
-   허용한다. 구독 중(gw.subscribed)이면 무료체험 소진 여부와 무관하게 항상
-   허용한다 — 예전엔 이 분기가 없어서 실제로 결제한 구독자도 trialUsed:true
-   때문에 막히는 버그가 있었을 것이다(서버가 subscribed 필드를 새로 보고하기
+/* 2026-08-13: "무료 체험 1회 → 넘으면 구독(토스페이먼츠) 유도" 흐름. 구독
+   중(gw.subscribed)이면 무료체험 소진 여부와 무관하게 항상 허용한다 —
+   예전엔 이 분기가 없어서 실제로 결제한 구독자도 trialUsed:true 때문에
+   막히는 버그가 있었을 것이다(서버가 subscribed 필드를 새로 보고하기
    시작하면서 함께 고침). 그 외에는 서버가 실제 로그인 계정 기준으로 판단한
    trialUsed를 그대로 따른다(서버가 유일한 진실 — 클라이언트에서 위조해도
    실제 생성 호출 자체가 서버에서 403으로 거부된다, image-gateway.js의
-   outline 게이트 참고). */
+   outline 게이트 참고).
+
+   2026-09-02 — "본인 API 키 필수" 전환: 본인 Anthropic API 키(AtlasUserApiKey)
+   보유 여부는 더 이상 위 구독/체험 게이트를 "우회"하지 않는다 — AI 호출
+   비용을 누가 내는가(본인 키)와 Atlas 소프트웨어 이용권이 있는가(구독/체험)는
+   서로 독립된 별개의 조건이라, 둘 다 만족해야 생성할 수 있다. 예전엔 본인
+   키만 있으면 구독 없이도 평생 무제한으로 쓸 수 있는 구멍이 있었다(실제
+   재현된 버그 — js/anthropic-gateway-client.js refreshStatus() 참고). */
 function canGenerate(type){
-  if(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey()) return true;
+  var hasOwnKey = !!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
+  if(!hasOwnKey) return false;
   var gw = window.AtlasAnthropicGateway ? AtlasAnthropicGateway.getStatusCache() : null;
   if(gw && gw.subscribed) return true;
   return !(gw && gw.trialUsed);
@@ -1293,17 +1330,27 @@ function cvPick(f){
 }
 function checkCvReady(){
   var gw=atlasGatewayStatus();
-  var gwReady=gw.checked&&gw.reachable&&gw.configured;
+  /* 2026-09-02: "본인 API 키 필수" 전환 — 제목 분석 단계도 실제 Anthropic
+     호출이라 이 시점부터 이미 본인 키가 필요하다(생성 시작 버튼까지 가서야
+     막으면 늦음). 다만 운영자(관리자) 계정은 서버 게이트웨이(운영자 키)로
+     테스트할 수 있어야 하므로 예외로 둔다(server/image-gateway.js의 같은
+     기준 — ADMIN_EMAILS). */
+  var hasOwnKey=!!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
+  var isAdmin=!!(APP.user && APP.user.isAdmin);
+  var gwReady=gw.checked&&gw.reachable&&gw.configured&&(hasOwnKey||isAdmin);
   var btn=document.getElementById('cv-genbtn');
   if(!btn)return;
   // AI 서버 연결 경고 배너 — 서버가 아예 안 켜져 있는지, 켜져 있지만 키가 없는지 구분한다.
   var apiwarn=document.getElementById('cv-apikey-warn');
+  var apiwarnTitle=document.getElementById('cv-apikey-warn-title');
   var apiwarnDetail=document.getElementById('cv-apikey-warn-detail');
   if(apiwarn){
     if(!gw.checked||gwReady){ apiwarn.style.display='none'; }
     else{
       apiwarn.style.display='block';
-      if(apiwarnDetail)apiwarnDetail.textContent=!gw.reachable?'AI 서버가 실행되지 않았습니다.':'AI 서버에 Anthropic API 키가 설정되지 않았습니다.';
+      var missingOwnKey=gw.reachable&&gw.configured&&!hasOwnKey&&!isAdmin;
+      if(apiwarnTitle)apiwarnTitle.textContent=missingOwnKey?'본인 API 키 등록이 필요합니다':'AI 서버에 연결할 수 없습니다';
+      if(apiwarnDetail)apiwarnDetail.textContent=!gw.reachable?'AI 서버가 실행되지 않았습니다.':!gw.configured?'AI 서버에 Anthropic API 키가 설정되지 않았습니다.':'전자책 생성에 드는 AI 비용은 본인이 부담하므로, 설정 화면에서 본인의 Anthropic API 키를 먼저 등록해주세요.';
     }
   }
   var ready=false;
@@ -1312,7 +1359,7 @@ function checkCvReady(){
   else if(CV_MODE==='url'){var u=document.getElementById('url-input');ready=!!(u&&u.value.trim()&&gwReady);}
   else if(CV_MODE==='multi')ready=!!((APP.multiFiles.length||APP.multiLinks.length||(document.getElementById('ms-notes')&&document.getElementById('ms-notes').value.trim()))&&gwReady);
   btn.disabled=!ready;
-  if(gw.checked&&!gwReady){btn.textContent=!gw.reachable?'AI 서버가 실행되지 않았습니다':'서버에 API 키 설정 필요';btn.style.opacity='.5';}
+  if(gw.checked&&!gwReady){btn.textContent=!gw.reachable?'AI 서버가 실행되지 않았습니다':!gw.configured?'서버에 API 키 설정 필요':'본인 API 키 등록 필요';btn.style.opacity='.5';}
   else{btn.textContent='자료 분석 & 제목 후보 만들기';btn.style.opacity=ready?'1':'.4';}
   var warn=document.getElementById('cv-limit-warn');
   if(warn)warn.style.display='none';
@@ -3003,6 +3050,15 @@ async function startGenerate(titleLocked){
   if(gw.checked&&gw.reachable&&!gw.configured){
     showApp('settings');
     showToast('error','서버에 API 키가 설정되지 않았습니다.');
+    return;
+  }
+  /* 2026-09-02: "본인 API 키 필수" 전환 — canGenerate()가 false를 반환하는
+     이유가 "키가 없어서"인지 "구독/체험이 소진돼서"인지에 따라 다른 안내를
+     보여준다. 키가 없으면(더 근본적인 조건) 구독 유도 팝업이 아니라 키 등록
+     안내부터 보여준다 — 이미 구독 중인 사용자에게 "구독해주세요"라고 잘못
+     안내하면 안 되기 때문이다. */
+  if(!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey())){
+    showApiKeyRequiredPopup();
     return;
   }
   // 무료 체험 모드별 생성 횟수 체크

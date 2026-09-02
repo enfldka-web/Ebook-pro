@@ -242,11 +242,11 @@
       <h2>제7조 (회원 탈퇴 및 자격 상실)</h2>
       <p>1. 회원은 언제든지 회사에 탈퇴를 요청할 수 있으며, 회사는 관련 법령이 정하는 바에 따라 이를 지체 없이 처리합니다.<br>
       2. 회원이 구독 중인 경우, 탈퇴 전 제10조에 따른 구독 해지 절차를 함께 진행합니다.</p>
-      <h2>제8조 (무료체험 및 유료 구독)</h2>
+      <h2>제8조 (무료체험, 본인 API 키 및 유료 구독)</h2>
       <p>1. 신규 회원은 계정당 1회에 한하여 전자책 생성 기능을 무료로 체험할 수 있습니다.<br>
       2. 무료체험을 모두 사용한 회원이 서비스를 계속 이용하려면 월 정기구독을 신청해야 합니다.<br>
-      3. 구독 요금은 서비스 내 안내된 금액(현재 월 29,000원)으로 하며, 요금이 변경되는 경우 사전에 공지합니다.<br>
-      4. 본인 소유의 AI API 키를 등록하여 이용하는 경우 무료체험 제한이 적용되지 않으며, 이때 발생하는 AI 이용 비용은 회원이 해당 AI 제공업체에 직접 부담합니다.</p>
+      3. 구독 요금은 서비스 내 안내된 금액(현재 월 29,000원)으로 하며, 요금이 변경되는 경우 사전에 공지합니다. 구독 요금은 회사가 제공하는 전자책 생성 파이프라인·디자인·내보내기 등 소프트웨어 이용에 대한 대가이며, 아래 4항의 AI 이용 비용은 포함하지 않습니다.<br>
+      4. 회원은 전자책 생성(자료 분석 포함)을 위해 본인 소유의 AI(Anthropic) API 키를 서비스에 등록해야 하며, 이 요건은 무료체험 기간에도 동일하게 적용됩니다. 이때 발생하는 AI 이용 비용은 회원이 해당 AI 제공업체에 직접 부담하며, 회사는 이를 대신 부담하지 않습니다.</p>
       <h2>제9조 (결제 및 자동갱신)</h2>
       <p>1. 구독 결제는 회원이 등록한 카드 정보를 기반으로 토스페이먼츠를 통해 매월 자동으로 청구됩니다.<br>
       2. 최초 결제일을 기준으로 매월 동일한 날짜에 자동 갱신되며, 회원이 해지하지 않는 한 계속 청구됩니다.<br>
@@ -478,9 +478,9 @@
         <div id="cv-apikey-warn" class="a2-banner a2-banner-error" style="display:none;margin-bottom:14px;line-height:1.7">
           <span data-icon="alertTriangle" data-icon-size="16"></span>
           <span>
-            <strong>AI 서버에 연결할 수 없습니다</strong><br>
+            <strong id="cv-apikey-warn-title">AI 서버에 연결할 수 없습니다</strong><br>
             <span id="cv-apikey-warn-detail">서버 상태를 확인해주세요.</span><br>
-            <span style="cursor:pointer;font-weight:700;text-decoration:underline" onclick="showApp('settings')">설정 메뉴에서 서버 상태 확인하기 →</span>
+            <span style="cursor:pointer;font-weight:700;text-decoration:underline" onclick="showApp('settings')">설정 메뉴로 이동하기 →</span>
           </span>
         </div>
         <div id="cv-limit-warn" class="cv-limit-warn"></div>
@@ -808,10 +808,16 @@
              않는다(js/atlas-user-api-key.js) — 저장하는 즉시 js/anthropic-gateway-
              client.js가 로컬 Gateway 대신 이 키로 api.anthropic.com을 브라우저에서
              직접 호출한다. 2026-08-10: 썸네일/상세페이지(및 그 이미지 생성용
-             OpenAI 키)가 전면 삭제되어 이제 Anthropic 키 한 종류만 남는다. -->
+             OpenAI 키)가 전면 삭제되어 이제 Anthropic 키 한 종류만 남는다.
+             2026-09-02: 예전엔 이 키가 "선택사항"이었지만(없으면 운영자 서버가
+             대신 호출), 구독자가 늘수록 AI 비용이 전부 운영자 한 명에게
+             몰리는 부담 때문에 본인 키를 필수로 바꿨다 — 이제 이 키가 없으면
+             자료 분석/전자책 생성 어느 단계도 진행할 수 없다(server/
+             image-gateway.js가 ADMIN_EMAILS 계정 외에는 서버 게이트웨이
+             경로를 403으로 막는다). -->
         <div class="settings-section">
-          <div class="settings-title"><span data-icon="lock" data-icon-size="14"></span>나만의 API 키</div>
-          <div class="settings-desc" style="margin-bottom:14px">이 키는 <b>이 브라우저에만</b> 저장되며, Atlas의 어떤 서버로도 전송되지 않습니다 — 저장하면 곧바로 본인의 API 키로 직접 AI를 호출합니다(운영자의 서버가 필요 없습니다). 사용한 만큼의 AI 비용은 본인의 Anthropic 계정으로 청구됩니다.</div>
+          <div class="settings-title"><span data-icon="lock" data-icon-size="14"></span>나만의 API 키 <span style="color:var(--a2-danger);font-weight:800;font-size:12px">필수</span></div>
+          <div class="settings-desc" style="margin-bottom:14px">전자책 생성에 드는 AI 비용은 <b>본인이 직접</b> 부담합니다(구독료와는 별개) — 그래서 자료 분석부터 전자책 생성까지 모든 단계에 본인의 Anthropic API 키가 필요합니다. 이 키는 <b>이 브라우저에만</b> 저장되며, Atlas의 어떤 서버로도 전송되지 않습니다 — 저장하면 곧바로 본인의 API 키로 직접 AI를 호출합니다.</div>
           <div class="settings-row">
             <div><div class="settings-label">Anthropic API 키</div><div class="settings-desc">자료 분석·제목·전자책 본문 생성에 사용됩니다. <span id="set-anthropic-key-status" style="font-weight:700"></span></div></div>
             <input id="set-anthropic-key" class="settings-input" type="password" placeholder="sk-ant-..." autocomplete="off"/>
@@ -820,11 +826,12 @@
             <button class="a2-btn a2-btn-primary" onclick="saveUserApiKeys()"><span data-icon="checkCircle"></span>저장</button>
             <button class="a2-btn a2-btn-secondary" onclick="clearUserApiKeys()"><span data-icon="trash"></span>모두 지우기</button>
           </div>
+          <div class="settings-desc" style="margin-top:14px">API 키가 없으신가요? <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>에서 Anthropic 계정을 만들고, 결제 수단을 등록한 뒤 API 키를 발급받을 수 있습니다.</div>
         </div>
         <div class="settings-section">
-          <div class="settings-title"><span data-icon="server" data-icon-size="14"></span>AI 서버 연결 상태(로컬 서버 · 운영자 테스트용)</div>
+          <div class="settings-title"><span data-icon="server" data-icon-size="14"></span>AI 서버 연결 상태(운영자 전용)</div>
           <div class="settings-row">
-            <div><div class="settings-label">Anthropic (자료 분석·제목·전자책 생성)</div><div class="settings-desc">위에 본인 API 키를 저장했다면 이 항목은 확인할 필요가 없습니다(자동으로 본인 키 방식이 우선 적용됩니다). 이 항목은 로컬에서 <code>node server/image-gateway.js</code>를 직접 실행해 테스트할 때만 씁니다.</div></div>
+            <div><div class="settings-label">Anthropic (자료 분석·제목·전자책 생성)</div><div class="settings-desc">이 항목은 운영자 계정으로 로컬에서 <code>node server/image-gateway.js</code>를 직접 실행해 테스트할 때만 씁니다 — 일반 회원은 위 "나만의 API 키"가 항상 필요합니다.</div></div>
           </div>
           <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
             <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="testGatewayConnection()"><span data-icon="refresh"></span>서버 연결 테스트</button>

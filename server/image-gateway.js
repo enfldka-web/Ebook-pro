@@ -378,33 +378,36 @@ function createApp(opts){
       });
     }
 
-    /* "1회 무료 체험"은 전자책 본문 생성이 시작되는 시점(outline 호출, 전자책당
-       정확히 1번만 발생)에서만 검사한다 — 제목 분석(callType 없음)이나 개별
-       chapter/appendices 재시도는 체험 횟수를 소모하지 않는다(하나의 전자책을
-       만드는 도중 재시도 때마다 막히면 안 되므로). 실제 로그인 계정 기준이라
-       인증이 반드시 필요하다 — 클라이언트는 이미 로그인해야만 이 화면에
-       도달하므로 여기서 막히는 건 토큰 만료/변조 같은 비정상 상황뿐이다. */
-    if(callType === 'outline'){
-      if(!authConfigured()) return res.status(503).json({ error: { message:'회원 인증이 아직 설정되지 않았습니다.', code:'not_configured' } });
-      var userId = verifyAuthHeader(req);
-      if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
-      dbReady.then(function(){
-        if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
-        return fetchTrialSubStatus(userId);
-      }).then(function(s){
-        if(!s) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
-        if(!s.subscribed && s.trialUsed){
-          return res.status(403).json({ error: { message:'무료 체험(1회)을 이미 사용하셨습니다. 구독 후 계속 이용해주세요.', code:'trial_exhausted' } });
-        }
-        runGeneration(userId);
-      }).catch(function(err){
-        if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
-        safeLog('trial-check-error', { message: err && err.message });
-        res.status(500).json({ error: { message:'무료체험 확인 중 오류가 발생했습니다.', code:'internal_error' } });
-      });
-    } else {
-      runGeneration(null);
-    }
+    /* 2026-09-02: "본인 API 키(BYOK) 필수" 전환 — 실제 구독자는 이제 브라우저가
+       본인 Anthropic 키로 api.anthropic.com을 직접 호출하므로(js/anthropic-
+       gateway-client.js generateDirect) 이 서버 경로를 아예 타지 않는다.
+       그런데 이 라우트가 그대로 열려있으면, 로그인 토큰만 있으면 누구나 이
+       경로를 직접 호출해 운영자의 Anthropic 키/비용으로 생성할 수 있는 구멍이
+       남는다(프론트엔드 검사를 우회하면 그만이므로 — 프론트엔드 검사만으로는
+       비용을 보호할 수 없다). 그래서 이 경로는 ADMIN_EMAILS 계정(운영자 본인
+       테스트용, isAdminEmail 기준은 다른 곳과 동일)에게만 허용하고, 그 외
+       로그인 계정은 403으로 막아 "본인 API 키를 등록해달라"고 안내한다 —
+       예전에 outline 호출에서만 하던 "1회 무료 체험" 검사는 이제 의미가
+       없다(관리자만 이 경로에 도달하고, 관리자는 애초에 무료체험 제한
+       자체가 없다, fetchTrialSubStatus 참고) — 그래서 제거했다. */
+    if(!authConfigured()) return res.status(503).json({ error: { message:'회원 인증이 아직 설정되지 않았습니다.', code:'not_configured' } });
+    var callerUserId = verifyAuthHeader(req);
+    if(!callerUserId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('SELECT email, deleted_at FROM users WHERE id=$1', [callerUserId]);
+    }).then(function(ur){
+      var userRow = ur.rows[0];
+      if(!userRow || userRow.deleted_at) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+      if(!isAdminEmail(userRow.email)){
+        return res.status(403).json({ error: { message:'전자책 생성에 드는 AI 비용은 본인이 부담합니다 — 설정 화면에서 본인의 Anthropic API 키를 등록한 뒤 이용해주세요.', code:'byok_required' } });
+      }
+      runGeneration(callType==='outline' ? callerUserId : null);
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('generate-auth-check-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'요청 처리 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
   });
 
   /* 2026-08-14: 사용자 지시 — 회원가입이 이름/이메일/비밀번호만으로 너무
