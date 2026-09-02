@@ -31,6 +31,29 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
 - 법률, 의료, 세무, 금융처럼 시점에 따라 달라지는 전문 판단이 필요한 내용은 확정된 사실처럼 단정하지 말고, 일반 원칙 중심으로 서술하며 필요 시 전문가 확인을 권합니다.
 - 예시나 가상 시나리오는 반드시 "예를 들어", "가상의 경우" 등으로 실제 사례·데이터와 구분되게 표현합니다.`;
 
+  /* 2026-09-02 버그 수정 — 실제 사용자 리포트로 재현: 해외 시장(market==='global')
+     모드로 생성해도 실제 원고 본문이 대부분 한국어로 나왔다. 원인은 여기
+     아래 모든 공유 규칙(FACTUALITY_RULES/SALES_COPY_RULES/WRITING_STYLE_RULES/
+     PRACTICALITY_RULES/SOURCE_GROUNDING_RULES)과 각 build*Prompt의 [분량과
+     구성] 지시문·스키마 설명이 시장과 무관하게 전부 한국어 그대로 쓰이고
+     있었던 것 — modeWrapperPrefix와 시스템 프롬프트 정체성 줄만 영어로
+     바뀌었을 뿐, 실제 프롬프트의 90% 이상을 차지하는 지시문 본문은 여전히
+     한국어였다. 모델은 프롬프트 맨 위 한 줄의 "영어로 써라"는 지시보다,
+     프롬프트 전체를 채운 압도적인 양의 한국어 맥락에 더 크게 영향을 받아
+     일부 필드(intro, chapter content 등 자유 서술형 필드)를 한국어로
+     써버렸다 — 실제로 재현된 것은 "전부 한국어"가 아니라 "필드마다 다른
+     언어가 섞여 나오는" 훨씬 나쁜 결과였다.
+     그래서 시장별로 완전히 분리된 영어 버전 규칙을 새로 만들고(아래
+     *_EN 상수들), factualityRules(market) 같은 선택 함수로 시장에 맞는
+     버전만 프롬프트에 들어가게 한다 — 한국어 규칙과 영어 규칙을 절대
+     섞어 보내지 않는다(지금까지의 버그가 정확히 "섞임"이었으므로). */
+  var FACTUALITY_RULES_EN = `[Factuality & Safety]
+- Do not fabricate the author's real experience, sales results, testimonials, or statistics that the user did not provide.
+- If a specific person's example is needed, clearly state in the text that it is a hypothetical case.
+- For tools or policies that require up-to-date information, phrase them as needing verification rather than stating them as certain.
+- For content that requires professional judgment that changes over time (law, medicine, tax, finance), do not assert it as settled fact — write around general principles and recommend expert verification where needed.
+- Clearly mark examples or hypothetical scenarios as such (e.g., "for example," "in a hypothetical case") so they are never confused with real cases or data.`;
+
   var SALES_COPY_RULES = `[크몽 판매 카피]
 - 구체적인 수익 금액, 매출 금액, 성장률, 달성 기간을 후킹과 상세페이지 문구에 사용하지 않습니다.
 - 보장·무조건·100%·누구나 성공·자동수익 등의 표현을 사용하지 않습니다.
@@ -38,6 +61,17 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
 - 가격·정가·할인액 필드는 생성하지 않습니다.
 - hook은 핵심 불편을 찌르는 짧은 문장으로 작성합니다.
 - pains, solution, learnings, benefits, before, after는 각각 구체적인 문장 배열로 작성합니다.`;
+
+  var SALES_COPY_RULES_EN = `[Marketplace Sales Copy]
+- Do not use specific revenue figures, sales figures, growth rates, or time-to-results in the hook or sales page copy.
+- Do not use words like "guaranteed," "no matter what," "100%," "anyone can succeed," or "passive income."
+- testimonials must always be an empty array.
+- Do not generate price, list price, or discount fields.
+- The hook should be a short sentence that names the core pain point.
+- pains, solution, learnings, benefits, before, after must each be written as arrays of concrete sentences.`;
+
+  function factualityRules(market){ return market==='global' ? FACTUALITY_RULES_EN : FACTUALITY_RULES; }
+  function salesCopyRules(market){ return market==='global' ? SALES_COPY_RULES_EN : SALES_COPY_RULES; }
 
   /* Atlas V3 Phase 1 — 신규: 그동안 어떤 프롬프트에도 명시적으로 없던 "AI가 쓴
      티가 나는 문체"를 막는 규칙. 기존 ATLAS_SYSTEM_PROMPT의 [문체] 절이 큰
@@ -61,6 +95,15 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
 - 같은 개념을 설명 없이 반복해서 언급하지 않습니다. 처음 등장할 때 확실히 설명하고, 이후에는 그 설명을 전제로 자연스럽게 사용합니다.
 - 이 책을 산 사람이 "돈 낸 만큼 실제로 뭔가를 할 수 있게 됐다"고 느낄 수 있는 밀도로 씁니다 — 같은 내용을 다른 표현으로 반복해 분량만 채우지 않습니다. 분량을 채워야 한다면 새로운 각도의 설명·예시·주의사항을 추가하지, 이미 한 말을 되풀이하지 않습니다.`;
 
+  var PRACTICALITY_RULES_EN = `[Beginner Actionability — "just follow along" density]
+- Assume the reader may have no prior knowledge of this topic. The first time you use a technical term or abbreviation, explain what it means in one sentence before using it.
+- Do not end a paragraph with vague instructions like "make an effort," "keep at it," "look into it," or "use it appropriately" — spell out exactly what to do, in what order, and how.
+- actionItems, actionBox, and appendix checklists must be concrete enough that the reader can act on them the moment they close the book. Instead of "find a suitable tool," specify what kind of tool, by what criteria to choose it, and what to check first.
+- When naming a tool, service, or resource, only use specific names you are confident actually exist. If unsure, guide by category instead (e.g., "a tool of this type," "a service like this") — never invent a service or product name you cannot verify (same Never-Guess principle as FACTUALITY_RULES).
+- When walking through action steps, explain not just "what to do" but "why in this order" — don't just list methods without reasons.
+- Do not mention the same concept repeatedly without explanation. Explain it clearly the first time it appears, then use it naturally afterward.
+- Write with enough density that a reader feels they got real value for their money — don't pad length by repeating the same content in different words. If you need more length, add a new angle, example, or caution instead of repeating what was already said.`;
+
   var WRITING_STYLE_RULES = `[문체 — AI 생성 티 제거]
 - "단순히", "결국", "중요합니다", "사실", "이제", "바로 지금" 같은 상투적 필러 표현을 남발하지 않습니다.
 - 모든 챕터를 똑같은 도입("~에 대해 알아보겠습니다")이나 결론("~하시기 바랍니다")으로 시작·마무리하지 않습니다. 챕터마다 다른 방식으로 시작하고 끝맺습니다.
@@ -70,6 +113,19 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
 - 내용이 없는데 소제목만 늘리지 않습니다.
 - 어색한 번역체 대신 실제 한국어 화자가 쓰는 자연스러운 문장으로 씁니다.
 - 책 전체에서 같은 개념·용어는 항상 같은 이름으로 부릅니다(예: 한 챕터에서 "체크리스트"라 부른 것을 다른 챕터에서 "점검표"로 바꿔 부르지 않습니다).`;
+
+  var WRITING_STYLE_RULES_EN = `[Writing Style — Remove the "obviously AI-written" feel]
+- Don't overuse filler phrases like "simply," "ultimately," "importantly," "actually," "now," or "right away."
+- Don't open or close every chapter with the same pattern (e.g., "Let's take a look at..." / "...so give it a try"). Start and end each chapter differently.
+- Don't repeat rhetorical questions ("...right?") in every paragraph. Use them sparingly, only where they add something.
+- Don't fill space with hollow, unsupported motivational lines ("You can do this," "Don't give up").
+- Don't repeat the same sentence structure or rhythm paragraph after paragraph (e.g., always opening with "First, do X. Then, do Y.").
+- Don't stack subheadings that have no real content under them.
+- Write in natural, native-sounding English prose — not stiff, awkward, or translated-sounding phrasing.
+- Use the same name for the same concept or term throughout the whole book (e.g., don't call something a "checklist" in one chapter and a "worksheet" in another).`;
+
+  function practicalityRules(market){ return market==='global' ? PRACTICALITY_RULES_EN : PRACTICALITY_RULES; }
+  function writingStyleRules(market){ return market==='global' ? WRITING_STYLE_RULES_EN : WRITING_STYLE_RULES; }
 
   /* Atlas V3 Phase 1 — 신규: 원천 자료(파일/URL/복수자료)가 있을 때 그것을
      "주된 사실 근거"로 취급하고, 주제만 입력됐을 때는 불확실한 사실 주장을
@@ -82,6 +138,14 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
 - 원천 자료에 없는 정보를 새로 지어내 채우지 않습니다 — 빈틈은 일반적인 원칙이나 "확인이 필요합니다" 같은 표현으로 채웁니다.
 - 원천 자료에서 나온 정보(고유명사, 수치, 용어, 제약조건)와 일반적인 배경지식·예시를 독자가 구분할 수 있게 씁니다.
 - 주제만 입력되고 원천 자료가 없는 경우, 최신성·법률·의료·금융·통계처럼 검증이 필요한 주장은 확정된 사실처럼 쓰지 말고 신중한 표현을 사용합니다.`;
+
+  var SOURCE_GROUNDING_RULES_EN = `[Source Material Grounding]
+- If the user provided a file, URL, or multiple source materials, treat that content as the primary factual basis — do not make claims that contradict it without clear grounds.
+- Do not invent information that isn't in the source material — fill gaps with general principles or phrases like "this needs verification" instead.
+- Make it clear to the reader which information (proper nouns, figures, terms, constraints) comes from the source material versus general background knowledge or illustrative examples.
+- If only a topic was given with no source material, use careful, hedged language for claims that require verification (timeliness, law, medicine, finance, statistics) rather than stating them as settled fact.`;
+
+  function sourceGroundingRules(market){ return market==='global' ? SOURCE_GROUNDING_RULES_EN : SOURCE_GROUNDING_RULES; }
 
   /* 해외 PLR/외국 교육 자료 현지화. ebookModeWrapperPrefix()(js/application.js)
      에는 이미 "직역하지 말라"는 지시가 있었지만, 그 지시는 outline 호출 한 번
@@ -170,9 +234,66 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
      필드/서문/서론/결론/판매카피/7개 챕터 브리핑)만 만든다. */
   E.buildOutlinePrompt = function(modeWrapperPrefix, market){
     market = market||'kr';
-    var introLine = market==='global'
-      ? '위 입력을 바탕으로 영어 전자책의 전체 개요와 해외 마켓(Gumroad·Etsy·Payhip 등) 판매용 카피 데이터를 작성하세요.'
-      : '위 입력을 바탕으로 한국어 전자책의 전체 개요와 크몽 판매용 카피 데이터를 작성하세요.';
+    if(market==='global'){
+      var introLineEn = 'Based on the input above, write the full outline of an English-language ebook and its sales copy data for global marketplaces (Gumroad, Etsy, Payhip, etc.).';
+      return ebookBlueprintGuidelines()+(modeWrapperPrefix||'')+introLineEn+`
+
+Do not write the full text of each chapter yet — chapters get only a short "brief" at this stage (the full body is written chapter-by-chapter in the next step).
+
+[Locked Title — Do Not Change]
+Title: ${APP.lockedTitle}
+Subtitle: ${APP.lockedSubtitle||''}
+Use these exact strings for the title and subtitle fields in the returned JSON.
+Return a single JSON object only — no text outside the JSON.
+
+[Length & Structure]
+- preface: at least 400 words
+- intro: at least 500 words
+- conclusion: at least 700 words
+- chapterBriefs: exactly 7, using each of these types once, in this order: Problem Diagnosis, Case Study, Step-by-Step Execution, Concept Shift, Tools & Resources, Advanced Strategy, Full Execution Plan.
+- Each chapterBrief summarizes the core content of that chapter in 2-3 sentences (this is a writing brief for the next step, not the actual chapter text).
+- The 7 chapters must form one coherent learning/change journey that flows from problem awareness → understanding → execution → application. Each chapter must cover distinct material and angles — don't repeat the same advice across chapters with only the title changed.
+- The outcome this book actually promises (title, subtitle, description) must connect logically to what each chapter covers — don't pad chapters with content unrelated to that promise.
+- Keep core concepts and terminology consistent across the whole book (lock in terminology at the chapterBrief stage so later chapters don't rename the same concept).
+- appendices: decide on exactly 3 titles only for now (the body is written in the next step).
+- copyright.notice/disclaimer: do not mention an internal organization or contact channel (e.g. "the editorial team," "customer support," "publisher inquiries") — write only the copyright notice and usage terms.
+
+${factualityRules(market)}
+
+${salesCopyRules(market)}
+
+${writingStyleRules(market)}
+
+${practicalityRules(market)}
+
+${sourceGroundingRules(market)}
+
+Follow this schema exactly.
+{
+  "title":"ebook title",
+  "subtitle":"subtitle",
+  "author":"author name",
+  "category":"category",
+  "description":"book description",
+  "targetReader":"specific description of the ideal reader",
+  "preface":"author's preface. If the user input contains no real personal experience, do not invent any — focus on the motivation and problem behind writing this book instead",
+  "intro":"introduction",
+  "conclusion":"key takeaways, a recap of the action sequence, and a grounded closing note of encouragement",
+  "chapterBriefs":[
+    {"number":1,"title":"chapter title","type":"Problem Diagnosis","summary":"2-3 sentences on what this chapter covers"},
+    {"number":2,"title":"chapter title","type":"Case Study","summary":"..."},
+    {"number":3,"title":"chapter title","type":"Step-by-Step Execution","summary":"..."},
+    {"number":4,"title":"chapter title","type":"Concept Shift","summary":"..."},
+    {"number":5,"title":"chapter title","type":"Tools & Resources","summary":"..."},
+    {"number":6,"title":"chapter title","type":"Advanced Strategy","summary":"..."},
+    {"number":7,"title":"chapter title","type":"Full Execution Plan","summary":"..."}
+  ],
+  "appendixTitles":["Core Action Checklist","Recommended Tools & Resources","Step-by-Step Execution Plan"],
+  "copyright":{"year":"2026","publisher":"Independent Publisher","notice":"","disclaimer":"","contact":""},
+  "sales":${E.salesSchemaString(market)}
+}`;
+    }
+    var introLine = '위 입력을 바탕으로 한국어 전자책의 전체 개요와 크몽 판매용 카피 데이터를 작성하세요.';
     return ebookBlueprintGuidelines()+(modeWrapperPrefix||'')+introLine+`
 아직 각 챕터의 본문 전체를 쓰지 않습니다 — 챕터는 "브리핑"만 작성합니다(본문은 다음 단계에서 챕터별로 따로 작성됩니다).
 
@@ -194,17 +315,17 @@ window.AtlasIncrementalEbookEngine = window.AtlasIncrementalEbookEngine || {};
 - appendices: 정확히 3개 제목만 먼저 정합니다(본문은 다음 단계에서 작성).
 - copyright.notice/disclaimer: "편집부", "편집팀", "고객센터", "출판사 문의" 등 내부 조직·연락 창구를 언급하지 마세요 — 저작권 표시와 이용 안내 문구만 작성합니다.
 
-${FACTUALITY_RULES}
+${factualityRules(market)}
 
-${SALES_COPY_RULES}
+${salesCopyRules(market)}
 
-${WRITING_STYLE_RULES}
+${writingStyleRules(market)}
 
-${PRACTICALITY_RULES}
+${practicalityRules(market)}
 
-${SOURCE_GROUNDING_RULES}
+${sourceGroundingRules(market)}
 
-${market==='global'?'':KOREAN_LOCALIZATION_RULES}
+${KOREAN_LOCALIZATION_RULES}
 
 아래 스키마를 정확히 따르세요.
 {
@@ -228,7 +349,7 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
   ],
   "appendixTitles":["핵심 실천 체크리스트","추천 도구와 참고 자료","실전 실행 플랜"],
   "copyright":{"year":"2026","publisher":"독립 출판","notice":"","disclaimer":"","contact":""},
-  "sales":${E.salesSchemaString()}
+  "sales":${E.salesSchemaString(market)}
 }`;
   };
 
@@ -238,7 +359,10 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
      drift 위험이 있었다(Atlas V3 Phase 1 파이프라인 점검에서 확인됨). 이제
      전체 생성과 부분 재생성 모두 이 함수 하나만 호출한다 — 스키마는 항상
      하나의 소스에서만 나온다. */
-  E.chapterSchemaString = function(brief){
+  E.chapterSchemaString = function(brief, market){
+    if(market==='global'){
+      return '{"number":'+brief.number+',"title":"chapter title","content":"'+brief.type+' body text (at least 2000 words)","summary":"2-3 sentence chapter summary","actionBox":"a concrete action","keyPoints":["insight 1","insight 2","insight 3"],"actionItems":["action 1","action 2","action 3"],"reflectionQuestions":["reflection question 1","reflection question 2","reflection question 3"],"framework":{"name":"framework name","steps":[{"title":"step title","description":"step description"}]},"timeline":[{"stage":"Stage 1","label":"stage name","description":"description"}],"comparisonTable":{"title":"comparison title","headers":["criterion","A","B"],"rows":[["criterion 1","value A","value B"]]}}';
+    }
     return '{"number":'+brief.number+',"title":"챕터 제목","content":"'+brief.type+' 본문(3500자 이상)","summary":"챕터 요약 2~3문장","actionBox":"구체적 행동","keyPoints":["인사이트1","인사이트2","인사이트3"],"actionItems":["실행1","실행2","실행3"],"reflectionQuestions":["생각 정리 질문1","생각 정리 질문2","생각 정리 질문3"],"framework":{"name":"체계 이름","steps":[{"title":"단계 제목","description":"단계 설명"}]},"timeline":[{"stage":"1단계","label":"단계 이름","description":"설명"}],"comparisonTable":{"title":"비교 제목","headers":["기준","A","B"],"rows":[["기준1","A 값","B 값"]]}}';
   };
 
@@ -247,6 +371,51 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
      참고 정보로 함께 전달한다. */
   E.buildChapterPrompt = function(outline, brief, market){
     market = market||'kr';
+    if(market==='global'){
+      var otherBriefsEn = outline.chapterBriefs.filter(function(b){return b.number!==brief.number;})
+        .map(function(b){return 'Chapter '+b.number+' ('+b.type+'): '+b.title+' — '+b.summary;}).join('\n');
+      return ebookBlueprintGuidelines()+`Below is the already-finalized outline of an ebook. Write the full body text of chapter ${brief.number} (${brief.type}) only.
+Don't overlap with other chapters, but stay within this chapter's brief (summary). Don't repeat advice another chapter already covers under a different title or wording — if the material overlaps, find this chapter's own new angle.
+Return a single JSON object only — no text outside the JSON.
+
+[Ebook Info]
+Title: ${outline.title}
+Subtitle: ${outline.subtitle}
+Description: ${outline.description}
+Target Reader: ${outline.targetReader}
+
+[This Chapter's Brief]
+Chapter ${brief.number} · Type: ${brief.type}
+Working title: ${brief.title}
+What to cover: ${brief.summary}
+
+[Other Chapters — reference only, to avoid overlap]
+${otherBriefsEn}
+
+[Length & Structure]
+- content: at least 2000 words
+- Within the body, make sure explanation (concepts), examples (concrete cases), and action guidance (explicit instructions) are distinguishable to the reader — don't blur the three together.
+- summary is a 2-3 sentence recap of this chapter's core point. Don't just list the keyPoints — write it as a fresh paragraph. Required for every chapter. summary must reflect what's actually in this chapter's body — don't put anything in the summary that isn't in the body.
+- actionBox is one action the reader can take today.
+- keyPoints are 3 genuinely new insights.
+- actionItems are 3 or more concrete execution steps.
+- reflectionQuestions are 3 questions for the reader to sit with after finishing this chapter, once they've closed the book for a moment. Unlike actionItems (what to do), these have no fixed answer — they should prompt the reader to hold this chapter's content up against their own situation (e.g., "Where am I actually stuck right now?", "Which of these approaches have I already tried?"). Don't include generic questions unrelated to this chapter's actual content (like "How was your day?").
+- Include framework only if this chapter genuinely describes a nameable system, model, or methodology (e.g., "the 3-step validation framework"). If not applicable, omit the framework field entirely from the response. If included, it needs a name and 3-5 steps (each with title + description).
+- Include timeline only if this chapter genuinely walks through a chronological process or journey (e.g., "month one → month three → month six"). If not applicable, omit the timeline field entirely. If included, it needs 3 or more stages (each with stage + label + description).
+- Include comparisonTable only if this chapter genuinely compares two or more things, options, or before/after states. If not applicable, omit the comparisonTable field entirely. If included, it needs title, headers (comparison criteria columns), and rows.
+- Don't force framework/timeline/comparisonTable into existence when there's nothing there for them — include them only when they arise naturally from this chapter's brief (summary) and body content.
+
+${factualityRules(market)}
+
+${writingStyleRules(market)}
+
+${practicalityRules(market)}
+
+${sourceGroundingRules(market)}
+
+Follow this schema exactly (this chapter only). Omit framework/timeline/comparisonTable entirely if not applicable (don't fill them with empty values).
+${E.chapterSchemaString(brief, market)}`;
+    }
     var otherBriefs = outline.chapterBriefs.filter(function(b){return b.number!==brief.number;})
       .map(function(b){return b.number+'장 ('+b.type+'): '+b.title+' — '+b.summary;}).join('\n');
     return ebookBlueprintGuidelines()+`아래는 이미 확정된 전자책의 개요입니다. 이 중 ${brief.number}번째 챕터(${brief.type}) 하나만 본문으로 완성하세요.
@@ -280,23 +449,53 @@ ${otherBriefs}
 - comparisonTable은 이 챕터가 실제로 두 가지 이상의 대상·선택지·전후 상태를 비교할 때만 포함하세요. 해당 없으면 comparisonTable 필드 자체를 응답에서 완전히 생략하세요. 포함할 경우 title, headers(비교 기준 열), rows(각 행)로 구성합니다.
 - framework/timeline/comparisonTable을 실제로 다룰 내용이 없는데 억지로 만들어내지 마세요 — 이 챕터의 집필 지침(summary)과 본문 내용에 자연스럽게 존재하는 경우에만 포함합니다.
 
-${FACTUALITY_RULES}
+${factualityRules(market)}
 
-${WRITING_STYLE_RULES}
+${writingStyleRules(market)}
 
-${PRACTICALITY_RULES}
+${practicalityRules(market)}
 
-${SOURCE_GROUNDING_RULES}
+${sourceGroundingRules(market)}
 
-${market==='global'?'':KOREAN_LOCALIZATION_RULES}
+${KOREAN_LOCALIZATION_RULES}
 
 아래 스키마를 정확히 따르세요(이 챕터 하나만). framework/timeline/comparisonTable은 해당 없으면 키 자체를 생략하세요(빈 값으로 채우지 마세요).
-${E.chapterSchemaString(brief)}`;
+${E.chapterSchemaString(brief, market)}`;
   };
 
   /* ── 3) 부록 생성 ── outline이 이미 정해둔 3개 제목 그대로 본문만 채운다. */
   E.buildAppendicesPrompt = function(outline, market){
     market = market||'kr';
+    if(market==='global'){
+      var titlesEn = outline.appendixTitles||['Core Action Checklist','Recommended Tools & Resources','Step-by-Step Execution Plan'];
+      return ebookBlueprintGuidelines()+`Below is the already-finalized outline of an ebook. Write the body content for all 3 appendices (the titles are already set — use them as-is).
+Return a single JSON array only — no text outside the array.
+
+[Ebook Info]
+Title: ${outline.title}
+Description: ${outline.description}
+Target Reader: ${outline.targetReader}
+
+[Length & Structure]
+- appendices: exactly 3
+- Each appendix must be a genuinely usable, concrete checklist/resource/plan.
+- The three appendices must serve different purposes — don't repeat the same content in a different format.
+
+${factualityRules(market)}
+
+${writingStyleRules(market)}
+
+${practicalityRules(market)}
+
+${sourceGroundingRules(market)}
+
+Follow this schema exactly.
+[
+  {"title":"${titlesEn[0]}","content":"a concrete checklist"},
+  {"title":"${titlesEn[1]}","content":"tool-by-tool features, how to use them, when to check them"},
+  {"title":"${titlesEn[2]}","content":"a step-by-step execution plan"}
+]`;
+    }
     var titles = outline.appendixTitles||['핵심 실천 체크리스트','추천 도구와 참고 자료','실전 실행 플랜'];
     return ebookBlueprintGuidelines()+`아래는 이미 확정된 전자책의 개요입니다. 부록 3개의 본문을 작성하세요(제목은 이미 정해져 있으니 그대로 사용).
 반드시 JSON 배열 하나만 반환하고 배열 밖의 텍스트는 작성하지 마세요.
@@ -311,15 +510,15 @@ ${E.chapterSchemaString(brief)}`;
 - 각 부록은 실제로 활용 가능한 구체적인 체크리스트/자료/계획으로 작성합니다.
 - 세 부록은 서로 다른 목적을 가져야 합니다 — 같은 내용을 형식만 바꿔 반복하지 않습니다.
 
-${FACTUALITY_RULES}
+${factualityRules(market)}
 
-${WRITING_STYLE_RULES}
+${writingStyleRules(market)}
 
-${PRACTICALITY_RULES}
+${practicalityRules(market)}
 
-${SOURCE_GROUNDING_RULES}
+${sourceGroundingRules(market)}
 
-${market==='global'?'':KOREAN_LOCALIZATION_RULES}
+${KOREAN_LOCALIZATION_RULES}
 
 아래 스키마를 정확히 따르세요.
 [
@@ -355,7 +554,13 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
      원고 전체(fullManuscriptContext)를 참고 문맥으로 함께 보내 흐름·용어
      일관성 판단은 그대로 유지한다 — 줄어드는 것은 "한 번에 받아야 하는 출력
      크기"뿐이다. */
-  function fullManuscriptContext(outline, chapters){
+  function fullManuscriptContext(outline, chapters, market){
+    if(market==='global'){
+      var chapterBlocksEn = chapters.map(function(ch){
+        return '--- Chapter '+ch.number+': '+(ch.title||'')+' ---\n'+(ch.content||'');
+      }).join('\n\n');
+      return '[Ebook Info]\nTitle: '+outline.title+'\nSubtitle: '+outline.subtitle+'\n\n[Full Manuscript — reference context, polish so it flows naturally with this]\n--- Introduction ---\n'+(outline.intro||'')+'\n\n'+chapterBlocksEn+'\n\n--- Conclusion ---\n'+(outline.conclusion||'')+'\n\n';
+    }
     var chapterBlocks = chapters.map(function(ch){
       return '--- '+ch.number+'장: '+(ch.title||'')+' ---\n'+(ch.content||'');
     }).join('\n\n');
@@ -364,7 +569,27 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
 
   E.buildReviewIntroPrompt = function(outline, chapters, market){
     market = market||'kr';
-    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters)+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다를 수 있습니다.
+    if(market==='global'){
+      return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+`Above is the full manuscript of an already-completed ebook (introduction, 7 chapters, conclusion). The 7 chapters were each written separately at different times, so sentence rhythm, tone, and word choice may differ subtly between them.
+
+Pick out just the introduction and conclusion, and rewrite them so they read as if one author wrote the whole book start to finish, flowing naturally with the manuscript above (chapter bodies are polished in separate calls, so don't return them here). Return a single JSON object only — no text outside the JSON.
+
+[Rules for This Polish Pass]
+- Only adjust sentence flow, rhythm, and terminology consistency — do not add new facts, examples, claims, or figures.
+- Keep the core content, structure, and length the introduction and conclusion originally had — don't delete content or rewrite it from scratch.
+- Make sure core concepts and terms are named consistently with the rest of the book (including all 7 chapters).
+
+${factualityRules(market)}
+
+${writingStyleRules(market)}
+
+Follow this schema exactly.
+{
+  "intro":"the polished introduction in full",
+  "conclusion":"the polished conclusion in full"
+}`;
+    }
+    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다를 수 있습니다.
 
 이 중 서론과 결론만 골라, 한 명의 저자가 책 전체를 처음부터 끝까지 직접 쓴 것처럼 위 원고 전체와 자연스럽게 이어지도록 다듬어 다시 작성하세요(챕터 본문은 다른 호출에서 따로 다듬으므로 여기서는 반환하지 않습니다). 반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
 
@@ -373,9 +598,9 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
 - 서론·결론이 원래 다루던 핵심 내용·구조·분량은 그대로 유지합니다 — 내용을 삭제하거나 통째로 새로 쓰지 않습니다.
 - 책 전체(7개 챕터 포함)에서 쓰인 핵심 개념·용어와 이름이 어긋나지 않게 통일합니다.
 
-${FACTUALITY_RULES}
+${factualityRules(market)}
 
-${WRITING_STYLE_RULES}
+${writingStyleRules(market)}
 
 아래 스키마를 정확히 따르세요.
 {
@@ -387,7 +612,29 @@ ${WRITING_STYLE_RULES}
   E.buildReviewChapterPrompt = function(outline, chapters, chapterNumber, market){
     market = market||'kr';
     var target = chapters.filter(function(ch){return ch&&ch.number===chapterNumber;})[0];
-    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters)+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다르거나, 이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 등 중복이 있을 수 있습니다.
+    if(market==='global'){
+      return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+`Above is the full manuscript of an already-completed ebook (introduction, 7 chapters, conclusion). The 7 chapters were each written separately at different times, so sentence rhythm, tone, and word choice may differ subtly between them, or a concept already explained in one chapter may get re-explained from scratch in another.
+
+Pick out just chapter ${chapterNumber} ("${(target&&target.title)||''}"), and rewrite it so it flows naturally with the manuscript above (other chapters, the intro, and the conclusion are polished in separate calls, so return only chapter ${chapterNumber}'s body here). Return a single JSON object only — no text outside the JSON.
+
+[Rules for This Polish Pass]
+- Only adjust sentence flow, rhythm, terminology consistency, and redundancy — do not add new facts, examples, claims, or figures.
+- Keep the core content, structure, and length this chapter originally had — don't delete content or rewrite it from scratch.
+- Make sure the same concepts and terms are named consistently with the other chapters.
+- If this chapter re-explains a concept already covered thoroughly in another chapter, don't delete it outright — trim it down with a natural transition like "as we saw earlier" (keep just enough context that this chapter still makes sense read on its own).
+- If this chapter's opening or closing line repeats the same pattern as other chapters, vary it naturally.
+
+${factualityRules(market)}
+
+${writingStyleRules(market)}
+
+Follow this schema exactly.
+{
+  "number":${chapterNumber},
+  "content":"the polished chapter ${chapterNumber} body in full"
+}`;
+    }
+    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters, market)+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다르거나, 이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 등 중복이 있을 수 있습니다.
 
 이 중 ${chapterNumber}장("${(target&&target.title)||''}")만 골라, 위 원고 전체와 자연스럽게 이어지도록 다듬어 다시 작성하세요(다른 장·서론·결론은 다른 호출에서 따로 다듬으므로 여기서는 ${chapterNumber}장 본문만 반환합니다). 반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
 
@@ -398,9 +645,9 @@ ${WRITING_STYLE_RULES}
 - 이미 다른 챕터에서 충분히 설명한 개념을 이 챕터에서 처음부터 다시 설명하고 있다면, 완전히 삭제하지 말고 "앞서 살펴본 것처럼" 같은 자연스러운 연결로 간결하게 줄이세요(이 챕터만 읽어도 이해되는 최소한의 맥락은 남겨둡니다).
 - 이 챕터의 도입 문장이나 마무리 문장이 다른 장들과 똑같은 패턴으로 반복된다면 다른 방식으로 시작·마무리하도록 자연스럽게 바꾸세요.
 
-${FACTUALITY_RULES}
+${factualityRules(market)}
 
-${WRITING_STYLE_RULES}
+${writingStyleRules(market)}
 
 아래 스키마를 정확히 따르세요.
 {
@@ -412,7 +659,10 @@ ${WRITING_STYLE_RULES}
   /* Atlas V3 Phase 1 — 신규: outline 스키마 안의 sales 객체 모양도 챕터 스키마와
      같은 이유로 별도 함수로 뽑아, js/bootstrap.js의 부분 재생성("판매자료·후킹·
      FAQ" 옵션)이 outline 스키마와 항상 같은 모양을 쓰도록 한다. */
-  E.salesSchemaString = function(){
+  E.salesSchemaString = function(market){
+    if(market==='global'){
+      return '{"hook":"a strong hook sentence with no numbers","subhook":"a sub-hook describing a specific, concrete situation","pains":["pain 1","pain 2","pain 3","pain 4"],"solution":"the solution structure this book provides","learnings":["what they will learn 1","2","3","4"],"benefits":["benefit 1","2","3","4"],"before":["before state 1","2","3"],"after":["after state 1","2","3"],"testimonials":[],"faqs":[{"q":"question 1","a":"answer 1"},{"q":"question 2","a":"answer 2"},{"q":"question 3","a":"answer 3"}],"finalPush":"a final call-to-action sentence with no hype or exaggeration"}';
+    }
     return '{"hook":"수치 없는 강력한 후킹 문장","subhook":"구체적인 상황을 묘사한 서브 후킹","pains":["고통1","고통2","고통3","고통4"],"solution":"이 책이 제공하는 해결 구조","learnings":["배울 내용1","배울 내용2","배울 내용3","배울 내용4"],"benefits":["혜택1","혜택2","혜택3","혜택4"],"before":["변화 전1","변화 전2","변화 전3"],"after":["변화 후1","변화 후2","변화 후3"],"testimonials":[],"faqs":[{"q":"질문1","a":"답변1"},{"q":"질문2","a":"답변2"},{"q":"질문3","a":"답변3"}],"finalPush":"과장 없는 최종 행동 유도 문장"}';
   };
 
@@ -794,5 +1044,15 @@ ${WRITING_STYLE_RULES}
   E.KOREAN_LOCALIZATION_RULES = KOREAN_LOCALIZATION_RULES;
   E.ebookBlueprintGuidelines = ebookBlueprintGuidelines;
   E.robustJsonParse = robustJsonParse;
+  /* 2026-09-02: 시장별(market) 규칙 선택 함수도 노출한다 — js/bootstrap.js의
+     부분 재생성이 위 E.FACTUALITY_RULES 같은 "항상 한국어" 원본 상수를 직접
+     쓰는 대신, 이 함수들로 시장에 맞는 언어의 규칙을 골라 쓰게 한다(해외
+     시장 부분 재생성도 같은 버그를 겪고 있었다 — 아래 fullManuscriptContext
+     등과 동일한 원인). */
+  E.factualityRules = factualityRules;
+  E.salesCopyRules = salesCopyRules;
+  E.writingStyleRules = writingStyleRules;
+  E.practicalityRules = practicalityRules;
+  E.sourceGroundingRules = sourceGroundingRules;
 
 })(window.AtlasIncrementalEbookEngine);

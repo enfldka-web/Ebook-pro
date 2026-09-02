@@ -170,13 +170,13 @@ function fsStyleAttr(px){ px=parseInt(px,10); return px?(' style="font-size:'+px
 /* 편집모드에서만 보이는 대제목/소제목 글씨크기 A-/A+ 컨트롤. contentEditable
    영역([data-atlas-field]) 바깥의 형제 요소로 둬야 버튼 라벨 텍스트가
    저장되는 제목에 섞여 들어가지 않는다. */
-function fontSizeCtl(hasSub){
+function fontSizeCtl(hasSub,market){
   var h='<div class="atlas-fontsize-ctl">'
-    +'<span class="afc-lbl">대제목</span>'
+    +'<span class="afc-lbl">'+(market==='global'?'Title':'대제목')+'</span>'
     +'<button type="button" class="afc-btn" onclick="atlasAdjustTitleFontSize(this,\'main\',-1)">A−</button>'
     +'<button type="button" class="afc-btn" onclick="atlasAdjustTitleFontSize(this,\'main\',1)">A+</button>';
   if(hasSub){
-    h+='<span class="afc-lbl">소제목</span>'
+    h+='<span class="afc-lbl">'+(market==='global'?'Subtitle':'소제목')+'</span>'
       +'<button type="button" class="afc-btn" onclick="atlasAdjustTitleFontSize(this,\'sub\',-1)">A−</button>'
       +'<button type="button" class="afc-btn" onclick="atlasAdjustTitleFontSize(this,\'sub\',1)">A+</button>';
   }
@@ -246,7 +246,51 @@ function pgFooter(bookTitle,copyrightLine){
   return '<div class="pgft"><span class="pgft-l">'+x(bookTitle)+'</span><span class="pgft-c">'+x(copyrightLine)+'</span></div>';
 }
 
+/* 2026-09-02: 실제 사용자 리포트로 재현된 버그 — 해외 시장(market==='global')
+   모드로 생성해도 AI 본문(intro/서론)뿐 아니라 이 렌더러의 "고정 틀"(섹션
+   제목·박스 라벨·챕터 내비게이션·저작권 페이지 문구)이 전부 하드코딩된
+   한국어라 PDF 어디를 봐도 한국어가 섞여 나왔다. 이 렌더러가 만드는 틀
+   텍스트는 AI가 생성하는 게 아니라 이 파일 안에 고정된 문자열이므로, AI
+   프롬프트를 아무리 고쳐도 이 부분은 절대 영어로 바뀌지 않는다 — 별도로
+   market에 따라 분기해야 한다. e.market은 이미 finalizeIncrementalEbook()이
+   병합 시점에 심어둔 값(js/application.js)을 그대로 쓴다. */
+  var EBOOK_UI_LABELS = {
+    preface:{kr:'저자 서문',global:'Preface'},
+    contents:{kr:'목차',global:'Contents'},
+    conclusion:{kr:'결론',global:'Conclusion'},
+    appendix:{kr:'부록',global:'Appendix'},
+    introduction:{kr:'서론',global:'Introduction'},
+    whoThisBookIsFor:{kr:'이 책이 필요한 독자',global:'Who This Book Is For'},
+    comparison:{kr:'비교',global:'Comparison'},
+    framework:{kr:'프레임워크',global:'Framework'},
+    timeline:{kr:'타임라인',global:'Timeline'},
+    todaysAction:{kr:'오늘의 실행',global:"Today's Action"},
+    copyAndUse:{kr:'그대로 복사해서 쓰세요',global:'Copy and use as-is'},
+    promptTemplate:{kr:'프롬프트 템플릿',global:'Prompt Template'},
+    prompt:{kr:'프롬프트',global:'Prompt'},
+    copyBtn:{kr:'복사',global:'Copy'},
+    beginnerCaution:{kr:'초보자 주의사항',global:"Beginner's Caution"},
+    keyPoints:{kr:'핵심 포인트',global:'Key Points'},
+    actionChecklist:{kr:'즉시 실천 체크리스트',global:'Action Checklist'},
+    reflectionQuestions:{kr:'생각 정리 질문',global:'Reflection Questions'},
+    chapterSummary:{kr:'이 장 요약',global:'Chapter Summary'},
+    chapterComplete:{kr:' 완료',global:' COMPLETE'},
+    nextChapter:{kr:'다음 챕터',global:'Next Chapter'},
+    finalChapter:{kr:'마지막 챕터 · 이어서 결론으로',global:'Final Chapter — On to the Conclusion'},
+    conclusionFallback:{kr:'이 전자책을 통해 다양한 전략과 방법을 살펴봤습니다. 꾸준히 실천하며 성장해 나가시길 진심으로 응원합니다. 작은 것부터 하나씩 시작하면 반드시 변화가 찾아올 것입니다.',global:'This ebook has walked through a range of strategies and methods. Keep practicing them consistently, and real change will follow — start with just one small step.'},
+    impactQuote:{kr:'이 책을 완독한 당신은 이미 99%를 앞서 있습니다',global:'Having finished this book, you are already ahead of 99% of people who never do'},
+    impactSub:{kr:'지금 바로 첫 번째 실천을 시작하세요',global:'Start your first action right now'},
+    backCoverBlurb:{kr:'이 전자책이 도움이 되셨다면 주변에 공유해주세요.',global:'If this ebook helped you, please share it with someone who needs it.'},
+    independentPublisher:{kr:'독립 출판',global:'Independent Publisher'},
+    copyrightNoticeLabel:{kr:'저작권 및 법적 고지',global:'Copyright & Legal Notice'},
+    titleLabel:{kr:'제목:',global:'Title:'},
+    disclaimerLabel:{kr:'면책 조항:',global:'Disclaimer:'},
+    copyrightBoilerplate:{kr:'이 전자책은 저작권법의 보호를 받습니다. PLR 원본을 한국 시장에 맞게 재창작하였습니다.',global:'This ebook is protected by copyright law.'}
+  };
+  function L(key,market){ var e2=EBOOK_UI_LABELS[key]; return e2 ? (market==='global'?e2.global:e2.kr) : ''; }
+
 function renderCvEbook(e){
+  var market=e.market||'kr';
   var c=e.copyright||{};
   var chs=e.chapters||[];
   var apps=e.appendices||[];
@@ -272,7 +316,7 @@ function renderCvEbook(e){
     : '<div class="ctit" contenteditable="false" data-atlas-field="title"'+fsStyleAttr(e.titleFontSizeMain)+'>'+x(e.title)+'</div>';
   pages.push('<div class="pg cvr">'
     +'<div class="ccat">'+x(e.category)+'</div>'
-    +'<div class="ctit-box">'+_ctitHtml+fontSizeCtl(!!_ctp.sub)+'</div>'
+    +'<div class="ctit-box">'+_ctitHtml+fontSizeCtl(!!_ctp.sub,market)+'</div>'
     +'<div class="csub" contenteditable="false" data-atlas-field="subtitle">'+x(e.subtitle)+'</div>'
     +'<div class="cvr-foot"><div class="cyr">'+x(c.year||'2025')+' · '+x(e.category)+'</div></div>'
     +'</div>');
@@ -281,7 +325,7 @@ function renderCvEbook(e){
   // 삭제해") — 실제 push는 이 함수 맨 아래, 뒷표지 다음에서 한다.
   // 저자 서문
   if(e.preface){
-    pages.push('<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' PREFACE</div><div class="sh">저자 서문</div>'
+    pages.push('<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' PREFACE</div><div class="sh">'+L('preface',market)+'</div>'
       +'<div class="chb" contenteditable="false" data-atlas-field="preface">'+renderText(e.preface)+'</div>'+nextFooter()+'</div>');
   }
   /* 2026-08-20: 사용자 리포트 — 목차 옆 "P.5" 같은 페이지 번호가 실제 PDF
@@ -299,7 +343,7 @@ function renderCvEbook(e){
      data-atlas-tpg-(chapter/conclusion/appendix), data-atlas-(chapter-open/
      conclusion-page/appendix-open) 속성은 그 계산이 이 DOM에서 어느
      요소를 찾아야 하는지 알려주는 훅이다. */
-  var toc='<div class="pg inn" data-atlas-toc-page="1"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">목차</div>';
+  var toc='<div class="pg inn" data-atlas-toc-page="1"><div class="ey">'+ebIcon('library',12)+' CONTENTS</div><div class="sh">'+L('contents',market)+'</div>';
   for(var i=0;i<chs.length;i++){
     toc+='<div class="ti">'
       +'<span class="tn">CHAPTER '+pad(chs[i].number)+'</span>'
@@ -308,15 +352,15 @@ function renderCvEbook(e){
       +'<span class="tpg" data-atlas-tpg-chapter="'+i+'"></span>'
       +'</div>';
   }
-  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">결론</span><span class="tdots"></span><span class="tpg" data-atlas-tpg-conclusion="1"></span></div>';
-  if(apps.length)toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">부록</span><span class="tdots"></span><span class="tpg" data-atlas-tpg-appendix="1"></span></div>';
+  toc+='<div class="ti"><span class="tn">'+ebIcon('checkCircle',12)+'</span><span class="tt">'+L('conclusion',market)+'</span><span class="tdots"></span><span class="tpg" data-atlas-tpg-conclusion="1"></span></div>';
+  if(apps.length)toc+='<div class="ti"><span class="tn">'+ebIcon('file',12)+'</span><span class="tt">'+L('appendix',market)+'</span><span class="tdots"></span><span class="tpg" data-atlas-tpg-appendix="1"></span></div>';
   toc+=nextFooter()+'</div>';
   pages.push(toc);
   // 서론
   if(e.intro){
-    var introHtml='<div class="pg inn"><div class="ey">'+ebIcon('compass',12)+' INTRODUCTION</div><div class="sh">서론</div>'
+    var introHtml='<div class="pg inn"><div class="ey">'+ebIcon('compass',12)+' INTRODUCTION</div><div class="sh">'+L('introduction',market)+'</div>'
       +'<div class="chb" contenteditable="false" data-atlas-field="intro">'+renderText(e.intro)+'</div>';
-    if(e.targetReader){introHtml+='<div class="tgtb"><div class="tgtb-ic">'+ebIcon('target',16)+'</div><div><h4>이 책이 필요한 독자</h4><p>'+x(e.targetReader)+'</p></div></div>';}
+    if(e.targetReader){introHtml+='<div class="tgtb"><div class="tgtb-ic">'+ebIcon('target',16)+'</div><div><h4>'+L('whoThisBookIsFor',market)+'</h4><p>'+x(e.targetReader)+'</p></div></div>';}
     introHtml+=nextFooter()+'</div>';
     pages.push(introHtml);
   }
@@ -339,7 +383,7 @@ function renderCvEbook(e){
     pages.push('<div class="pg chop" data-atlas-chapter-open="'+i+'">'
       +'<div class="chop-badge">CHAPTER '+pad(ch.number)+'</div>'
       +_chTitleHtml
-      +fontSizeCtl(!!_chtp.sub)
+      +fontSizeCtl(!!_chtp.sub,market)
       +'</div>');
     var h='<div class="pg inn">';
     h+='<div class="cb"><div class="cp">'+ebIcon('book',14)+' CHAPTER '+pad(ch.number)+'</div><div class="cl">'+x(e.category||'')+'</div></div>';
@@ -353,14 +397,14 @@ function renderCvEbook(e){
     var afterBodyComponents='';
     if(ch.comparisonTable&&ch.comparisonTable.headers&&ch.comparisonTable.headers.length&&ch.comparisonTable.rows&&ch.comparisonTable.rows.length){
       var ctab=ch.comparisonTable;
-      afterBodyComponents+='<div class="ctable"><h4>'+ebIcon('briefcase',14)+' '+x(ctab.title||'비교')+'</h4><div class="ctable-scroll"><table><thead><tr>'+ctab.headers.map(function(hd){return '<th>'+x(hd)+'</th>';}).join('')+'</tr></thead><tbody>'+ctab.rows.map(function(row){return '<tr>'+row.map(function(cell){return '<td>'+x(cell)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>';
+      afterBodyComponents+='<div class="ctable"><h4>'+ebIcon('briefcase',14)+' '+x(ctab.title||L('comparison',market))+'</h4><div class="ctable-scroll"><table><thead><tr>'+ctab.headers.map(function(hd){return '<th>'+x(hd)+'</th>';}).join('')+'</tr></thead><tbody>'+ctab.rows.map(function(row){return '<tr>'+row.map(function(cell){return '<td>'+x(cell)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>';
     }
     if(ch.framework&&ch.framework.steps&&ch.framework.steps.length){
       var fw=ch.framework;
-      afterBodyComponents+='<div class="fwb"><h4>'+ebIcon('compass',14)+' 프레임워크</h4><div class="fwb-name">'+x(fw.name||'')+'</div><div class="fwgrid">'+fw.steps.map(function(st,si){return '<div class="fwcard"><div class="fwcard-num">'+pad(si+1)+'</div><div class="fwcard-title">'+x(st.title||'')+'</div><p>'+x(st.description||'')+'</p></div>';}).join('')+'</div></div>';
+      afterBodyComponents+='<div class="fwb"><h4>'+ebIcon('compass',14)+' '+L('framework',market)+'</h4><div class="fwb-name">'+x(fw.name||'')+'</div><div class="fwgrid">'+fw.steps.map(function(st,si){return '<div class="fwcard"><div class="fwcard-num">'+pad(si+1)+'</div><div class="fwcard-title">'+x(st.title||'')+'</div><p>'+x(st.description||'')+'</p></div>';}).join('')+'</div></div>';
     }
     if(ch.timeline&&ch.timeline.length){
-      afterBodyComponents+='<div class="tlb"><h4>'+ebIcon('calendar',14)+' 타임라인</h4>'+ch.timeline.map(function(tl,ti){
+      afterBodyComponents+='<div class="tlb"><h4>'+ebIcon('calendar',14)+' '+L('timeline',market)+'</h4>'+ch.timeline.map(function(tl,ti){
         var stageLbl=tl.stage?x(tl.stage)+' · ':'';
         return '<div class="tlrow"><div class="tldot">'+(ti+1)+'</div><div class="tllabel">'+stageLbl+x(tl.label||'')+'</div><div class="tltext">'+x(tl.description||'')+'</div></div>';
       }).join('')+'</div>';
@@ -369,60 +413,60 @@ function renderCvEbook(e){
     // Action Box — 오늘의 실행 (real actionBox field, one or more concrete actions)
     if(ch.actionBox&&ch.actionBox.length){
       var actions=Array.isArray(ch.actionBox)?ch.actionBox:[ch.actionBox];
-      h+='<div class="actb"><h4>'+ebIcon('rocket',15)+' 오늘의 실행</h4>'+actions.map(function(a,ai){return '<div class="actb-row"><div class="actb-num">'+(ai+1)+'</div><span>'+x(a)+'</span></div>';}).join('')+'</div>';
+      h+='<div class="actb"><h4>'+ebIcon('rocket',15)+' '+L('todaysAction',market)+'</h4>'+actions.map(function(a,ai){return '<div class="actb-row"><div class="actb-num">'+(ai+1)+'</div><span>'+x(a)+'</span></div>';}).join('')+'</div>';
     }
     // Copy-paste template block (already strong, kept — icon swapped for emoji)
     if(ch.copyBox&&ch.copyBox.length){
       h+='<div class="prompt-box">';
-      h+='<div class="prompt-box-header"><div class="prompt-box-title">'+ebIcon('checkCircle',13)+' 그대로 복사해서 쓰세요</div></div>';
-      var boxes=Array.isArray(ch.copyBox)?ch.copyBox:[{label:'프롬프트 템플릿',prompt:ch.copyBox}];
+      h+='<div class="prompt-box-header"><div class="prompt-box-title">'+ebIcon('checkCircle',13)+' '+L('copyAndUse',market)+'</div></div>';
+      var boxes=Array.isArray(ch.copyBox)?ch.copyBox:[{label:L('promptTemplate',market),prompt:ch.copyBox}];
       boxes.forEach(function(item,idx){
         var pid='prompt-'+Math.random().toString(36).substr(2,6);
         var txt=typeof item==='string'?item:(item.prompt||item.template||item.text||'');
-        var lbl=typeof item==='string'?'프롬프트 '+(idx+1):(item.label||item.title||'프롬프트 '+(idx+1));
+        var lbl=typeof item==='string'?L('prompt',market)+' '+(idx+1):(item.label||item.title||L('prompt',market)+' '+(idx+1));
         h+='<div class="prompt-item">';
         h+='<div class="prompt-label">'+(idx+1)+'. '+x(lbl)+'</div>';
         h+='<div class="prompt-text" id="'+pid+'">'+x(txt)+'</div>';
-        h+='<button class="prompt-copy-btn" onclick="copyPrompt(\''+pid+'\',this)">복사</button>';
+        h+='<button class="prompt-copy-btn" onclick="copyPrompt(\''+pid+'\',this)">'+L('copyBtn',market)+'</button>';
         h+='</div>';
       });
       h+='</div>';
     }
     // Warning Box — 초보자 주의사항
     if(ch.warningBox&&ch.warningBox.length){
-      h+='<div class="warnb"><h4>'+ebIcon('alertTriangle',14)+' 초보자 주의사항</h4>'+ch.warningBox.map(function(w,wi){return '<div class="warnb-row"><span class="warnb-num">'+(wi+1)+'.</span><span>'+x(w)+'</span></div>';}).join('')+'</div>';
+      h+='<div class="warnb"><h4>'+ebIcon('alertTriangle',14)+' '+L('beginnerCaution',market)+'</h4>'+ch.warningBox.map(function(w,wi){return '<div class="warnb-row"><span class="warnb-num">'+(wi+1)+'.</span><span>'+x(w)+'</span></div>';}).join('')+'</div>';
     }
     // Tip box — 핵심 포인트 (real keyPoints, its own honest role)
     if(ch.keyPoints&&ch.keyPoints.length){
-      h+='<div class="tipb"><h4>'+ebIcon('sparkle',14)+' 핵심 포인트</h4>'+ch.keyPoints.map(function(kp){return '<div class="tipb-row"><div class="tipb-dot"></div><span>'+x(kp)+'</span></div>';}).join('')+'</div>';
+      h+='<div class="tipb"><h4>'+ebIcon('sparkle',14)+' '+L('keyPoints',market)+'</h4>'+ch.keyPoints.map(function(kp){return '<div class="tipb-row"><div class="tipb-dot"></div><span>'+x(kp)+'</span></div>';}).join('')+'</div>';
     }
     // Checklist — 즉시 실천 체크리스트 (real actionItems)
     if(ch.actionItems&&ch.actionItems.length){
-      h+='<div class="cklist"><h4>'+ebIcon('checkCircle',14)+' 즉시 실천 체크리스트</h4>'+ch.actionItems.map(function(a){return '<div class="cklrow"><div class="ckl-check">'+ebIcon('checkCircle',11)+'</div><span>'+x(a)+'</span></div>';}).join('')+'</div>';
+      h+='<div class="cklist"><h4>'+ebIcon('checkCircle',14)+' '+L('actionChecklist',market)+'</h4>'+ch.actionItems.map(function(a){return '<div class="cklrow"><div class="ckl-check">'+ebIcon('checkCircle',11)+'</div><span>'+x(a)+'</span></div>';}).join('')+'</div>';
     }
     // Reflection questions — real ch.reflectionQuestions (self-reflection prompts, distinct
     // from actionItems: not "do this", but "think about your own situation")
     if(ch.reflectionQuestions&&ch.reflectionQuestions.length){
-      h+='<div class="reflb"><h4>'+ebIcon('search',14)+' 생각 정리 질문</h4>'+ch.reflectionQuestions.map(function(q,qi){return '<div class="reflb-row"><span class="reflb-num">Q'+(qi+1)+'.</span><span>'+x(q)+'</span></div>';}).join('')+'</div>';
+      h+='<div class="reflb"><h4>'+ebIcon('search',14)+' '+L('reflectionQuestions',market)+'</h4>'+ch.reflectionQuestions.map(function(q,qi){return '<div class="reflb-row"><span class="reflb-num">Q'+(qi+1)+'.</span><span>'+x(q)+'</span></div>';}).join('')+'</div>';
     }
     // Chapter Summary — real ch.summary (genuine AI-written recap, required per chapter)
     if(ch.summary){
-      h+='<div class="chsum"><h4>'+ebIcon('library',14)+' 이 장 요약</h4><p>'+x(ch.summary)+'</p></div>';
+      h+='<div class="chsum"><h4>'+ebIcon('library',14)+' '+L('chapterSummary',market)+'</h4><p>'+x(ch.summary)+'</p></div>';
     }
     var chNext=chs[i+1];
     h+='<div class="chnx">';
-    h+='<span class="chnx-done">'+ebIcon('checkCircle',13)+' CHAPTER '+pad(ch.number)+' 완료</span>';
-    h+=chNext?'<span class="chnx-next">다음 챕터 · CH.'+pad(chNext.number)+' <b>'+x(chNext.title)+'</b> →</span>':'<span class="chnx-next">마지막 챕터 · 이어서 결론으로</span>';
+    h+='<span class="chnx-done">'+ebIcon('checkCircle',13)+' CHAPTER '+pad(ch.number)+L('chapterComplete',market)+'</span>';
+    h+=chNext?'<span class="chnx-next">'+L('nextChapter',market)+' · CH.'+pad(chNext.number)+' <b>'+x(chNext.title)+'</b> →</span>':'<span class="chnx-next">'+L('finalChapter',market)+'</span>';
     h+='</div>';
     h+=nextFooter();
     h+='</div>';
     pages.push(h);
   }
   // 결론
-  var concl='<div class="pg inn" style="background:#fafaf9" data-atlas-conclusion-page="1"><div class="ey">'+ebIcon('crown',12)+' CONCLUSION</div><div class="sh">결론</div>';
-  var conclusionHtml=e.conclusion&&e.conclusion.length>10&&e.conclusion.charAt(0)!=='['?renderText(e.conclusion):'<p>이 전자책을 통해 다양한 전략과 방법을 살펴봤습니다. 꾸준히 실천하며 성장해 나가시길 진심으로 응원합니다. 작은 것부터 하나씩 시작하면 반드시 변화가 찾아올 것입니다.</p>';
+  var concl='<div class="pg inn" style="background:#fafaf9" data-atlas-conclusion-page="1"><div class="ey">'+ebIcon('crown',12)+' CONCLUSION</div><div class="sh">'+L('conclusion',market)+'</div>';
+  var conclusionHtml=e.conclusion&&e.conclusion.length>10&&e.conclusion.charAt(0)!=='['?renderText(e.conclusion):'<p>'+L('conclusionFallback',market)+'</p>';
   concl+='<div class="chb" contenteditable="false" data-atlas-field="conclusion">'+conclusionHtml+'</div>';
-  concl+='<div class="impactb"><div class="impactb-mark">&ldquo;</div><p>이 책을 완독한 당신은 이미 99%를 앞서 있습니다</p><small>지금 바로 첫 번째 실천을 시작하세요</small></div>';
+  concl+='<div class="impactb"><div class="impactb-mark">&ldquo;</div><p>'+L('impactQuote',market)+'</p><small>'+L('impactSub',market)+'</small></div>';
   concl+=nextFooter()+'</div>';
   pages.push(concl);
   // 부록 — renderText로 통일해 본문/서론과 같은 문단·목록 타이포그래피를 적용
@@ -438,14 +482,14 @@ function renderCvEbook(e){
   // 2026-08-12: 연락처(c.contact) 노출 줄 삭제(사용자 요청 — 연락처는 어디에도
   // 남기지 않는다).
   pages.push('<div class="pg bkpg"><div class="bkpg-ic">'+ebIcon('book',36)+'</div><h3>'+x(e.title)+'</h3>'
-    +'<p>이 전자책이 도움이 되셨다면 주변에 공유해주세요.</p>'
-    +'<div class="bkc">ⓒ '+x(c.year||'2025')+' '+x(e.author)+' · '+x(c.publisher||'독립 출판')+' · ALL RIGHTS RESERVED</div></div>');
+    +'<p>'+L('backCoverBlurb',market)+'</p>'
+    +'<div class="bkc">ⓒ '+x(c.year||'2025')+' '+x(e.author)+' · '+x(c.publisher||L('independentPublisher',market))+' · ALL RIGHTS RESERVED</div></div>');
   // 저작권 및 법적 고지 — 2026-08-12: 사용자 요청으로 맨 뒤(뒷표지 다음)로
   // 이동. 저자/출판/연락처 줄은 삭제하고 제목·법적 고지문·면책 조항만 남긴다.
-  pages.push('<div class="pg cpg"><div class="cinn"><div class="clbl">저작권 및 법적 고지</div><div class="ctxt">'
-    +'<p><strong>제목:</strong> '+x(e.title)+'</p><br>'
-    +'<p>'+x(c.notice)+'</p><br><p><strong>면책 조항:</strong> '+x(c.disclaimer)+'</p>'
-    +'<br><p>이 전자책은 저작권법의 보호를 받습니다. PLR 원본을 한국 시장에 맞게 재창작하였습니다.</p>'
+  pages.push('<div class="pg cpg"><div class="cinn"><div class="clbl">'+L('copyrightNoticeLabel',market)+'</div><div class="ctxt">'
+    +'<p><strong>'+L('titleLabel',market)+'</strong> '+x(e.title)+'</p><br>'
+    +'<p>'+x(c.notice)+'</p><br><p><strong>'+L('disclaimerLabel',market)+'</strong> '+x(c.disclaimer)+'</p>'
+    +'<br><p>'+L('copyrightBoilerplate',market)+'</p>'
     +'</div>'+nextFooter()+'</div></div>');
   var edocEl=document.getElementById('cv-edoc');
   edocEl.innerHTML=pages.join('');
