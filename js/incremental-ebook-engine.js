@@ -334,58 +334,78 @@ ${market==='global'?'':KOREAN_LOCALIZATION_RULES}
      참고하고 실제 완성된 문장은 서로 보지 못함), 책 전체를 한 사람이 처음
      부터 끝까지 쓴 것과 비교하면 챕터마다 문장 리듬·말투가 미묘하게 다르거나
      이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 반복이 생길 수
-     있다. 이 단계는 완성된 원고 전체(서론+7챕터+결론)를 한 번의 호출로 다시
-     보여주고 "흐름·중복·용어 통일"만 다듬게 한다 — 새로운 사실/예시/주장을
+     있다. "흐름·중복·용어 통일"만 다듬게 한다 — 새로운 사실/예시/주장을
      추가하지 않는다(FACTUALITY_RULES 재확인). 부록은 체크리스트/자료 성격이라
      서사적 리듬 문제가 크지 않고, preface는 있어도 매우 짧아 이미 intro/
      conclusion과 같은 outline 호출에서 함께 써져 서로 어긋날 위험이 작으므로
-     범위에서 제외했다(비용 대비 효과가 낮은 부분까지 넣지 않는다). */
-  E.buildManuscriptReviewPrompt = function(outline, chapters, market){
-    market = market||'kr';
+     범위에서 제외했다(비용 대비 효과가 낮은 부분까지 넣지 않는다).
+
+     2026-09-01 버그 수정 — 최초 구현은 서론+7챕터+결론 "전체"를 한 번의 호출로
+     되돌려 받게 했는데, 실제 운영에서 90% 지점("전체 원고 다듬기")에서 무한히
+     멈춰 있는 것처럼 보이는 문제가 재현됐다. 원인은 이 파일 맨 위 주석에 이미
+     적혀 있던 이 엔진의 핵심 설계 원칙(초장시간 단일 호출을 피하고 작은 호출로
+     쪼갠다)을 이 review 단계만 어긴 것 — 7개 챕터는 각각 max_tokens=9000까지
+     쓸 수 있으므로 실제로 쓰인 챕터 7개를 합치면 이미 32000(review의 max_tokens)
+     을 훌쩍 넘을 수 있고, 그 경우 한 번의 응답에 다 담을 수 없어 응답이 중간에
+     잘리거나(JSON 파싱 실패) Anthropic이 그만큼 긴 출력을 만드는 데 여러 분이
+     걸려 "멈춘 것처럼" 보였다. 그래서 review도 다른 단계와 똑같이 "서론+결론
+     1개 호출 + 챕터별 1개씩 7개 호출"로 쪼갰다 — 각 호출의 출력 분량은 원래
+     그 챕터를 생성할 때 쓴 것과 같은 크기(9000)면 충분하다("분량은 그대로
+     유지"가 지시사항이므로 원본보다 커질 이유가 없음). 입력 쪽에는 여전히
+     원고 전체(fullManuscriptContext)를 참고 문맥으로 함께 보내 흐름·용어
+     일관성 판단은 그대로 유지한다 — 줄어드는 것은 "한 번에 받아야 하는 출력
+     크기"뿐이다. */
+  function fullManuscriptContext(outline, chapters){
     var chapterBlocks = chapters.map(function(ch){
       return '--- '+ch.number+'장: '+(ch.title||'')+' ---\n'+(ch.content||'');
     }).join('\n\n');
-    return ebookBlueprintGuidelines()+`아래는 이미 완성된 전자책 원고(서론·7개 챕터·결론)입니다. 서론과 결론은 함께 집필됐지만, 7개 챕터는 각각 다른 시점에 따로 집필되어 챕터마다 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다르거나, 이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 등 중복이 있을 수 있습니다.
-이 원고 전체를 한 명의 저자가 처음부터 끝까지 직접 쓴 것처럼 자연스럽게 다듬어 다시 작성하세요. 반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
+    return '[전자책 정보]\n제목: '+outline.title+'\n부제목: '+outline.subtitle+'\n\n[원고 전문 — 참고용 문맥, 이 문맥과 자연스럽게 이어지도록 다듬을 것]\n--- 서론 ---\n'+(outline.intro||'')+'\n\n'+chapterBlocks+'\n\n--- 결론 ---\n'+(outline.conclusion||'')+'\n\n';
+  }
 
-[전자책 정보]
-제목: ${outline.title}
-부제목: ${outline.subtitle}
+  E.buildReviewIntroPrompt = function(outline, chapters, market){
+    market = market||'kr';
+    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters)+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다를 수 있습니다.
+
+이 중 서론과 결론만 골라, 한 명의 저자가 책 전체를 처음부터 끝까지 직접 쓴 것처럼 위 원고 전체와 자연스럽게 이어지도록 다듬어 다시 작성하세요(챕터 본문은 다른 호출에서 따로 다듬으므로 여기서는 반환하지 않습니다). 반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
 
 [다듬을 때 반드시 지킬 것]
-- 오직 문장 흐름·리듬·용어 통일·중복 정리만 합니다 — 새로운 사실, 예시, 주장, 수치를 추가하지 않습니다.
-- 각 섹션이 원래 다루던 핵심 내용·구조·분량은 그대로 유지합니다 — 내용을 삭제하거나 통째로 새로 쓰지 않습니다.
-- 책 전체에서 같은 개념·용어는 항상 같은 이름으로 부르도록 통일합니다.
-- 이미 다른 챕터에서 충분히 설명한 개념을 이 챕터에서 처음부터 다시 설명하고 있다면, 완전히 삭제하지 말고 "앞서 살펴본 것처럼" 같은 자연스러운 연결로 간결하게 줄이세요(각 챕터가 그 챕터만 읽어도 이해되는 최소한의 맥락은 남겨둡니다).
-- 여러 챕터의 도입 문장이나 마무리 문장이 똑같은 패턴으로 반복된다면 서로 다른 방식으로 시작·마무리하도록 자연스럽게 바꾸세요.
-- chapters 배열의 number는 아래 원고와 정확히 같은 장 번호를 그대로 사용하고, 순서와 개수를 바꾸지 마세요.
+- 오직 문장 흐름·리듬·용어 통일만 합니다 — 새로운 사실, 예시, 주장, 수치를 추가하지 않습니다.
+- 서론·결론이 원래 다루던 핵심 내용·구조·분량은 그대로 유지합니다 — 내용을 삭제하거나 통째로 새로 쓰지 않습니다.
+- 책 전체(7개 챕터 포함)에서 쓰인 핵심 개념·용어와 이름이 어긋나지 않게 통일합니다.
 
 ${FACTUALITY_RULES}
 
 ${WRITING_STYLE_RULES}
 
-[원고 전문]
---- 서론 ---
-${outline.intro||''}
-
-${chapterBlocks}
-
---- 결론 ---
-${outline.conclusion||''}
-
 아래 스키마를 정확히 따르세요.
 {
   "intro":"다듬어진 서론 전체",
-  "conclusion":"다듬어진 결론 전체",
-  "chapters":[
-    {"number":1,"content":"다듬어진 1장 본문 전체"},
-    {"number":2,"content":"다듬어진 2장 본문 전체"},
-    {"number":3,"content":"다듬어진 3장 본문 전체"},
-    {"number":4,"content":"다듬어진 4장 본문 전체"},
-    {"number":5,"content":"다듬어진 5장 본문 전체"},
-    {"number":6,"content":"다듬어진 6장 본문 전체"},
-    {"number":7,"content":"다듬어진 7장 본문 전체"}
-  ]
+  "conclusion":"다듬어진 결론 전체"
+}`;
+  };
+
+  E.buildReviewChapterPrompt = function(outline, chapters, chapterNumber, market){
+    market = market||'kr';
+    var target = chapters.filter(function(ch){return ch&&ch.number===chapterNumber;})[0];
+    return ebookBlueprintGuidelines()+fullManuscriptContext(outline, chapters)+`위는 이미 완성된 전자책 원고 전체(서론·7개 챕터·결론)입니다. 7개 챕터는 각각 다른 시점에 따로 집필되어 문장 리듬·말투·자주 쓰는 표현이 미묘하게 다르거나, 이미 다른 챕터에서 설명한 개념을 처음부터 다시 설명하는 등 중복이 있을 수 있습니다.
+
+이 중 ${chapterNumber}장("${(target&&target.title)||''}")만 골라, 위 원고 전체와 자연스럽게 이어지도록 다듬어 다시 작성하세요(다른 장·서론·결론은 다른 호출에서 따로 다듬으므로 여기서는 ${chapterNumber}장 본문만 반환합니다). 반드시 JSON 객체 하나만 반환하고 JSON 밖의 텍스트는 작성하지 마세요.
+
+[다듬을 때 반드시 지킬 것]
+- 오직 문장 흐름·리듬·용어 통일·중복 정리만 합니다 — 새로운 사실, 예시, 주장, 수치를 추가하지 않습니다.
+- 이 챕터가 원래 다루던 핵심 내용·구조·분량은 그대로 유지합니다 — 내용을 삭제하거나 통째로 새로 쓰지 않습니다.
+- 책 전체에서 같은 개념·용어는 항상 같은 이름으로 부르도록 다른 장들과 통일합니다.
+- 이미 다른 챕터에서 충분히 설명한 개념을 이 챕터에서 처음부터 다시 설명하고 있다면, 완전히 삭제하지 말고 "앞서 살펴본 것처럼" 같은 자연스러운 연결로 간결하게 줄이세요(이 챕터만 읽어도 이해되는 최소한의 맥락은 남겨둡니다).
+- 이 챕터의 도입 문장이나 마무리 문장이 다른 장들과 똑같은 패턴으로 반복된다면 다른 방식으로 시작·마무리하도록 자연스럽게 바꾸세요.
+
+${FACTUALITY_RULES}
+
+${WRITING_STYLE_RULES}
+
+아래 스키마를 정확히 따르세요.
+{
+  "number":${chapterNumber},
+  "content":"다듬어진 ${chapterNumber}장 본문 전체"
 }`;
   };
 
@@ -727,14 +747,21 @@ ${outline.conclusion||''}
     });
   };
 
-  /* 원고 전체(서론+7챕터+결론)를 되돌려 받아야 하므로 다른 어떤 단계보다도
-     출력 분량이 크다(챕터 7개 × 3500자 이상 + 서론/결론) — outline/appendices의
-     16000보다 넉넉하게 잡아 중간에 잘리지 않게 한다(claude-sonnet-4-6 최대
-     출력 128K 대비 충분히 여유). */
-  E.reviewManuscript = function(outline, chapters, market){
-    return callGateway(E.buildManuscriptReviewPrompt(outline, chapters, market), 32000, 'review', market).then(function(data){
+  /* 서론+결론만 되돌려 받으므로 outline의 16000보다 훨씬 여유 있게 잡을 필요는
+     없다 — intro(800자+)/conclusion(1200자+) 두 필드 정도면 6000으로 충분하다. */
+  E.reviewIntro = function(outline, chapters, market){
+    return callGateway(E.buildReviewIntroPrompt(outline, chapters, market), 6000, 'review', market).then(function(data){
       var text = extractResponseText(data);
-      return robustJsonParse(text, '{', '}', 'review');
+      return robustJsonParse(text, '{', '}', 'reviewIntro');
+    });
+  };
+
+  /* 챕터 하나만 되돌려 받으므로, 원래 그 챕터를 생성할 때와 같은 예산(9000)이면
+     "분량은 그대로 유지" 지시상 충분하다(원본보다 커질 이유가 없음). */
+  E.reviewChapter = function(outline, chapters, chapterNumber, market){
+    return callGateway(E.buildReviewChapterPrompt(outline, chapters, chapterNumber, market), 9000, 'review', market).then(function(data){
+      var text = extractResponseText(data);
+      return robustJsonParse(text, '{', '}', 'reviewChapter'+chapterNumber);
     });
   };
 
