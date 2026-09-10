@@ -528,6 +528,71 @@ ${KOREAN_LOCALIZATION_RULES}
 ]`;
   };
 
+  /* 2026-09-10 실사용 버그 — 부록 생성이 3회 자동 재시도(callGatewayWithParseRetry)
+     까지 다 소진하고도 매번 "AI가 만든 내용의 형식이 깨져서 처리하지 못했습니다"로
+     실패했다. 원인은 review 90%-멈춤 버그(아래 주석)와 완전히 같은 패턴 —
+     서로 다른 목적의 부록 3개(체크리스트/도구비교/실행플랜)를 각각 충분히
+     구체적으로 쓰면 하나의 JSON 배열 응답 안에서 합쳐서 max_tokens(16000)를
+     넘기기 쉬웠고, 그러면 응답이 중간에 잘려 매 시도(재시도 포함) 동일하게
+     파싱에 실패했다(확률적 문제가 아니라 구조적 문제라 재시도로 해결되지
+     않음). 이 엔진의 핵심 원칙(작은 호출로 쪼갠다)대로 부록도 챕터/review처럼
+     부록별 1개씩 3개의 개별 호출로 쪼갠다. */
+  E.buildAppendixPrompt = function(outline, appendixIndex, market){
+    market = market||'kr';
+    if(market==='global'){
+      var titlesEn = outline.appendixTitles||['Core Action Checklist','Recommended Tools & Resources','Step-by-Step Execution Plan'];
+      var descEn = ['a concrete checklist','tool-by-tool features, how to use them, when to check them','a step-by-step execution plan'];
+      return ebookBlueprintGuidelines()+`Below is the already-finalized outline of an ebook. Write the body content for just ONE appendix — appendix ${appendixIndex+1} of 3, titled "${titlesEn[appendixIndex]}" (the title is already set — use it as-is; the other 2 appendices are written in separate calls, so return only this one here).
+Return a single JSON object only — no text outside the object.
+
+[Ebook Info]
+Title: ${outline.title}
+Description: ${outline.description}
+Target Reader: ${outline.targetReader}
+
+[Length & Structure]
+- This must be a genuinely usable, concrete checklist/resource/plan — not filler.
+- This appendix must serve a different purpose than the other 2 (avoid repeating the same content in a different format).
+
+${factualityRules(market)}
+
+${writingStyleRules(market)}
+
+${practicalityRules(market)}
+
+${sourceGroundingRules(market)}
+
+Follow this schema exactly.
+{"title":"${titlesEn[appendixIndex]}","content":"${descEn[appendixIndex]}"}`;
+    }
+    var titles = outline.appendixTitles||['핵심 실천 체크리스트','추천 도구와 참고 자료','실전 실행 플랜'];
+    var desc = ['구체적 체크리스트','도구별 특징, 사용법, 확인 시점','단계별 실행 계획'];
+    return ebookBlueprintGuidelines()+`아래는 이미 확정된 전자책의 개요입니다. 부록 3개 중 ${appendixIndex+1}번째(제목: "${titles[appendixIndex]}")의 본문만 작성하세요(제목은 이미 정해져 있으니 그대로 사용 — 나머지 2개 부록은 다른 호출에서 따로 작성하므로 여기서는 이것 하나만 반환).
+반드시 JSON 객체 하나만 반환하고 객체 밖의 텍스트는 작성하지 마세요.
+
+[전자책 정보]
+제목: ${outline.title}
+설명: ${outline.description}
+추천 독자: ${outline.targetReader}
+
+[분량과 구성]
+- 실제로 활용 가능한 구체적인 체크리스트/자료/계획으로 작성합니다.
+- 이 부록은 나머지 2개 부록과 다른 목적을 가져야 합니다 — 같은 내용을 형식만 바꿔 반복하지 않습니다.
+
+${factualityRules(market)}
+
+${writingStyleRules(market)}
+
+${practicalityRules(market)}
+
+${sourceGroundingRules(market)}
+
+${KOREAN_LOCALIZATION_RULES}
+
+아래 스키마를 정확히 따르세요.
+{"title":"${titles[appendixIndex]}","content":"${desc[appendixIndex]}"}`;
+  };
+
   /* ── 4) 전체 원고 검수/다듬기 ── outline(서론/결론)과 7개 챕터가 서로 다른
      API 호출로 각각 따로 집필되다 보니(챕터는 다른 챕터의 "브리핑 요약"만
      참고하고 실제 완성된 문장은 서로 보지 못함), 책 전체를 한 사람이 처음
@@ -1040,6 +1105,17 @@ ${writingStyleRules(market)}
      목차와 동일하게 16000으로 늘려 잘리지 않게 한다. */
   E.generateAppendices = function(outline, market){
     return callGatewayWithParseRetry(E.buildAppendicesPrompt(outline, market), 16000, 'appendices', market, '[', ']', 'appendices');
+  };
+
+  /* 2026-09-10: 위 16000 max_tokens로도 실제 운영에서 부록 3개를 한 번에 받는
+     호출이 계속 "형식이 깨져서 처리하지 못했습니다"로 실패하는 게 재현됐다 —
+     3개를 각각 챕터급으로 충실히 쓰면 16000도 넘길 수 있어서다(자동 재시도
+     3회도 매번 같은 크기 문제로 똑같이 실패해 소용없었다). E.generateAppendices/
+     buildAppendicesPrompt(위)는 하위 호환을 위해 그대로 두고, 실제 파이프라인
+     (js/application.js continueEbookPipeline)은 이 부록별 개별 호출로 전환한다
+     — 챕터 1개(9000)면 충분한 분량이므로 같은 값을 쓴다. */
+  E.generateAppendix = function(outline, appendixIndex, market){
+    return callGatewayWithParseRetry(E.buildAppendixPrompt(outline, appendixIndex, market), 9000, 'appendices', market, '{', '}', 'appendix'+(appendixIndex+1));
   };
 
   /* 서론+결론만 되돌려 받으므로 outline의 16000보다 훨씬 여유 있게 잡을 필요는

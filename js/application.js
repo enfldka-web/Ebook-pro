@@ -1852,7 +1852,7 @@ function newEbookProgressState(){
   return {
     status:'idle', stopRequested:false, market:APP.market||'kr',
     outline:null, chapters:new Array(7).fill(null), chapterStatus:new Array(7).fill('pending'),
-    appendices:null, appendicesStatus:'pending',
+    appendices:null, appendicesStatus:'pending', appendixItemStatus:new Array(3).fill('pending'),
     /* 2026-09-01: reviewStatus는 review 단계 전체("서론/결론 1건 + 챕터 7건",
        총 8개 호출)의 총괄 상태다. 실제 진행 단위는 reviewIntroStatus(서론+결론)와
        reviewChapterStatus[](챕터별)이며, 그 8개가 모두 완료돼야 reviewStatus도
@@ -1955,7 +1955,12 @@ function renderEbookProgressUI(){
       var retryBtn=(st==='failed')?' <button class="a2-btn a2-btn-secondary a2-btn-sm" onclick="retryFailedChapter('+i+')">이 장만 다시 생성</button>':'';
       rows.push('<div class="cv-pstep '+(st==='completed'?'done':st==='processing'?'active':(st==='failed'?'failed':''))+'">'+cvStepIcon(st)+'<span>'+label+'</span>'+retryBtn+'</div>');
     }
-    var aLabel='부록'+(p.appendicesStatus==='completed'?' 완료':p.appendicesStatus==='processing'?' 생성 중...':p.appendicesStatus==='failed'?' 실패':' 대기');
+    /* 2026-09-10: 부록도 review와 동일하게 내부적으로 3개(부록별 1개씩) 호출로
+       나뉘어 진행되므로(아래 continueEbookPipeline 참고), "생성 중..."만 보이면
+       그 사이 몇 분간 변화가 없어 멈춘 것처럼 보일 수 있다 — 몇 개 중 몇 개가
+       끝났는지 함께 보여준다. */
+    var appendixDoneCount=(p.appendixItemStatus||[]).filter(function(s){return s==='completed';}).length;
+    var aLabel='부록'+(p.appendicesStatus==='completed'?' 완료':p.appendicesStatus==='processing'?' 생성 중... ('+appendixDoneCount+'/3)':p.appendicesStatus==='failed'?' 실패':' 대기');
     rows.push('<div class="cv-pstep '+(p.appendicesStatus==='completed'?'done':p.appendicesStatus==='processing'?'active':(p.appendicesStatus==='failed'?'failed':''))+'">'+cvStepIcon(p.appendicesStatus)+'<span>'+aLabel+'</span></div>');
     /* review는 내부적으로 8개 호출(서론/결론 1 + 챕터별 7)로 나뉘어 진행되므로
        (2026-09-01 버그 수정 — 위 continueEbookPipeline 참고), "생성 중..."만
@@ -2026,10 +2031,30 @@ async function continueEbookPipeline(){
     }
     if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
 
+    /* 2026-09-10 버그 수정 — 부록 3개(체크리스트/도구비교/실행플랜)를 한 번의
+       호출로 다 받으려 하면 합쳐서 max_tokens(16000)를 넘기기 쉬워 응답이
+       중간에 잘리고, 자동 재시도 3회도 매번 같은 크기 문제로 똑같이 실패해
+       "부록 실패"로 멈췄다(review의 90%-멈춤 버그와 동일한 원인). 챕터/review와
+       같은 방식으로 부록도 1개씩 3개의 개별 호출로 쪼갠다 — 완료된 부록은
+       재개 시 건너뛴다(§1과 동일). 레거시로 저장된 진행 상태(이 필드가
+       생기기 전에 저장된 것)에도 안전하게 기본값을 채운다. */
     if(p.appendicesStatus!=='completed'){
-      p.status='appendices';p.appendicesStatus='processing';renderEbookProgressUI();
-      var appendices=await E.generateAppendices(p.outline, p.market);
-      p.appendices=appendices;
+      p.status='appendices';
+      if(!p.appendixItemStatus)p.appendixItemStatus=new Array(3).fill('pending');
+      if(!Array.isArray(p.appendices))p.appendices=[];
+      p.appendicesStatus='processing';renderEbookProgressUI();
+
+      for(var ai=0;ai<3;ai++){
+        if(p.appendixItemStatus[ai]==='completed')continue;
+        if(p.stopRequested){ p.status='stopped'; persistEbookProgress(); renderEbookProgressUI(); return; }
+        p.appendixItemStatus[ai]='processing';renderEbookProgressUI();
+        var appendix=await E.generateAppendix(p.outline, ai, p.market);
+        p.appendices[ai]=appendix;
+        p.appendixItemStatus[ai]='completed';
+        persistEbookProgress();
+        renderEbookProgressUI();
+      }
+
       p.appendicesStatus='completed';
       p.unitTimestamps.appendices=Date.now();
       persistEbookProgress();
@@ -2123,7 +2148,11 @@ async function continueEbookPipeline(){
     }else{
       var procIdx=p.chapterStatus.indexOf('processing');
       if(procIdx!==-1){ p.chapterStatus[procIdx]='failed'; p.failedUnitId='chapter'+(procIdx+1); }
-      else if(p.appendicesStatus==='processing'){ p.appendicesStatus='failed'; p.failedUnitId='appendices'; }
+      else if(p.appendicesStatus==='processing'){
+        p.appendicesStatus='failed'; p.failedUnitId='appendices';
+        var apIdx=(p.appendixItemStatus||[]).indexOf('processing');
+        if(apIdx!==-1)p.appendixItemStatus[apIdx]='failed';
+      }
       else if(p.reviewStatus==='processing'){
         p.reviewStatus='failed'; p.failedUnitId='review';
         if(p.reviewIntroStatus==='processing')p.reviewIntroStatus='failed';
@@ -3029,7 +3058,11 @@ function resumeIncrementalEbookGeneration(){
     if(s==='failed'){ p.unitRetryCount['chapter'+(i+1)]=(p.unitRetryCount['chapter'+(i+1)]||0)+1; return 'pending'; }
     return s;
   });
-  if(p.appendicesStatus==='failed'){ p.unitRetryCount.appendices=(p.unitRetryCount.appendices||0)+1; p.appendicesStatus='pending'; }
+  if(p.appendicesStatus==='failed'){
+    p.unitRetryCount.appendices=(p.unitRetryCount.appendices||0)+1; p.appendicesStatus='pending';
+    // 부록 내부의 3개 단위 중 실패한 것만 pending으로 되돌린다(완료된 것은 그대로 유지 — §1과 동일)
+    if(p.appendixItemStatus)p.appendixItemStatus=p.appendixItemStatus.map(function(s){return s==='failed'?'pending':s;});
+  }
   if(p.reviewStatus==='failed'){
     p.unitRetryCount.review=(p.unitRetryCount.review||0)+1; p.reviewStatus='pending';
     // review 내부의 8개 단위 중 실패한 것만 pending으로 되돌린다(완료된 것은 그대로 유지 — §1과 동일)
