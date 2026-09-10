@@ -1576,11 +1576,46 @@ function safeTitleText(v){
   ATLAS_BANNED_CLAIM_PATTERNS.forEach(function(pair){ pair[0].lastIndex=0; s=s.replace(pair[0],''); });
   return s.replace(/\s{2,}/g,' ').trim();
 }
+/* 2026-09-10 실사용 버그: .docx를 업로드하면 "제목 후보 생성 실패:
+   messages.0.content.0.document.source.base64.media_type : Input should be
+   'application/pdf'"가 떴다 — Anthropic Messages API의 document
+   content block은 base64 source일 때 media_type이 반드시 application/pdf여야
+   한다(PDF 전용 — .docx/.doc/.txt 등을 그 파일 자체의 MIME 타입으로 실어
+   보내는 요청은 애초에 API가 항상 거부해왔다. 파일이나 네트워크 문제가
+   아니다). PDF는 그대로 base64 document 블록으로 보내고, 그 외 텍스트
+   계열 문서는 텍스트만 뽑아 일반 text 블록으로 보낸다 — AI 입장에선 서식이
+   아니라 본문 텍스트만 필요하므로 내용 손실은 없다. .docx는 zip 압축
+   포맷이라 이미 로드된 JSZip으로 직접 풀어 word/document.xml에서 본문을
+   추출한다. */
+async function docxToText(f){
+  var buf=await f.arrayBuffer();
+  var zip=await JSZip.loadAsync(buf);
+  var xmlFile=zip.file('word/document.xml');
+  if(!xmlFile)throw new Error('올바른 .docx 파일이 아닙니다.');
+  var xml=await xmlFile.async('string');
+  var text=xml
+    .replace(/<w:p[ >]/g,'\n$&')
+    .replace(/<w:tab\/>/g,'\t')
+    .replace(/<[^>]+>/g,'')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+    .replace(/\n{3,}/g,'\n\n').trim();
+  if(!text)throw new Error('.docx 파일에서 텍스트를 추출하지 못했습니다.');
+  return text;
+}
 async function fileToApiBlock(f){
   var ext=(f.name.split('.').pop()||'').toLowerCase();
-  var b64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(f);});
-  var mimeMap={pdf:'application/pdf',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',doc:'application/msword',txt:'text/plain',md:'text/plain',html:'text/html',htm:'text/html',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation'};
-  return {type:'document',source:{type:'base64',media_type:mimeMap[ext]||f.type||'application/octet-stream',data:b64},title:f.name};
+  if(ext==='pdf'){
+    var b64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(f);});
+    return {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64},title:f.name};
+  }
+  if(ext==='docx'){
+    return {type:'text',text:'[문서: '+f.name+']\n\n'+(await docxToText(f))};
+  }
+  if(ext==='txt'||ext==='md'||ext==='html'||ext==='htm'){
+    var text2=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result);};r.onerror=rej;r.readAsText(f);});
+    return {type:'text',text:'[문서: '+f.name+']\n\n'+text2};
+  }
+  throw new Error('지원하지 않는 파일 형식입니다(.'+ext+'). PDF 또는 Word(.docx) 파일로 업로드해주세요.');
 }
 function currentInputSummary(){
   if(CV_MODE==='topic')return '주제: '+document.getElementById('topic-main').value.trim()+'\n대상: '+document.getElementById('topic-target').value.trim()+'\n요구사항: '+document.getElementById('topic-extra').value.trim();
