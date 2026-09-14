@@ -1261,13 +1261,31 @@ function sourceRoleOptions(selected){
   var roles=[['core','핵심 자료'],['reference','참고 자료'],['evidence','통계·근거'],['structure','구조 참고'],['tone','문체 참고']];
   return roles.map(function(r){return '<option value="'+r[0]+'"'+(selected===r[0]?' selected':'')+'>'+r[1]+'</option>';}).join('');
 }
+/* 2026-09-14 실사용 버그 — 이미지가 많은 PDF(예: 스크린샷 위주의 강의
+   자료)를 업로드하면 Anthropic API가 요청 크기 한도(약 32MB, base64
+   인코딩 후 기준)를 넘겼다며 413(Content Too Large)로 거부하는데, 이
+   에러 응답에는 CORS 허용 헤더가 안 붙어 있어서 브라우저가 이를 "CORS
+   정책 위반"으로 잘못 표시하고, 결국 사용자에게는 "네트워크 오류로 AI
+   서버에 연결하지 못했습니다"라는 전혀 다른(원인을 알 수 없는) 메시지로
+   보였다 — 실제 원인(파일이 너무 큼)을 업로드 시점에 미리 걸러 명확하게
+   안내한다(Never Guess — 실패를 겪고 나서야 알게 하지 않는다). base64는
+   원본 대비 약 4/3배로 커지므로, 원본 20MB면 인코딩 후 약 26.7MB로
+   32MB 한도 안에 안전하게 들어온다. */
+var MAX_UPLOAD_FILE_SIZE_BYTES = 20*1024*1024;
+function tooLargeMsg(f){
+  return f.name+' 파일이 너무 큽니다('+(f.size/1024/1024).toFixed(1)+'MB) — AI가 한 번에 처리할 수 있는 용량(약 20MB)을 넘었습니다. 파일을 압축하거나 페이지 수·이미지를 줄여 다시 업로드해주세요.';
+}
 function addMultiFiles(fileList){
   var allowedExt=['pdf','docx','doc','txt','md','html','htm','pptx'];
   Array.from(fileList||[]).forEach(function(f){
     var ext=(f.name.split('.').pop()||'').toLowerCase();
     if(!allowedExt.includes(ext)){showToast('error',f.name+' 형식은 아직 지원하지 않습니다.');return;}
+    if(f.size>MAX_UPLOAD_FILE_SIZE_BYTES){showToast('error',tooLargeMsg(f),6000);return;}
     if(APP.multiFiles.length>=5){showToast('error','한 번에 최대 5개 파일을 권장·지원합니다.');return;}
     if(APP.multiFiles.some(function(x){return x.name===f.name&&x.size===f.size;}))return;
+    // 파일 각각은 한도 안에 들어와도 여러 개를 합치면 한 번의 API 요청에서 넘길 수 있다(§ 위 주석과 동일한 이유).
+    var totalAfter=APP.multiFiles.reduce(function(sum,x){return sum+x.size;},0)+f.size;
+    if(totalAfter>MAX_UPLOAD_FILE_SIZE_BYTES){showToast('error','첨부한 파일들의 총 용량이 너무 큽니다('+(totalAfter/1024/1024).toFixed(1)+'MB) — 합쳐서 약 20MB 이하가 되도록 파일 수를 줄여주세요.',6000);return;}
     APP.multiFiles.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,6),file:f,name:f.name,size:f.size,role:APP.multiFiles.length===0?'core':'reference',status:'준비 완료'});
   });
   renderMultiSources();checkCvReady();
@@ -1320,6 +1338,7 @@ function cvPick(f){
   var ext=f.name.split('.').pop().toLowerCase();
   var okExts=['pdf','docx','doc','txt','md','hwp'];
   if(!okExts.includes(ext)&&!allowed.includes(f.type)){showToast('error','Word(.docx), PDF 파일 지원합니다.');return;}
+  if(f.size>MAX_UPLOAD_FILE_SIZE_BYTES){showToast('error',tooLargeMsg(f),6000);return;}
   APP.selFile=f;
   document.getElementById('cv-dz').classList.add('has-file');
   var uicoEl=document.getElementById('cv-uico');uicoEl.innerHTML=window.AtlasIcons?AtlasIcons.svg('file',{size:30}):'';
