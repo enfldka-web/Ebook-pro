@@ -3855,6 +3855,14 @@ function downloadDocx(e){
       body+=divider();
     }
 
+    // ── 후기 요청 페이지 — 2026-09-14: 사용자 요청으로 모든 전자책 끝(부록
+    // 뒤, 저작권 앞)에 자동 추가. Preview(js/renderers.js renderCvEbook)와
+    // 같은 문구·같은 위치를 써서 Preview==Export를 지킨다.
+    body+=pageBreak();
+    body+=heading(L('reviewRequestTitle',market),2);
+    body+=textToParas(L('reviewRequestBody',market),24);
+    body+=divider();
+
     // ── 저작권
     var c2=e.copyright||{};
     body+=emptyLine(2);
