@@ -53,35 +53,55 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
      참고 — DB 조회만 함) 본인 키 모드에서 호출해도 안전하다. 본인 키가
      있으면 configured만 항상 true로 강제한다(AI 호출 자체는 서버의 Anthropic
      키 설정 여부와 무관하게 가능하므로). */
+  /* 2026-09-14 실사용 버그 — 본인 API 키를 이미 등록한 사용자가 "자료 분석 &
+     제목 후보 만들기"를 눌렀는데 "AI 서버가 실행되지 않았습니다"로 막혔다.
+     실제 원인은 Anthropic 호출과 무관한 /status 핑(구독/체험 여부만 확인하는
+     가벼운 DB 조회, server/image-gateway.js) 단 한 번이 실패해서였다 — 서버가
+     Render 같은 슬립형 호스팅에서 오래 유휴 상태였다가 막 깨어나는 중이면
+     첫 요청이 타임아웃/거부될 수 있는데, 이 실패가 세션 내내(다시 새로고침
+     하기 전까지) statusCache에 그대로 캐시돼 이후 모든 시도를 막아버렸다.
+     본인 키 여부와 무관하게 구독 확인 자체는 그대로 강제해야 하므로(그렇지
+     않으면 본인 키만으로 평생 무료 이용이 가능해지는 예전 버그가 재현됨)
+     이 체크를 없애는 대신, "실패해도 잠시 후 한 번 더 시도"하게 해 진짜
+     서버 다운과 일시적 콜드스타트를 구분한다(다른 Anthropic 호출에 이미 쓰고
+     있는 callGatewayWithParseRetry의 자동 재시도와 같은 철학). */
+  var STATUS_RETRY_MAX = 1;
+  var STATUS_RETRY_DELAY_MS = 3000;
+  function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
   G.refreshStatus = function(){
     var mine = ownKey();
     var url = new URL(BASE+'/status', window.AtlasGatewayBaseUrl.resolve()).href;
-    return fetch(url, { headers: authHeader() }).then(function(res){
-      return res.text().then(function(raw){
-        var body;
-        try{ body = JSON.parse(raw); }
-        catch(parseErr){
-          console.error('[AtlasAnthropicGateway] /status did not return JSON — wrong origin/port, or a different server is answering this URL.', { url: url, httpStatus: res.status, bodyPreview: raw.slice(0,200) });
-          throw parseErr;
+    function attempt(retryCount){
+      return fetch(url, { headers: authHeader() }).then(function(res){
+        return res.text().then(function(raw){
+          var body;
+          try{ body = JSON.parse(raw); }
+          catch(parseErr){
+            console.error('[AtlasAnthropicGateway] /status did not return JSON — wrong origin/port, or a different server is answering this URL.', { url: url, httpStatus: res.status, bodyPreview: raw.slice(0,200) });
+            throw parseErr;
+          }
+          if(!res.ok){
+            console.error('[AtlasAnthropicGateway] /status responded with a non-OK HTTP status.', { url: url, httpStatus: res.status, body: body });
+          }
+          return body;
+        });
+      }).then(function(body){
+        statusCache = { reachable:true, configured: mine?true:!!body.configured, checked:true, mode: mine?'own-key':'gateway', trialUsed: !!body.trialUsed, subscribed: !!body.subscribed };
+        return statusCache;
+      }).catch(function(err){
+        if(retryCount < STATUS_RETRY_MAX){
+          console.warn('[AtlasAnthropicGateway] /status 확인 실패 — 서버가 막 깨어나는 중일 수 있어 '+STATUS_RETRY_DELAY_MS+'ms 후 자동으로 한 번 더 시도합니다.', err && err.message);
+          return sleep(STATUS_RETRY_DELAY_MS).then(function(){ return attempt(retryCount+1); });
         }
-        if(!res.ok){
-          console.error('[AtlasAnthropicGateway] /status responded with a non-OK HTTP status.', { url: url, httpStatus: res.status, body: body });
-        }
-        return body;
+        console.error('[AtlasAnthropicGateway] gateway unreachable at '+url+' — is `node server/image-gateway.js` actually the process serving THIS page (same host:port)?', err && err.message);
+        /* 서버(구독/체험 판단의 유일한 기준)에 물어볼 수 없으면, 본인 키가
+           있더라도 구독 여부를 확인 못 한 것이므로 낙관적으로 열어주지 않는다
+           (안전한 기본값 = 막힘). */
+        statusCache = { reachable:false, configured:false, checked:true, mode: mine?'own-key':'gateway', trialUsed:false, subscribed:false };
+        return statusCache;
       });
-    }).then(function(body){
-      statusCache = { reachable:true, configured: mine?true:!!body.configured, checked:true, mode: mine?'own-key':'gateway', trialUsed: !!body.trialUsed, subscribed: !!body.subscribed };
-      return statusCache;
-    }).catch(function(err){
-      console.error('[AtlasAnthropicGateway] gateway unreachable at '+url+' — is `node server/image-gateway.js` actually the process serving THIS page (same host:port)?', err && err.message);
-      /* 서버(구독/체험 판단의 유일한 기준)에 물어볼 수 없으면, 본인 키가
-         있더라도 구독 여부를 확인 못 한 것이므로 낙관적으로 열어주지 않는다
-         (안전한 기본값 = 막힘). 실제로 진짜 로그인 상태에서 이 경로를 타는
-         일은 거의 없다 — 이 화면에 도달하려면 이미 로그인에 성공했어야
-         하므로, 백엔드가 그 사이에 갑자기 응답을 못 하는 드문 경우만 해당. */
-      statusCache = { reachable:false, configured:false, checked:true, mode: mine?'own-key':'gateway', trialUsed:false, subscribed:false };
-      return statusCache;
-    });
+    }
+    return attempt(0);
   };
   G.getStatusCache = function(){ return statusCache; };
   G.isConfigured = function(){ return !!statusCache.configured; };
