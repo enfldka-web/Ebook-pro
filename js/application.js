@@ -1719,7 +1719,14 @@ async function generateTitlesFromSmartAnalysis(skipped){
     var obj=window.AtlasIncrementalEbookEngine.robustJsonParse(raw,'{','}','titles-interview');
     APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.titleAnalysis=obj.analysis||APP.smartAnalysis||{};APP.selectedTitleIndex=0;var si=document.getElementById('cv-interview-state');if(si)si.style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title');atlasSetSimpleStep(2);window.scrollTo(0,0);
   }catch(e){
-    if(e.gatewayUnreachable){showToast('error','AI 서버가 실행되지 않았습니다.');}
+    /* 2026-09-14 버그 수정 — gatewayUnreachable은 두 군데서 던져지는데
+       (anthropic-gateway-client.js: 본인 키가 있으면 Anthropic 직접 호출
+       실패, 없으면 Atlas 로컬 게이트웨이 접속 실패) 각각 상황에 맞는
+       한글 메시지가 이미 e.message에 담겨 있다 — 여기서 "AI 서버가
+       실행되지 않았습니다"로 고정해버리면 본인 키(BYOK)로 Anthropic에
+       직접 연결하다 실패한 경우에도 마치 Atlas 서버 문제인 것처럼 보여
+       원인 파악이 안 됐다. */
+    if(e.gatewayUnreachable){showToast('error',e.message);}
     else{atlasShowJsonParseErrorToast(e,'제목 후보 생성 실패: ');}
   }finally{
     if(btn){btn.disabled=false;btn.textContent=old||'답변 반영 & 제목 추천';}
@@ -1780,7 +1787,8 @@ ${titleGenerationRulesFor(market)}
     if(iv.needed&&APP.interviewQuestions.length){APP.titleCandidates=[];renderSmartInterview(iv.reason);}
     else{APP.titleCandidates=(obj.titles||[]).map(function(t){t.title=safeTitleText(t.title);t.subtitle=safeTitleText(t.subtitle);return t;});APP.selectedTitleIndex=0;document.getElementById('cv-upload-state').style.display='none';document.getElementById('cv-title-state').style.display='';renderTitleStudio();atlasSetWorkspaceStage('title',{coach:'자료가 충분해 추가 질문 없이 프리미엄 제목 후보를 완성했습니다.'});atlasSetSimpleStep(2);window.scrollTo(0,0);}
   }catch(e){
-    if(e.gatewayUnreachable){showToast('error','AI 서버가 실행되지 않았습니다.');}
+    // 2026-09-14 버그 수정 — 위 generateTitlesFromSmartAnalysis와 같은 이유로 e.message를 그대로 쓴다(BYOK 직접 연결 실패를 Atlas 서버 문제로 잘못 표시하지 않기 위해).
+    if(e.gatewayUnreachable){showToast('error',e.message);}
     else{atlasShowJsonParseErrorToast(e,'제목 후보 생성 실패: ');}
     /* 실패 시 상단 워크스페이스 배지를 분석 중 상태에 방치하면 버튼은 다시
        눌러도 실제로 재시도되지만 화면은 계속 멈춰 있는 것처럼 보인다(실제
@@ -2153,7 +2161,12 @@ async function continueEbookPipeline(){
        있음, 예: incremental-ebook-engine.js의 JSON 파싱 실패)를 그대로 노출하지
        않는다 — 있으면 friendlyMessage(쉬운 한글 설명)를 우선 쓴다. 기존 e.message
        fallback은 friendlyMessage가 없는 다른 에러 타입과의 하위 호환을 위해 유지. */
-    p.errorMessage=e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':(e.friendlyMessage||e.message||'알 수 없는 오류가 발생했습니다.');
+    /* 2026-09-14 버그 수정 — gatewayUnreachable 에러는 이미 e.message에
+       상황에 맞는 정확한 한글 메시지를 담고 있다(본인 키로 Anthropic 직접
+       연결 실패 vs Atlas 로컬 게이트웨이 접속 실패, anthropic-gateway-
+       client.js 참고) — 여기서 "AI 서버가 실행되지 않았습니다"로 덮어쓰면
+       BYOK 사용자에게는 원인이 아닌 메시지가 표시된다. */
+    p.errorMessage=e.friendlyMessage||e.message||'알 수 없는 오류가 발생했습니다.';
     if(!p.outline){
       p.failedUnitId='outline';
     }else{
@@ -3126,7 +3139,12 @@ async function retryFailedChapter(i){
        있음, 예: incremental-ebook-engine.js의 JSON 파싱 실패)를 그대로 노출하지
        않는다 — 있으면 friendlyMessage(쉬운 한글 설명)를 우선 쓴다. 기존 e.message
        fallback은 friendlyMessage가 없는 다른 에러 타입과의 하위 호환을 위해 유지. */
-    p.errorMessage=e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':(e.friendlyMessage||e.message||'알 수 없는 오류가 발생했습니다.');
+    /* 2026-09-14 버그 수정 — gatewayUnreachable 에러는 이미 e.message에
+       상황에 맞는 정확한 한글 메시지를 담고 있다(본인 키로 Anthropic 직접
+       연결 실패 vs Atlas 로컬 게이트웨이 접속 실패, anthropic-gateway-
+       client.js 참고) — 여기서 "AI 서버가 실행되지 않았습니다"로 덮어쓰면
+       BYOK 사용자에게는 원인이 아닌 메시지가 표시된다. */
+    p.errorMessage=e.friendlyMessage||e.message||'알 수 없는 오류가 발생했습니다.';
     persistEbookProgress();
     renderEbookProgressUI();
     showToast('error','챕터 재생성 실패: '+p.errorMessage,5000);
@@ -3149,22 +3167,23 @@ function cancelIncrementalEbookGeneration(){
 async function startGenerate(titleLocked){
   if(!titleLocked||!APP.lockedTitle){openTitleStudio();return;}
   var gw=atlasGatewayStatus();
-  if(gw.checked&&!gw.reachable){
-    showToast('error','AI 서버가 실행되지 않았습니다.');
+  /* 2026-09-14 버그 수정 — 본인 API 키(BYOK) 여부 확인이 gw.reachable 체크
+     "뒤"에 있어서, 이미 본인 키를 등록한 사용자도 구독/체험 확인용 /status
+     핑이 일시적으로 실패하면(예: 서버 콜드스타트) 이 앞의 체크에서 먼저
+     걸려 "AI 서버가 실행되지 않았습니다"를 봤다(openTitleStudio()와 동일한
+     버그, 같은 기준으로 순서를 맞춘다 — 본인 키 유무부터 먼저 확인). */
+  var hasOwnKey=!!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
+  if(!hasOwnKey){
+    showApiKeyRequiredPopup();
     return;
   }
-  if(gw.checked&&gw.reachable&&!gw.configured){
+  if(gw.checked&&!gw.reachable){
+    showToast('error','구독/체험 확인 서버에 일시적으로 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    return;
+  }
+  if(gw.checked&&gw.reachable&&!gw.configured&&!hasOwnKey){
     showApp('settings');
     showToast('error','서버에 API 키가 설정되지 않았습니다.');
-    return;
-  }
-  /* 2026-09-02: "본인 API 키 필수" 전환 — canGenerate()가 false를 반환하는
-     이유가 "키가 없어서"인지 "구독/체험이 소진돼서"인지에 따라 다른 안내를
-     보여준다. 키가 없으면(더 근본적인 조건) 구독 유도 팝업이 아니라 키 등록
-     안내부터 보여준다 — 이미 구독 중인 사용자에게 "구독해주세요"라고 잘못
-     안내하면 안 되기 때문이다. */
-  if(!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey())){
-    showApiKeyRequiredPopup();
     return;
   }
   // 무료 체험 모드별 생성 횟수 체크
