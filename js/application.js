@@ -1729,8 +1729,19 @@ async function generateTitlesFromSmartAnalysis(skipped){
 async function openTitleStudio(isRetry){
   atlasSetWorkspaceStage('upload');
   var gw=atlasGatewayStatus();
-  if(gw.checked&&!gw.reachable){showToast('error','AI 서버가 실행되지 않았습니다.');return;}
-  if(gw.checked&&gw.reachable&&!gw.configured){showApp('settings');showToast('error','서버에 API 키가 설정되지 않았습니다.');return;}
+  /* 2026-09-14 실사용 버그 수정 — 이 함수의 게이트가 "본인 API 키(BYOK) 필수"
+     전환 이전 방식 그대로 남아 있어서, 이미 본인 키를 등록한 사용자가
+     /status(실제 생성과 무관한 구독/체험 확인용 DB 조회) 핑이 일시적으로
+     실패했을 때 "AI 서버가 실행되지 않았습니다"라는 부정확한 메시지를 봤다
+     (실제로는 AI 생성 자체와는 무관 — anthropic-gateway-client.js가 이제
+     이 핑을 한 번 자동 재시도하지만, 그래도 실패하면 여기서 정확한 문구를
+     보여줘야 한다). checkCvReady()/showApiKeyRequiredPopup()와 같은 기준으로
+     본인 키 여부부터 확인하도록 맞춘다. */
+  var hasOwnKey=!!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
+  var isAdmin=!!(APP.user && APP.user.isAdmin);
+  if(!hasOwnKey&&!isAdmin){ showApiKeyRequiredPopup(); return; }
+  if(gw.checked&&!gw.reachable){showToast('error','구독/체험 확인 서버에 일시적으로 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');return;}
+  if(gw.checked&&gw.reachable&&!gw.configured&&!hasOwnKey){showApp('settings');showToast('error','서버에 API 키가 설정되지 않았습니다.');return;}
   var market=APP.market||'kr';
   var btn=isRetry?document.getElementById('ts-retry-btn'):document.getElementById('cv-genbtn');
   var old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ 자료 분석 중...';}
