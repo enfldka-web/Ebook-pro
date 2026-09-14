@@ -86,8 +86,15 @@ function openAtlasPartialModal(){if(!APP.ebook){showToast('error','전자책을 
 async function runAtlasPartialRegeneration(){
  var type=document.getElementById('atlas-partial-type').value,dir=document.getElementById('atlas-partial-direction').value.trim(),btn=document.getElementById('atlas-partial-run');
  var gw=atlasGatewayStatus();
- if(gw.checked&&!gw.reachable){showToast('error','AI 서버가 실행되지 않았습니다.');return;}
- if(gw.checked&&gw.reachable&&!gw.configured){showToast('error','서버에 API 키가 설정되지 않았습니다.');return;}
+ /* 2026-09-14 버그 수정 — 이 함수가 "본인 API 키(BYOK) 필수" 전환 이전
+    방식 그대로 남아 있어 본인 키 여부를 전혀 확인하지 않았다(openTitleStudio/
+    startGenerate와 같은 버그). 키가 없으면 API 키 필요 팝업으로, 키는
+    있는데 구독확인 서버(/status)만 문제면 정확한 메시지로 안내한다. */
+ var hasOwnKey=!!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
+ var isAdmin=!!(APP.user && APP.user.isAdmin);
+ if(!hasOwnKey&&!isAdmin){ if(typeof showApiKeyRequiredPopup==='function')showApiKeyRequiredPopup(); return; }
+ if(gw.checked&&!gw.reachable){showToast('error','구독/체험 확인 서버에 일시적으로 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');return;}
+ if(gw.checked&&gw.reachable&&!gw.configured&&!hasOwnKey){showToast('error','서버에 API 키가 설정되지 않았습니다.');return;}
  btn.disabled=true;btn.textContent='생성 중...';
  var E=window.AtlasIncrementalEbookEngine;
  var isChapter=type.indexOf('chapter:')===0;
@@ -171,7 +178,8 @@ async function runAtlasPartialRegeneration(){
    var m=document.getElementById('atlas-partial-modal');if(m)m.remove();
    showToast('success','선택한 부분만 새로 만들었습니다.');
  }catch(e){
-   showToast('error',e.gatewayUnreachable?'AI 서버가 실행되지 않았습니다.':'부분 수정 실패: '+e.message,5000);
+   // 2026-09-14 버그 수정 — gatewayUnreachable도 e.message에 이미 정확한 한글 메시지가 있다(BYOK 직접 연결 실패를 Atlas 서버 문제로 잘못 표시하지 않기 위해 그대로 쓴다).
+   showToast('error','부분 수정 실패: '+e.message,5000);
  }finally{
    btn.disabled=false;btn.textContent='선택 부분 다시 생성';
  }
