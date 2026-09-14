@@ -285,9 +285,25 @@ function pgFooter(bookTitle,copyrightLine){
     copyrightNoticeLabel:{kr:'저작권 및 법적 고지',global:'Copyright & Legal Notice'},
     titleLabel:{kr:'제목:',global:'Title:'},
     disclaimerLabel:{kr:'면책 조항:',global:'Disclaimer:'},
-    copyrightBoilerplate:{kr:'이 전자책은 저작권법의 보호를 받습니다. PLR 원본을 한국 시장에 맞게 재창작하였습니다.',global:'This ebook is protected by copyright law.'}
+    copyrightBoilerplate:{kr:'이 전자책은 저작권법의 보호를 받습니다. PLR 원본을 한국 시장에 맞게 재창작하였습니다.',global:'This ebook is protected by copyright law.'},
+    /* 2026-09-14: 사용자 요청 — 모든 전자책 끝(부록 뒤, 뒷표지 앞)에 후기
+       요청 페이지를 자동으로 넣는다. 특정 보너스/선물을 약속하지 않는
+       버전으로 결정(사용자 확인) — Atlas가 모든 판매자를 대신해 "선물을
+       드리겠다"는 이행 의무를 자동으로 만들어버리면, 실제로 그걸 준비 안
+       해둔 판매자에게 신뢰 문제가 생길 수 있기 때문. AI가 생성하지 않는
+       고정 문구라 이 파일(렌더러)과 downloadDocx(js/application.js)
+       둘 다에서 market에 따라 그대로 재사용한다(Preview==Export). */
+    reviewRequestEyebrow:{kr:'마치며',global:'BEFORE YOU GO'},
+    reviewRequestTitle:{kr:'함께 만들어가는 이야기',global:'Before You Go'},
+    reviewRequestBody:{
+      kr:'여기까지 함께 와주셔서 진심으로 감사합니다.\n\n솔직히 말씀드리면, 이 자료를 만드는 내내 \'이게 정말 도움이 될까\' 하는 고민의 연속이었습니다.\n\n혹시 이 안의 내용 중 단 한 줄이라도 도움이 되셨다면, 그 마음을 짧은 후기로 남겨주시면 어떨까요.\n\n잘 쓴 글이 아니어도 괜찮습니다. "이 부분이 좋았다", "이렇게 활용해봤다" — 그 한 줄이면 충분합니다.\n\n그 후기 한 줄이, 제가 다음 자료를 더 정성껏 써내려갈 수 있는 진짜 원동력이 됩니다. 판매량보다도, 후기가 없으면 제가 제대로 만들고 있는 건지 확인할 길이 없거든요.\n\n당신에게 이 자료가 작은 도움이 되었다면, 저에게는 그 후기 한 줄이 다음 페이지를 쓰게 하는 힘이 됩니다.\n\n궁금한 점이나 막히는 부분이 있으시면 언제든 편하게 문의 주세요.',
+      global:"Thank you for making it all the way here — truly.\n\nHonestly, while making this, I kept asking myself over and over: will this actually help anyone?\n\nIf even one part of this genuinely helped you, would you consider leaving a short review?\n\nIt doesn't need to be polished. \"This part helped,\" \"here's how I used it\" — that's more than enough.\n\nThat one line becomes the real reason I sit down and write the next resource with even more care. More than sales, without reviews I have no way of knowing whether I'm actually doing this right.\n\nIf this gave you even a small bit of help, your review is what gives me the push to write the next page.\n\nIf you have any questions or get stuck anywhere, feel free to reach out anytime."
+    }
   };
   function L(key,market){ var e2=EBOOK_UI_LABELS[key]; return e2 ? (market==='global'?e2.global:e2.kr) : ''; }
+  function reviewRequestBodyHtml(market){
+    return L('reviewRequestBody',market).split('\n\n').map(function(p){ return '<p>'+x(p)+'</p>'; }).join('');
+  }
 
 function renderCvEbook(e){
   var market=e.market||'kr';
@@ -478,6 +494,11 @@ function renderCvEbook(e){
       pages.push(apHtml);
     }
   }
+  // 후기 요청 페이지 — 2026-09-14: 사용자 요청으로 모든 전자책 끝(부록 뒤,
+  // 뒷표지 앞)에 자동으로 추가. AI가 생성하지 않는 고정 문구.
+  pages.push('<div class="pg inn"><div class="ey">'+ebIcon('sparkle',12)+' '+L('reviewRequestEyebrow',market)+'</div><div class="sh">'+x(L('reviewRequestTitle',market))+'</div>'
+    +'<div class="chb">'+reviewRequestBodyHtml(market)+'</div>'
+    +nextFooter()+'</div>');
   // 뒷표지 — 표지와 같은 계열의 아트워크 페이지, 러닝 푸터 없음
   // 2026-08-12: 연락처(c.contact) 노출 줄 삭제(사용자 요청 — 연락처는 어디에도
   // 남기지 않는다).
