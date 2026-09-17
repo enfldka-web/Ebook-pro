@@ -554,11 +554,39 @@ window.addEventListener('load',function(){
     if(APP.user)APP.user.subscriptionStatus='active';
     if(typeof refreshAtlasGatewayStatus==='function')refreshAtlasGatewayStatus();
     if(typeof renderSettings==='function'&&document.getElementById('set-plan-badge'))renderSettings();
-    showToast('success','구독이 시작되었습니다! 이제 무제한으로 이용하실 수 있습니다.');
+    showSubscriptionCompleteModal();
   }).catch(function(){
     showToast('error','구독 처리 중 서버에 연결하지 못했습니다.');
   });
 });
+/* 2026-09-17: 사용자 요청 — "결제완료 화면"이 토스트(잠깐 떴다 사라짐)뿐이라
+   화면으로 남기거나 캡처하기 어려웠다(토스페이먼츠 심사용 결제경로 캡처에도
+   필요). 실제 결제/구독 확정 이후이므로 사라지지 않는 확인 팝업(모달)을
+   추가로 띄운다 — 토스트는 그대로 유지(다른 화면에서도 이미 초기 알림으로
+   충분히 쓰이고 있어 제거하지 않음, Never-Delete), 모달만 새로 추가.
+   기존 모달 패턴(.atlas-modal-bg/.atlas-modal, openDeleteAccountModal()과
+   동일)을 그대로 재사용 — 새 팝업 시스템을 만들지 않는다. */
+function showSubscriptionCompleteModal(){
+  var bg=document.createElement('div');
+  bg.className='atlas-modal-bg';
+  bg.id='atlas-subscription-complete-modal';
+  bg.innerHTML='<div class="atlas-modal" style="text-align:center">'
+    +'<div style="font-size:44px;line-height:1;margin-bottom:14px">✅</div>'
+    +'<h3>결제가 완료되었습니다</h3>'
+    +'<p>구독이 시작되었습니다! 이제 Atlas의 모든 기능을 무제한으로 이용하실 수 있습니다.</p>'
+    +'<div style="background:var(--a2-bg,#f7f7f9);border:1px solid var(--a2-border);border-radius:var(--a2-r-sm);padding:14px 16px;margin-bottom:15px;text-align:left;font-size:13px;color:var(--a2-text)">'
+      +'<div style="display:flex;justify-content:space-between;padding:4px 0"><span>상품명</span><strong>Atlas AI eBook Studio 구독</strong></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:4px 0"><span>결제 금액</span><strong>월 ₩29,000</strong></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:4px 0"><span>결제 수단</span><strong>신용/체크카드 (토스페이먼츠)</strong></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:4px 0"><span>결제 상태</span><strong style="color:#16a34a">승인 완료</strong></div>'
+    +'</div>'
+    +'<div class="atlas-modal-actions" style="justify-content:center">'
+      +'<button class="a2-btn a2-btn-primary" onclick="document.getElementById(\'atlas-subscription-complete-modal\').remove()">확인</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(bg);
+  if(window.AtlasIcons)AtlasIcons.applyAll(bg);
+}
 
 function getTrialCount(){
   try{var t=localStorage.getItem('plrbooks_trial');return t?JSON.parse(t):{file:0,topic:0,url:0,multi:0,text:0,sales:0};}
