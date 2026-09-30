@@ -191,11 +191,23 @@ function atlasResumeDraft(){showApp('converter');atlasLoadDraft(true);}
    없는 사용자는 이 체크에서 제외한다(API 키 문제와 무료체험 문제는 서로 다른
    원인이라 다른 안내가 필요하고, 키가 없는 사용자에 대한 안내는 기존처럼 이후
    단계에서 그대로 이루어진다 — 여기서 성급하게 "구독하세요"로 잘못 안내하지
-   않는다). */
-function startNewEbookProject(){
+   않는다).
+
+   2026-09-30 버그 수정 — 위 가드를 처음엔 getStatusCache()(마지막으로 받아둔
+   캐시값)로 판단했는데, 실사용에서 하드 리프레시 직후 "새 전자책"을 바로
+   누르면 팝업이 뜨지 않는 게 재현됐다. 원인은 경쟁 상태(race condition) —
+   로그인 직후 renderAppShell()이 refreshAtlasGatewayStatus()를 결과를
+   기다리지 않고 그냥 호출만 해두는데(비동기, 완료 시점 보장 없음), 그 응답이
+   아직 서버에서 돌아오기 전에 사용자가 재빨리 "새 전자책"을 누르면 캐시가
+   아직 기본값(trialUsed:false)이라 방금 고친 가드도 무료체험이 남아있다고
+   잘못 판단해 그냥 통과시켰다. 캐시를 믿는 대신, 이 클릭 시점에 매번 새로
+   서버에 물어봐서(await) 그 결과로만 판단하면 이 경쟁 상태 자체가 사라진다
+   — 약간의 지연(보통 1초 미만)이 생기지만, 돈이 걸린 판단이라 정확성이
+   우선이다. */
+async function startNewEbookProject(){
   var hasOwnKey=!!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
   if(hasOwnKey){
-    var gw=window.AtlasAnthropicGateway?AtlasAnthropicGateway.getStatusCache():null;
+    var gw=window.AtlasAnthropicGateway ? await window.AtlasAnthropicGateway.refreshStatus() : null;
     if(gw && gw.trialUsed && !gw.subscribed){
       showTrialLimitPopup(CV_MODE);
       return;
@@ -1138,10 +1150,10 @@ function renderHistory(){
     /* startNewEbookProject()와 같은 무료체험 선확인 가드를 쓴다(2026-09-30) —
        다만 이 버튼은 저장된 초안이 있으면 그대로 이어서 볼 수 있어야 하므로
        resetConverter()는 호출하지 않는다(기존 동작 그대로 유지). */
-    btn.onclick=function(){
+    btn.onclick=async function(){
       var hasOwnKey=!!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
       if(hasOwnKey){
-        var gw=window.AtlasAnthropicGateway?AtlasAnthropicGateway.getStatusCache():null;
+        var gw=window.AtlasAnthropicGateway ? await window.AtlasAnthropicGateway.refreshStatus() : null;
         if(gw && gw.trialUsed && !gw.subscribed){ showTrialLimitPopup(CV_MODE); return; }
       }
       showApp('converter');
