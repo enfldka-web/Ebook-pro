@@ -1112,10 +1112,17 @@ ${writingStyleRules(market)}
      3개를 각각 챕터급으로 충실히 쓰면 16000도 넘길 수 있어서다(자동 재시도
      3회도 매번 같은 크기 문제로 똑같이 실패해 소용없었다). E.generateAppendices/
      buildAppendicesPrompt(위)는 하위 호환을 위해 그대로 두고, 실제 파이프라인
-     (js/application.js continueEbookPipeline)은 이 부록별 개별 호출로 전환한다
-     — 챕터 1개(9000)면 충분한 분량이므로 같은 값을 쓴다. */
+     (js/application.js continueEbookPipeline)은 이 부록별 개별 호출로 전환한다.
+
+     2026-09-30 버그 수정 — 부록 1개씩 쪼갠 뒤에도 max_tokens=9000(챕터와 동일)으로는
+     부족한 경우가 실제로 재현됐다(예: 체크리스트/템플릿 모음처럼 항목이 아주 많은
+     주제). window.__atlasLastRawResponse로 원문을 직접 확인해보니 응답이 문장
+     중간에서 그대로 잘려 있었다(진짜 truncation — 3회 자동 재시도도 매번 같은
+     길이에서 똑같이 잘려 소용없었다, PARSE_RETRY_MAX 재시도로는 근본적으로
+     못 고치는 종류의 실패). 부록 하나도 필요하면 목차/개요만큼 길어질 수 있으므로
+     그때와 같은 16000으로 올린다(claude-sonnet-4-6 최대 출력 128K 대비 여유 충분). */
   E.generateAppendix = function(outline, appendixIndex, market){
-    return callGatewayWithParseRetry(E.buildAppendixPrompt(outline, appendixIndex, market), 9000, 'appendices', market, '{', '}', 'appendix'+(appendixIndex+1));
+    return callGatewayWithParseRetry(E.buildAppendixPrompt(outline, appendixIndex, market), 16000, 'appendices', market, '{', '}', 'appendix'+(appendixIndex+1));
   };
 
   /* 서론+결론만 되돌려 받으므로 outline의 16000보다 훨씬 여유 있게 잡을 필요는
