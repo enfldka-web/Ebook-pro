@@ -367,7 +367,8 @@ function showApiKeyRequiredPopup(){
   inner.style.cssText='max-width:420px;text-align:center';
   inner.innerHTML='<div class="a2-icon-chip violet" data-icon="lock" style="margin:0 auto 16px"></div>'
     +'<h3 style="margin-bottom:8px">본인 Anthropic API 키가 필요합니다</h3>'
-    +'<p style="margin-bottom:24px">전자책 생성에 드는 AI 비용은 각 회원이 본인의 Anthropic API 키로 직접 부담합니다(구독료와는 별개).<br>설정 화면에서 키를 등록하면 바로 생성할 수 있습니다.</p>';
+    +'<p style="margin-bottom:16px">전자책 생성에 드는 AI 비용은 각 회원이 본인의 Anthropic API 키로 직접 부담합니다(구독료와는 별개).<br>설정 화면에서 키를 등록하면 바로 생성할 수 있습니다.</p>'
+    +'<p style="margin-bottom:24px;font-size:13px;color:var(--a2-text-muted)">API 키가 없으신가요? <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>에서 Anthropic 계정을 만들고, 결제 수단을 등록한 뒤 API 키를 발급받을 수 있습니다.</p>';
   var btn1=document.createElement('button');
   btn1.className='a2-btn a2-btn-primary';
   btn1.style.cssText='width:100%;margin-bottom:10px';
