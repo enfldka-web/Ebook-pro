@@ -179,8 +179,30 @@ function atlasRelativeTime(ts){
 function atlasResumeDraft(){showApp('converter');atlasLoadDraft(true);}
 /* 어느 화면/단계에 있든(같은 converter 섹션에 이미 머물러 있어도) 항상 실제로
    새 프로젝트 상태로 되돌리기 위해 showApp('converter') 전에 반드시 resetConverter()를
-   먼저 호출한다 — showApp()은 section이 이미 'converter'면 내부 상태를 리셋하지 않는다. */
-function startNewEbookProject(){resetConverter();showApp('converter');}
+   먼저 호출한다 — showApp()은 section이 이미 'converter'면 내부 상태를 리셋하지 않는다.
+
+   2026-09-30 사용자 지시 — 무료체험을 이미 다 쓴 사용자가 "새 전자책"을 눌러
+   STEP1(자료 업로드)·STEP2(제목 생성, Adaptive Interview 포함)까지 아무 제지 없이
+   진행한 뒤에야 STEP3 "전자책 생성" 버튼에서 처음 구독 안내를 보는 게 이상하다는
+   피드백 — 자료를 다 올리고 질문까지 답한 뒤에야 막히면 그동안의 입력이 헛수고가
+   된다. 실제 생성(canGenerate(), startGenerate() 내부)은 여전히 STEP3에서만
+   최종 확인하지만(그 사이 구독/체험 상태가 바뀔 수 있으므로 그 체크는 그대로 둔다),
+   "새 전자책"을 누르는 이 시점에도 먼저 확인해 처음부터 막는다. API 키가 아직
+   없는 사용자는 이 체크에서 제외한다(API 키 문제와 무료체험 문제는 서로 다른
+   원인이라 다른 안내가 필요하고, 키가 없는 사용자에 대한 안내는 기존처럼 이후
+   단계에서 그대로 이루어진다 — 여기서 성급하게 "구독하세요"로 잘못 안내하지
+   않는다). */
+function startNewEbookProject(){
+  var hasOwnKey=!!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
+  if(hasOwnKey){
+    var gw=window.AtlasAnthropicGateway?AtlasAnthropicGateway.getStatusCache():null;
+    if(gw && gw.trialUsed && !gw.subscribed){
+      showTrialLimitPopup(CV_MODE);
+      return;
+    }
+  }
+  resetConverter();showApp('converter');
+}
 function atlasBindDraftAutosave(){
  ['topic-main','topic-target','topic-extra','url-input','url-direction','url-extra','ms-notes','ms-direction'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.dataset.atlasBound){e.dataset.atlasBound='1';e.addEventListener('input',function(){atlasSetWorkspaceStage('upload',{coach:'입력 내용을 저장했습니다. 자료 분석을 시작하면 제목 후보를 만들 수 있습니다.'});});}});
 }
@@ -1113,7 +1135,17 @@ function renderHistory(){
     var btn=document.createElement('button');
     btn.className='a2-btn a2-btn-primary';
     btn.innerHTML='<span data-icon="plus"></span>첫 전자책 만들기';
-    btn.onclick=function(){showApp('converter');};
+    /* startNewEbookProject()와 같은 무료체험 선확인 가드를 쓴다(2026-09-30) —
+       다만 이 버튼은 저장된 초안이 있으면 그대로 이어서 볼 수 있어야 하므로
+       resetConverter()는 호출하지 않는다(기존 동작 그대로 유지). */
+    btn.onclick=function(){
+      var hasOwnKey=!!(window.AtlasUserApiKey && AtlasUserApiKey.hasAnthropicKey());
+      if(hasOwnKey){
+        var gw=window.AtlasAnthropicGateway?AtlasAnthropicGateway.getStatusCache():null;
+        if(gw && gw.trialUsed && !gw.subscribed){ showTrialLimitPopup(CV_MODE); return; }
+      }
+      showApp('converter');
+    };
     var es=he.querySelector('.a2-empty');if(es)es.appendChild(btn);
     if(window.AtlasIcons)AtlasIcons.applyAll(he);
     return;
