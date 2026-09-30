@@ -140,18 +140,27 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
     return r.body;
   }
 
-  /* V3 Phase 2 Round 32: 사용자 본인 Anthropic API 키로 api.anthropic.com을
-     브라우저에서 직접 호출한다(서버 없이 GitHub Pages만으로 동작). Anthropic이
-     공식 지원하는 "Bring Your Own Key" 브라우저 접근 방식 —
-     anthropic-dangerous-direct-browser-access 헤더가 없으면 Anthropic이 브라우저
-     Origin의 요청을 CORS로 차단한다(의도적인 이름 — "위험을 이해하고 직접 쓴다"는
-     동의 표시). 실패 응답은 Anthropic 원본 {type:'error', error:{type,message}}
-     모양이므로, Gateway 경로와 동일한 {error:{status,type,message,raw}}로 다시
-     감싸 handleResult()를 그대로 재사용한다. */
-  function generateDirect(payload, apiKey){
+  /* 2026-09-30 실사용 버그 — 본인 키(BYOK)로 부록 생성 중 요청이 "Pending"
+     상태로 10분 넘게 멈춰버렸다(개발자 도구 Network 탭에 계속 남아있고 응답도
+     에러도 없음 — 진짜 연결이 멎어버린 경우, Anthropic 서버가 느린 것과는
+     다르다). 이 direct 경로는 Gateway 경로(server/providers/anthropic-text-
+     provider.js generateWithRetry)와 달리 자동 재시도가 전혀 없어서, 이런 멎은
+     연결 하나를 만나면 CLIENT_TIMEOUT_MS(16분)를 실제로 다 기다려야만 실패로
+     끝났다 — 그마저도 "이어서 생성"을 사용자가 직접 눌러야 단 한 번 더
+     시도했는데, 그 재시도마저 다시 멎으면 또 16분을 기다려야 했다(실제
+     재현됨). 서버 쪽과 동일한 철학(429/5xx/timeout/network_error는 자동
+     재시도, backoff)을 이 direct 경로에도 그대로 적용해, 한 번의 "생성"
+     클릭 안에서 최대 2회까지 자동으로 다시 시도하게 한다 — 매 시도의
+     타임아웃은 짧게(5분) 잡아 멎은 연결을 더 빨리 포기하고 다음 시도로
+     넘어간다(무한정 기다리는 대신). */
+  var DIRECT_ATTEMPT_TIMEOUT_MS = 300000;
+  var DIRECT_MAX_RETRIES = 2;
+  var DIRECT_BASE_BACKOFF_MS = 1000;
+
+  function directAttemptOnce(payload, apiKey){
     var controller = ('AbortController' in window) ? new AbortController() : null;
     var timedOut = false;
-    var timer = controller ? setTimeout(function(){ timedOut = true; controller.abort(); }, CLIENT_TIMEOUT_MS) : null;
+    var timer = controller ? setTimeout(function(){ timedOut = true; controller.abort(); }, DIRECT_ATTEMPT_TIMEOUT_MS) : null;
     return fetch(ANTHROPIC_DIRECT_URL, {
       method: 'POST',
       headers: {
@@ -162,22 +171,48 @@ window.AtlasAnthropicGateway = window.AtlasAnthropicGateway || {};
       },
       body: JSON.stringify({ model: payload.model, max_tokens: payload.max_tokens, system: payload.system, messages: payload.messages }),
       signal: controller ? controller.signal : undefined
-    }).catch(function(err){
-      if(timedOut){
-        var te = new Error('AI 응답이 너무 오래 걸려 요청을 중단했습니다. 다시 시도해주세요.');
-        te.gatewayTimeout = true;
-        throw te;
-      }
-      console.error('[AtlasAnthropicGateway] direct Anthropic call failed (network)', err && err.message);
-      var e = new Error('네트워크 오류로 AI 서버(Anthropic)에 연결하지 못했습니다. 인터넷 연결을 확인해주세요.');
-      e.gatewayUnreachable = true;
-      throw e;
     }).then(function(res){
       if(timer)clearTimeout(timer);
       return res.json().then(function(body){ return { ok: res.ok, status: res.status, body: body }; }).catch(function(){
         return { ok: res.ok, status: res.status, body: null };
       });
-    }).then(function(r){
+    }).catch(function(err){
+      if(timer)clearTimeout(timer);
+      if(timedOut){
+        throw Object.assign(new Error('timeout'), { code:'timeout' });
+      }
+      throw Object.assign(new Error('network_error'), { code:'network_error', cause: err });
+    });
+  }
+
+  /* V3 Phase 2 Round 32: 사용자 본인 Anthropic API 키로 api.anthropic.com을
+     브라우저에서 직접 호출한다(서버 없이 GitHub Pages만으로 동작). Anthropic이
+     공식 지원하는 "Bring Your Own Key" 브라우저 접근 방식 —
+     anthropic-dangerous-direct-browser-access 헤더가 없으면 Anthropic이 브라우저
+     Origin의 요청을 CORS로 차단한다(의도적인 이름 — "위험을 이해하고 직접 쓴다"는
+     동의 표시). 실패 응답은 Anthropic 원본 {type:'error', error:{type,message}}
+     모양이므로, Gateway 경로와 동일한 {error:{status,type,message,raw}}로 다시
+     감싸 handleResult()를 그대로 재사용한다. */
+  function generateDirect(payload, apiKey){
+    function attempt(retryCount){
+      return directAttemptOnce(payload, apiKey).catch(function(err){
+        if(retryCount < DIRECT_MAX_RETRIES){
+          var backoff = DIRECT_BASE_BACKOFF_MS * Math.pow(2, retryCount);
+          console.warn('[AtlasAnthropicGateway] direct Anthropic 호출 '+err.code+' — '+backoff+'ms 후 자동으로 다시 시도합니다 ('+(retryCount+1)+'/'+DIRECT_MAX_RETRIES+')');
+          return new Promise(function(res){ setTimeout(res, backoff); }).then(function(){ return attempt(retryCount+1); });
+        }
+        if(err.code==='timeout'){
+          var te = new Error('AI 응답이 너무 오래 걸려 요청을 중단했습니다('+DIRECT_MAX_RETRIES+'회 자동 재시도 포함). 다시 시도해주세요.');
+          te.gatewayTimeout = true;
+          throw te;
+        }
+        console.error('[AtlasAnthropicGateway] direct Anthropic call failed (network)', err.cause && err.cause.message);
+        var e = new Error('네트워크 오류로 AI 서버(Anthropic)에 연결하지 못했습니다('+DIRECT_MAX_RETRIES+'회 자동 재시도 포함). 인터넷 연결을 확인해주세요.');
+        e.gatewayUnreachable = true;
+        throw e;
+      });
+    }
+    return attempt(0).then(function(r){
       if(r.ok) return r;
       var anthropicError = (r.body && r.body.error) || {};
       var friendly = anthropicError.type==='authentication_error' ? '설정에 입력하신 Anthropic API 키가 올바르지 않습니다. 키를 다시 확인해주세요.'
