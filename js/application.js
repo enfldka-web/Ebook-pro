@@ -2072,12 +2072,22 @@ async function continueEbookPipeline(){
       p.outline=outline;
       p.chapterStatus=new Array(7).fill('pending');
       p.unitTimestamps.outline=Date.now();
-      /* outline 호출이 성공하는 순간 서버 DB의 trial_used가 true로 바뀐다
-         (server/image-gateway.js). 여기서 클라이언트 캐시를 바로 갱신해두지
-         않으면, 같은 세션 안에서 바로 두 번째 전자책을 시도할 때 canGenerate()가
-         여전히 예전 값(false)을 보고 구독 팝업 없이 그냥 생성을 시작해버린다
-         (실제 재현된 버그). */
-      if(typeof refreshAtlasGatewayStatus==='function')refreshAtlasGatewayStatus();
+      /* 2026-09-30 버그 수정 — 실사용에서 재현됨: "본인 API 키(BYOK) 필수" 전환
+         이후 일반 회원의 outline 호출은 브라우저가 본인 키로 api.anthropic.com을
+         직접 호출한다(generateDirect) — Atlas 서버를 아예 거치지 않는다. 그런데
+         "outline 성공 시 trial_used=true로 표시"하는 코드는 서버의 /generate
+         라우트 안에만 있었고, 그 라우트는 BYOK 전환 이후 관리자 계정만 도달할
+         수 있게 막혀 있었다(server/image-gateway.js) — 그 결과 일반 회원은
+         책을 몇 권을 만들어도 서버가 그 사실을 전혀 몰라 무료체험이 영원히
+         "미사용" 상태로 남고, "1회 → 구독 유도" 흐름이 작동하지 않았다(실제
+         재현: 무료체험 계정으로 두 번째 책이 막힘 없이 생성됨). outline 호출이
+         서버를 거치지 않는 이상, 클라이언트가 성공을 직접 서버에 알려야 한다
+         — 전용 엔드포인트(mark-trial-used)로 먼저 알린 뒤, 그 갱신된 값을
+         다시 읽어와야 바로 다음 시도부터 canGenerate()가 정확히 판단한다.
+         이 알림이 실패해도(네트워크 일시 오류 등) 방금 생성한 책 자체는
+         막지 않는다 — 사용자 경험보다 우선순위가 낮은 부수 효과이므로. */
+      try{ await atlasAuthFetch('/api/anthropic-gateway/mark-trial-used',{method:'POST'}); }catch(markErr){ console.warn('[incremental-ebook] mark-trial-used 알림 실패(무시하고 계속 진행)', markErr&&markErr.message); }
+      if(typeof refreshAtlasGatewayStatus==='function')await refreshAtlasGatewayStatus();
       persistEbookProgress();
       renderEbookProgressUI();
     }

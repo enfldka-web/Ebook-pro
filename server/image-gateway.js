@@ -269,6 +269,37 @@ function createApp(opts){
     });
   });
 
+  /* 2026-09-30 버그 수정 — 실사용에서 재현됨: "본인 API 키(BYOK) 필수" 전환
+     이후, 무료체험 1회 사용 여부를 users.trial_used=true로 표시하는 코드가
+     오직 /api/anthropic-gateway/generate의 outline 처리 안에만 있었다(아래,
+     callType==='outline'일 때). 그런데 바로 위 주석(§BYOK)에 적혀 있듯 이
+     라우트는 이제 ADMIN_EMAILS 계정만 도달할 수 있고, 일반 회원의 실제 outline
+     호출은 브라우저가 본인 키로 api.anthropic.com을 "직접" 호출한다
+     (js/anthropic-gateway-client.js generateDirect) — 이 서버를 전혀 거치지
+     않는다. 그 결과 일반 회원은 책을 몇 권을 만들어도 DB의 trial_used가
+     영원히 false로 남아 "무료체험 1회 → 구독 유도" 흐름 자체가 작동하지
+     않고 있었다(실사용자가 두 번째 책을 무료체험 상태로 막힘 없이 생성한
+     것으로 재현). outline 호출이 서버를 거치지 않는 이상, 클라이언트가
+     성공을 직접 서버에 알려줘야 한다 — 그래서 이 전용 엔드포인트를 추가하고
+     (js/application.js continueEbookPipeline, outline 성공 직후) 호출한다.
+     본인 토큰으로만 "자기 자신의" trial_used만 true로 바꿀 수 있어 악용
+     여지가 없다(자기 자신에게 불리한 조작만 가능). */
+  app.post('/api/anthropic-gateway/mark-trial-used', function(req, res){
+    if(!authConfigured()) return res.status(503).json({ error: { message:'회원 인증이 아직 설정되지 않았습니다.', code:'not_configured' } });
+    var userId = verifyAuthHeader(req);
+    if(!userId) return res.status(401).json({ error: { message:'로그인이 필요합니다.', code:'unauthorized' } });
+    dbReady.then(function(){
+      if(!db) throw { httpStatus: 503, message:'DB 연결에 실패했습니다.', code:'db_unavailable' };
+      return db.query('UPDATE users SET trial_used=true WHERE id=$1', [userId]);
+    }).then(function(){
+      res.json({ ok: true });
+    }).catch(function(err){
+      if(err && err.httpStatus) return res.status(err.httpStatus).json({ error: { message: err.message, code: err.code } });
+      safeLog('mark-trial-used-error', { message: err && err.message });
+      res.status(500).json({ error: { message:'처리 중 오류가 발생했습니다.', code:'internal_error' } });
+    });
+  });
+
   /* 2026-08-21: /api/anthropic-gateway/generate 요청 빈도 제한 — 실제 SaaS
      출시 전 점검에서 발견된 공백. 구독 중이면 canGenerate()가 무제한 호출을
      허용하는데, 짧은 시간에 반복 호출을 막을 장치가 전혀 없어 비용 남용
